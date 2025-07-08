@@ -1,0 +1,47 @@
+[tool.poetry]
+name = "pybotchi"
+version = "1.0.0"
+description = "A deterministic, intent-based AI agent builder."
+authors = [
+  "Alexie (Boyong) Madolid <madolid.alexie@gmail.com>"
+]
+readme = "README.md"
+packages = [{include = "pybotchi"}]
+
+[tool.poetry.dependencies]
+python = "<4.0,>=3.13.0"
+pydantic = ">=2.0"
+orjson = ">=3.9.11"
+
+# langchain dependency to be removed
+# Should be optional
+langchain = "0.3.26"
+langchain-openai = "0.3.27"
+
+# fastapi dependency to be removed
+# Should be optional
+fastapi =  ">=0.109.0"
+
+# MCP dependenciesy to be removed
+# Should be optional
+mcp =  ">=1.9.2"
+datamodel-code-generator = ">=0.31.2"
+
+[tool.poetry.group.dev.dependencies]
+mypy = "1.16.1"
+python-dotenv = "1.1.1"
+black = "25.1.0"
+pre-commit = "4.2.0"
+pytest = "8.4.1"
+flake8 = "7.3.0"
+flake8-import-order = "0.19.2"
+flake8-docstrings = "1.7.0"
+flake8-comprehensions = "3.16.0"
+flake8-bugbear = "24.12.12"
+flake8-annotations = "3.1.1"
+flake8_simplify = "0.22.0"
+pep8-naming = "0.15.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
