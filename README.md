@@ -38,18 +38,20 @@ Pybotchi stays minimal with only **3 core classes**:
 
 ### 🔧 Everything is Overridable & Extendable
 
-**Maximum flexibility, zero lock-in.** Everything is designed to be overridable and extendable to foster a community where developers can publish their own Actions associated with specific Intents—enabling everyone to reuse or override them for their unique use cases. Currently, the default tool call invocation uses **LangChain's BaseChatModel**. But you're not stuck with it—override this function and use native SDKs like **OpenAI** directly.
+**Maximum flexibility, zero lock-in.** Everything is designed to be overridable and extendable to foster a community where developers can publish their own Actions associated with specific Intents—enabling everyone to reuse or override them for their unique use cases.
+
+Currently, the default tool call invocation uses **LangChain's BaseChatModel**. But you're not stuck with it—override this function and use native SDKs like **OpenAI** directly.
 
 ---
 
 ## 🚀 Let's Start with the Basics
 
-### **Prerequisite**
+### **🎯 Prerequisite**
 
-First, you need to import the LLM Class and set the base LLM to be used in Children Selection. You can use alternative frameworks other than LangChain, but you'll also need to override the child selection flow. We'll discuss that later.
+First, you need to import the LLM Class and set the base LLM to be used in Children Selection. You can use alternative frameworks other than LangChain, but you'll also need to override the child selection flow. **We'll discuss that later.**
 
 <details>
-  <summary>Add base LLM</summary>
+  <summary>⚙️ Add base LLM</summary>
 
 ```python
 from os import getenv
@@ -71,12 +73,12 @@ LLM.add(
 
 </details>
 
-### **Action 1: Mathematical Problem Solver**
+### **🧮 Action 1: Mathematical Problem Solver**
 
 This action handles mathematical problem-solving intents. It takes a mathematical problem, processes it, and returns the solution directly through the pre-process phase:
 
 <details>
-  <summary>Add MathProblem Action</summary>
+  <summary>🔢 Add MathProblem Action</summary>
 
 ```python
 from pybotchi import Action, ActionReturn, Context
@@ -94,12 +96,12 @@ class MathProblem(Action):
 
 </details>
 
-### **Action 2: Translation Service**
+### **🌍 Action 2: Translation Service**
 
 This action handles translation intents. It leverages the LLM to translate content and properly tracks usage metrics:
 
 <details>
-  <summary>Add Translation Action</summary>
+  <summary>🔄 Add Translation Action</summary>
 
 ```python
 from pybotchi import Action, ActionReturn, Context
@@ -117,14 +119,14 @@ class Translation(Action):
 
 </details>
 
-This could already work on its own, but it's only one intent per action.
+**This could already work on its own, but it's only one intent which is the translation.**
 
-### **Creating a Multi-Intent Agent**
+### **🔀 Creating a Multi-Intent Agent**
 
 Now we'll merge these into a single Agent that can handle multiple intents:
 
 <details>
-  <summary>Build Agent</summary>
+  <summary>🤖 Build Agent</summary>
 
 ```python
 from pybotchi import Action, ActionReturn, Context
@@ -145,14 +147,14 @@ class Agent(Action):
 
 </details>
 
-### **How to Run It**
+### **🎬 How to Run It**
 
-You need to build your context. This includes chat history, metadata, and additional useful attributes. We also prioritize async because most AI agents are integrated in services, most commonly web services. Since most of the time we don't host LLMs, we are bound to call network requests which are IO Bound. This is the reason why we prioritize async.
+You need to build your context. This includes chat history, metadata, and additional useful attributes. **We also prioritize async because most AI agents are integrated in services, most commonly web services.** Since most of the time we don't host LLMs, we are bound to call network requests which are **IO Bound**. This is the reason why we prioritize async.
 
-There's a hard rule also on this library: **Context should always have the system prompt entry, even if it's empty content.** This is to have a more consistent way of controlling system prompt. Will give example later.
+There's a **hard rule** also on this library: **Context should always have the system prompt entry, even if it's empty content.** This is to have a more consistent way of controlling system prompt. Will give example later.
 
 <details>
-  <summary>Run the Agent</summary>
+  <summary>⚡ Run the Agent</summary>
 
 ```python
 from asyncio import run
@@ -184,7 +186,7 @@ run(test())
 </details>
 
 <details>
-  <summary><b>Results</b></summary>
+  <summary><b>✨ Results</b></summary>
 
 ```json
 [
@@ -260,7 +262,7 @@ run(test())
     ],
     "actions": [
         {
-            "name": "MathProblem",
+                "name": "MathProblem",
             "args": {
                 "answer": "4 x 4 = 16"
             },
@@ -299,136 +301,176 @@ run(test())
 
 ---
 
-## 🔄 Core Process
+## **🔄 Understanding the Action Life Cycle**
 
 ![Action Life Cycle](docs/action-life-cycle.png "Action Life Cycle")
 
-### **Understanding the Action Life Cycle**
+Every **Action** operates through **five core phases**:
 
-Every Action has **five core phases**: pre-process, children selection, children execution, fallback, and post-process.
+1. **Pre-Process** (Preparation)
+2. **Children Selection** (Intent Detection)
+3. **Children Execution** (Action Processing)
+4. **Fallback** (Optional Response Handling)
+5. **Post-Process** (Consolidation)
 
-#### 🎬 **Pre-Process: Preparation Phase**
+---
 
-- **Purpose**: Recommended for "preparation" before executing your next intent detection
-- **Simple Actions**: If your action only needs one dedicated process, you can declare only pre-process and end the flow—this acts as the full execution
-- **Nested Intent Detection**: Ideal for setup before processing nested intents
+### 🎬 1. Pre-Process: Preparation Phase
 
-#### 🎯 **Children Selection: Intent Detection**
+- **Purpose:**
+  Execute any setup required before intent detection or child action processing.
 
-- **Purpose**: Processes which child intents to be executed next
-- **Customizable**: You can override this and use your own selection method
-- **Direct Control**: You can even override it by just returning your preferred child actions
-- **Default Behavior**: Uses LLM tool call results to determine next actions
+- **Usage:**
+  - For simple actions, you can implement only a pre-process phase, making it the sole execution step.
+  - Perfect for preparing data or context for nested intent handling.
 
-#### 🚀 **Children Execution: Action Processing**
+---
 
-- **Execution Order**: By default, executes tool call results in the order the LLM returns them
-- **Concurrency Support**: Children can be annotated as concurrent (Thread or Task)
-- **Wait Behavior**: By nature, waits for completion before continuing to post-process
-- **Override Flexibility**: You can run them in separate threads without waiting if necessary
-- **Recursive Processing**: Every child action executes their own complete life cycle
+### 🎯 2. Children Selection: Intent Detection
 
-#### 🔧 **Fallback: Optional Response Handling**
+- **Purpose:**
+  Determines which child intents or actions to execute next.
 
-- **Purpose**: Provides a graceful response mechanism when child actions are defined but none are selected by the LLM
-- **Use Case**: Essential for maintaining conversation flow in scenarios like user requests that don't match any available child intents, or when the LLM needs to respond conversationally rather than execute a specific action
-- **Tool Choice Behavior**:
-  - **Default**: Tool choice is set to "required" (must select a child action)
-  - **With Fallback**: Tool choice is set to "auto" (allows string responses)
-- **Flexibility**: When no suitable child actions are detected, the tool call can return a string message to use as the response
+- **Customization:**
+  - Override the selection logic to implement custom strategies.
+  - Can return any child actions you prefer instead of relying solely on the default.
 
-#### 🏁 **Post-Process: Consolidation Phase**
+- **Default Behavior:**
+  Uses LLM tool call results to decide which children to invoke.
 
-- **Purpose**: Recommended for cleanup, consolidation, or termination
-- **Response Merging**: Use this to consolidate responses from each child
-- **Final Processing**: Perfect for generating merged or transformed outputs
+---
 
-### **Real-World Example**
+### 🚀 3. Children Execution: Action Processing
 
-Consider an AI Agent that supports two intents: **TellingJoke** & **TellingStory**, where **TellingStory** has child intents **HorrorStory** and **ComedyStory**:
+- **Order:**
+  By default, child actions are executed in the order returned by the LLM.
 
+- **Concurrency:**
+  Mark children as concurrent (using Thread or Task annotations) to enable parallel execution.
+
+- **Wait Behavior:**
+  Normally, the process waits for all children to complete before continuing to post-process. This can be overridden for advanced scenarios.
+
+- **Recursion:**
+  Each child action runs through the complete life cycle (all five phases).
+
+---
+
+### 🔧 4. Fallback: Optional Response Handling
+
+- **Purpose:**
+  Provides a graceful way to respond when no child action is selected.
+
+- **When to Use:**
+  - Ensures conversation flow when requests don't match any child intent.
+  - Useful if a string response (not an action) is needed.
+
+- **Tool Choice Behavior:**
+  - **Default:** Tool choice is "required" (must select a child action).
+  - **With Fallback:** Tool choice is "auto" (allows a text/string response).
+
+- **Flexibility:**
+  If no suitable child action is detected, the tool call can return a string message as the response.
+
+---
+
+### 🏁 5. Post-Process: Consolidation Phase
+
+- **Purpose:**
+  Handles final cleanup, response merging, and any additional processing after child execution.
+
+- **Typical Use Cases:**
+  - Merging or transforming the results from multiple child actions.
+  - Generating a single consolidated output.
+
+---
+
+## **Real-World Example**
+
+Suppose you have an AI Agent supporting two main intents:
+
+- **TellingJoke**
+- **TellingStory** (with two sub-intents: **HorrorStory**, **ComedyStory**)
+
+**Hierarchy:**
 ```
-YouAIAgent(Action):
-├── TellingJoke(Action)
+YouAIAgent (Action)
+├── TellingJoke (Action)
 │   └── pre-process: generate joke
-├── TellingStory(Action)
-│   ├── HorrorStory(Action)
+├── TellingStory (Action)
+│   ├── HorrorStory (Action)
 │   │   └── pre-process: generate horror story
-│   └── ComedyStory(Action)
+│   └── ComedyStory (Action)
 │       └── pre-process: generate comedy story
 └── post-process: consolidate responses and generate merged story
 ```
 
-#### **Flow Example**: _"Tell me a horror story and add a little joke on it"_
+### **Flow Example**
+_Request:_ _"Tell me a horror story and add a little joke on it."_
 
-1. **TellingStory** processes → **HorrorStory** generates horror story
-2. **TellingJoke** generates joke
-3. **Post-process** consolidates both responses and generates a new merged story
+**Process:**
+1. **TellingStory** is triggered; **HorrorStory** generates a horror story.
+2. **TellingJoke** generates a joke.
+3. In **post-process**, both responses are merged to create a final, combined story.
 
-This deterministic flow ensures predictable behavior while maintaining flexibility for complex nested intent processing and real-time decision making.
+This systematic flow allows for predictable
+---
 
-## 🎯 **Action High Level**
+## 🎨 Core Design Principles
 
-### **Life Cycle**
+### **Intent-Based Architecture**
+- **Declarative**: Actions describe what they do, not how they do it
+- **Scannable**: Understand agent flow in real-time without complex graphs
+- **Hierarchical**: Natural nesting mirrors human thought processes
 
-The Action Life Cycle above shows how Pybotchi processes intent through deterministic flows.
+### **Human-Centered Reasoning**
+- **AI for Intent**: Let AI excel at understanding what users want
+- **Humans for Logic**: Keep complex reasoning in deterministic code
+- **Tool Call Chaining**: Bridge natural language to computational action
 
-#### 🎨 **Intent-Based Design**
-
-- **`Action`** declaration is similar to graph declaration
-- You can scan through action flow **real time**—no need to generate graphs or read full declarations
-- Actions are declared in **descriptive manner**
-- Actions are considered **Intent** with support for categorizing and nested Intent:
-
-  ```
-  StoryTelling
-  ├── Horror
-  │   ├── Monsters
-  │   └── Ghosts
-  ├── Comedy
-  │   ├── Fiction
-  │   └── NonFiction
-  └── Romance
-      ├── HappyEnding
-      └── TragicEnding
-
-  MathProblem
-  ├── Algebra
-  └── Trigonometry
-  ```
-
-#### 🪶 **Lightweight & Flexible**
-
-- **Ultra-lightweight**: only 2 classes working together—**`Action`** and **`Context`**
-- Both classes are **completely overridable**
-- **`Not required`** - since we're just abstracting agent execution, this is a tool that can be replaced with any other approach/framework
+### **Maximum Flexibility**
+- **Framework Agnostic**: Use any LLM framework or native SDKs
+- **Override Everything**: Every component can be customized
+- **Zero Lock-in**: Replace any part without affecting the rest
 
 ---
 
-## 📚 Examples
+## 📚 Examples & Use Cases
 
-Explore these example files to see Pybotchi in action:
+Ready to dive deeper? Check out these practical examples:
 
-#### 🚀 **Getting Started**
+### 🚀 **Getting Started**
+- [`examples/tiny.py`](examples/tiny.py) - Minimal implementation to get you started
+- [`examples/full_spec.py`](examples/full_spec.py) - Complete feature demonstration
 
-- [`examples/tiny.py`](examples/tiny.py) - Minimal implementation
-- [`examples/full_spec.py`](examples/full_spec.py) - Full specs with descriptions
+### 🔄 **Flow Control**
+- [`examples/sequential_combination.py`](examples/sequential_combination.py) - Multiple actions in sequence
+- [`examples/sequential_iteration.py`](examples/sequential_iteration.py) - Iterative action execution
+- [`examples/nested_combination.py`](examples/nested_combination.py) - Complex nested structures
 
-#### 🔄 **Flow Control**
+### ⚡ **Concurrency**
+- [`examples/concurrent_combination.py`](examples/concurrent_combination.py) - Parallel action execution
+- [`examples/concurrent_threading_combination.py`](examples/concurrent_threading_combination.py) - Multi-threaded processing
 
-- [`examples/sequential_combination.py`](examples/sequential_combination.py) - Tool call can call multiple actions in single invocation. This will run the actions in sequential manner
-- [`examples/sequential_iteration.py`](examples/sequential_iteration.py) - Allowing iteration of own child actions while also supporting sequential combination or concurrent combination
-- [`examples/nested_combination.py`](examples/nested_combination.py) - Nested structure that utilize inheritance and overrides
+### 🌐 **Real-World Applications**
+- [`examples/interactive_agent.py`](examples/interactive_agent.py) - Real-time WebSocket communication
+- [`examples/jira_agent.py`](examples/jira_agent.py) - Integration with MCP Atlassian server
+- [`examples/agent_with_mcp.py`](examples/agent_with_mcp.py) - Hosting Actions as MCP tools
 
-#### ⚡ **Concurrency**
+---
 
-- [`examples/concurrent_combination.py`](examples/concurrent_combination.py) - Tool call can call multiple actions in single invocation. This will execute the actions concurrently
-- [`examples/concurrent_threading_combination.py`](examples/concurrent_threading_combination.py) - Same with concurrent_combination but it will be on different thread
+## 🎯 Key Benefits
 
-#### 🌐 **Real-World Applications**
+- **🪶 Ultra-lightweight**: Only 3 core classes to master
+- **🔧 Completely overridable**: Every component can be customized
+- **🎯 Intent-focused**: Leverages AI's natural language strengths
+- **⚡ Async-first**: Built for real-world web service integration
+- **🔄 Deterministic**: Predictable flows make debugging simple
+- **🌐 Framework-agnostic**: Works with any LLM framework
+- **📊 Built-in tracking**: Automatic usage monitoring and metrics
 
-- [`examples/interactive_agent.py`](examples/interactive_agent.py) - Real-time client communication utilizing websocket
-- [`examples/jira_agent.py`](examples/jira_agent.py) - Action connected to mcp-atlassian server. Action is the MCP Client
-- [`examples/agent_with_mcp.py`](examples/agent_with_mcp.py) - This is for hosting Action to be as tool in of mcp server
+---
+
+**Ready to build smarter agents?** Start with the examples and join the community of developers building the future of human-AI collaboration.
 
 **📖 More documentation coming soon...**
