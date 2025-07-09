@@ -1,6 +1,6 @@
 # 🤖 Pybotchi
 
-> _A deterministic, intent-based AI agent builder with no restrictions—supports any framework with a human-reasoning approach and interactive real-time client communication._
+> _A deterministic, intent-based AI agent builder with no restrictions—supports any framework and prioritizes human-reasoning approach and interactive real-time client communication._
 
 ---
 
@@ -12,7 +12,7 @@ The AI agent landscape is rich with powerful frameworks—**LangGraph**, **CrewA
 
 Current LLMs face a **critical limitation**: **reasoning and thinking capabilities remain constrained**, even when enhanced with iterative workflows. Emerging research reinforces this reality—LLMs don't truly possess reasoning power in the way we might expect.
 
-But here's what they _excel_ at: **intent detection**.
+But here's what they _excel_ at: **intent detection and translation**.
 
 Since modern LLMs are extensively trained on natural language, we can leverage this core strength rather than fighting their limitations.
 
@@ -36,9 +36,266 @@ Pybotchi stays minimal with only **3 core classes**:
 - **`Context`** - Holds everything
 - **`LLM`** - LLM client instance holder
 
-### 🔧 Everything is Overridable
+### 🔧 Everything is Overridable & Extendable
 
-**Maximum flexibility, zero lock-in.** Currently, the default tool call invocation uses **LangChain's BaseChatModel**. But you're not stuck with it—override this function and use native SDKs like **OpenAI** directly.
+**Maximum flexibility, zero lock-in.** Everything is designed to be overridable and extendable to foster a community where developers can publish their own Actions associated with specific Intents—enabling everyone to reuse or override them for their unique use cases. Currently, the default tool call invocation uses **LangChain's BaseChatModel**. But you're not stuck with it—override this function and use native SDKs like **OpenAI** directly.
+
+---
+
+## 🚀 Let's Start with the Basics
+
+### **Prerequisite**
+
+First, you need to import the LLM Class and set the base LLM to be used in Children Selection. You can use alternative frameworks other than LangChain, but you'll also need to override the child selection flow. We'll discuss that later.
+
+<details>
+  <summary>Add base LLM</summary>
+
+```python
+from os import getenv
+from langchain_openai import AzureChatOpenAI
+from pybotchi import LLM
+
+LLM.add(
+    base=AzureChatOpenAI(
+        api_key=getenv("CHAT_KEY"),  # type: ignore[arg-type]
+        azure_endpoint=getenv("CHAT_ENDPOINT"),
+        azure_deployment=getenv("CHAT_DEPLOYMENT"),
+        model=getenv("CHAT_MODEL"),
+        api_version=getenv("CHAT_VERSION"),
+        temperature=int(getenv("CHAT_TEMPERATURE", "1")),
+        stream_usage=True,
+    )
+)
+```
+
+</details>
+
+### **Action 1: Mathematical Problem Solver**
+
+This action handles mathematical problem-solving intents. It takes a mathematical problem, processes it, and returns the solution directly through the pre-process phase:
+
+<details>
+  <summary>Add MathProblem Action</summary>
+
+```python
+from pybotchi import Action, ActionReturn, Context
+
+class MathProblem(Action):
+    """Solve mathematical problem."""
+
+    answer: str = Field(description="You answer to the math problem")
+
+    async def pre(self, context: Context) -> ActionReturn:
+        """Execute pre process."""
+        await context.add_response(self, self.answer)
+        return ActionReturn.END
+```
+
+</details>
+
+### **Action 2: Translation Service**
+
+This action handles translation intents. It leverages the LLM to translate content and properly tracks usage metrics:
+
+<details>
+  <summary>Add Translation Action</summary>
+
+```python
+from pybotchi import Action, ActionReturn, Context
+
+class Translation(Action):
+    """Translate to specified language."""
+
+    async def pre(self, context: Context) -> ActionReturn:
+        """Execute pre process."""
+        message = await context.llm.ainvoke(context.prompts)
+        context.add_usage(self, context.llm, message.usage_metadata)
+        await context.add_response(self, message.content)
+        return ActionReturn.GO
+```
+
+</details>
+
+This could already work on its own, but it's only one intent per action.
+
+### **Creating a Multi-Intent Agent**
+
+Now we'll merge these into a single Agent that can handle multiple intents:
+
+<details>
+  <summary>Build Agent</summary>
+
+```python
+from pybotchi import Action, ActionReturn, Context
+
+# import Translation
+# import MathProblem as _MathProblem
+
+class Agent(Action):
+    """AI Assistant for solving math problem and translation."""
+
+    class MathProblem(_MathProblem):
+        """Solve mathematical problem."""
+        # Override your docstring here if necessary. Put pass if you want to use the same docstring
+
+    class TranslateRequest(Translation):
+        pass
+```
+
+</details>
+
+### **How to Run It**
+
+You need to build your context. This includes chat history, metadata, and additional useful attributes. We also prioritize async because most AI agents are integrated in services, most commonly web services. Since most of the time we don't host LLMs, we are bound to call network requests which are IO Bound. This is the reason why we prioritize async.
+
+There's a hard rule also on this library: **Context should always have the system prompt entry, even if it's empty content.** This is to have a more consistent way of controlling system prompt. Will give example later.
+
+<details>
+  <summary>Run the Agent</summary>
+
+```python
+from asyncio import run
+
+from pybotchi import Context,
+
+async def test() -> None:
+    """Chat."""
+    context = Context(
+        prompts=[
+            {
+                "role": "system", # or pybotchi.ChatRole.SYSTEM
+                "content": "You're an AI the can solve math problem and translate any request.",
+            },
+            {
+                "role": "user", # or pybotchi.ChatRole.USER
+                "content": "4 x 4 and explain your answer in filipino",
+            },
+        ],
+    )
+    action, result = await context.start(GeneralChat)
+    print(dumps(context.prompts, indent=4))
+    print(dumps(action.serialize(), indent=4))
+
+
+run(test())
+```
+
+</details>
+
+<details>
+  <summary><b>Results</b></summary>
+
+```json
+[
+    {
+        "role": "system",
+        "content": "You're an AI the can solve math problem and translate any request."
+    },
+    {
+        "role": "user",
+        "content": "4 x 4 and explain your answer in filipino"
+    },
+    {
+        "content": "",
+        "role": "assistant",
+        "tool_calls": [
+            {
+                "id": "call_d1b652297be94b6f8999dc8b53005872",
+                "function": {
+                    "name": "MathProblem",
+                    "arguments": "{\"answer\":\"4 x 4 = 16\"}"
+                },
+                "type": "function"
+            }
+        ]
+    },
+    {
+        "content": "4 x 4 = 16",
+        "role": "tool",
+        "tool_call_id": "call_d1b652297be94b6f8999dc8b53005872"
+    },
+    {
+        "content": "",
+        "role": "assistant",
+        "tool_calls": [
+            {
+                "id": "call_cf5a5621fea7411bae7c702dd84f3236",
+                "function": {
+                    "name": "Translation",
+                    "arguments": "{}"
+                },
+                "type": "function"
+            }
+        ]
+    },
+    {
+        "content": "Ang 4 x 4 ay katumbas ng 16.\n\nPaliwanag sa Filipino:\nAng pag-multiply ng 4 sa 4 ay nangangahulugang ipinadadagdag mo ang bilang na 4 ng apat na beses (4 + 4 + 4 + 4), na nagreresulta sa sagot na 16.",
+        "role": "tool",
+        "tool_call_id": "call_cf5a5621fea7411bae7c702dd84f3236"
+    }
+]
+---
+{
+    "name": "GeneralChat",
+    "args": {},
+    "usages": [
+        {
+            "name": "$tool",
+            "model": "gpt-4.1",
+            "usage": {
+                "input_tokens": 315,
+                "output_tokens": 49,
+                "total_tokens": 364,
+                "input_token_details": {
+                    "audio": 0,
+                    "cache_read": 0
+                },
+                "output_token_details": {
+                    "audio": 0,
+                    "reasoning": 0
+                }
+            }
+        }
+    ],
+    "actions": [
+        {
+            "name": "MathProblem",
+            "args": {
+                "answer": "4 x 4 = 16"
+            },
+            "usages": [],
+            "actions": []
+        },
+        {
+            "name": "Translation",
+            "args": {},
+            "usages": [
+                {
+                    "name": null,
+                    "model": "gpt-4.1",
+                    "usage": {
+                        "input_tokens": 117,
+                        "output_tokens": 75,
+                        "total_tokens": 192,
+                        "input_token_details": {
+                            "audio": 0,
+                            "cache_read": 0
+                        },
+                        "output_token_details": {
+                            "audio": 0,
+                            "reasoning": 0
+                        }
+                    }
+                }
+            ],
+            "actions": []
+        }
+    ]
+}
+```
+
+</details>
 
 ---
 

@@ -95,8 +95,13 @@ class ActionReturn(BaseModel):
 
     @staticmethod
     def end(value: Any) -> "End":
-        """Return ActionReturn.END."""
+        """Return ActionReturn.END with value."""
         return End(value=value)
+
+    @staticmethod
+    def go(value: Any) -> "Go":
+        """Return ActionReturn.GO with value."""
+        return Go(value=value)
 
     @cached_property
     def is_break(self) -> bool:
