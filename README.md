@@ -50,9 +50,6 @@ Currently, the default tool call invocation uses **LangChain's BaseChatModel**. 
 
 First, you need to import the LLM Class and set the base LLM to be used in Children Selection. You can use alternative frameworks other than LangChain, but you'll also need to override the child selection flow. **We'll discuss that later.**
 
-<details>
-  <summary>⚙️ Add base LLM</summary>
-
 ```python
 from os import getenv
 from langchain_openai import AzureChatOpenAI
@@ -60,7 +57,7 @@ from pybotchi import LLM
 
 LLM.add(
     base=AzureChatOpenAI(
-        api_key=getenv("CHAT_KEY"),  # type: ignore[arg-type]
+        api_key=getenv("CHAT_KEY"),
         azure_endpoint=getenv("CHAT_ENDPOINT"),
         azure_deployment=getenv("CHAT_DEPLOYMENT"),
         model=getenv("CHAT_MODEL"),
@@ -71,14 +68,9 @@ LLM.add(
 )
 ```
 
-</details>
-
 ### **🧮 Action 1: Mathematical Problem Solver**
 
 This action handles mathematical problem-solving intents. It takes a mathematical problem, processes it, and returns the solution directly through the pre-process phase:
-
-<details>
-  <summary>🔢 Add MathProblem Action</summary>
 
 ```python
 from pybotchi import Action, ActionReturn, Context
@@ -94,14 +86,9 @@ class MathProblem(Action):
         return ActionReturn.END
 ```
 
-</details>
-
 ### **🌍 Action 2: Translation Service**
 
 This action handles translation intents. It leverages the LLM to translate content and properly tracks usage metrics:
-
-<details>
-  <summary>🔄 Add Translation Action</summary>
 
 ```python
 from pybotchi import Action, ActionReturn, Context
@@ -117,16 +104,11 @@ class Translation(Action):
         return ActionReturn.GO
 ```
 
-</details>
-
 **This could already work on its own, but it's only one intent which is the translation.**
 
 ### **🔀 Creating a Multi-Intent Agent**
 
 Now we'll merge these into a single Agent that can handle multiple intents:
-
-<details>
-  <summary>🤖 Build Agent</summary>
 
 ```python
 from pybotchi import Action, ActionReturn, Context
@@ -145,16 +127,11 @@ class Agent(Action):
         pass
 ```
 
-</details>
-
 ### **🎬 How to Run It**
 
 You need to build your context. This includes chat history, metadata, and additional useful attributes. **We also prioritize async because most AI agents are integrated in services, most commonly web services.** Since most of the time we don't host LLMs, we are bound to call network requests which are **IO Bound**. This is the reason why we prioritize async.
 
 There's a **hard rule** also on this library: **Context should always have the system prompt entry, even if it's empty content.** This is to have a more consistent way of controlling system prompt. Will give example later.
-
-<details>
-  <summary>⚡ Run the Agent</summary>
 
 ```python
 from asyncio import run
@@ -182,8 +159,6 @@ async def test() -> None:
 
 run(test())
 ```
-
-</details>
 
 <details>
   <summary><b>✨ Results</b></summary>
