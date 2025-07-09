@@ -301,6 +301,104 @@ run(test())
 
 ---
 
+## 🧩 Overriding & Extending Agents: Power for Community Collaboration
+
+Pybotchi is built on an **"everything is overridable and extendable"** philosophy. This gives developers maximum freedom to **adapt, remix, or refine agents**—so the community can easily share, improve, or specialize agents for virtually any scenario. Here’s what this looks like in practice:
+
+### **1. Override or Remove Child Actions**
+
+Don’t like a specific action behavior in a shared agent? **Swap it out!** Prefer to drop a feature? **Remove it instantly.**
+
+```python
+class Agent1(Action):
+    class Action1(Action1):
+        pass
+    class Action2(Action2):
+        pass
+
+# Community member extends and customizes:
+class Agent1Modified(Agent1):
+    Action1 = None  # ❌ Remove Action1 entirely
+    # ...or, override Action1 with a new implementation:
+    class Action1(Action):
+        async def pre(self, context):
+            pass
+    # ...or, use another action as drop-in replacement:
+    class Action1(Action3):
+        pass
+```
+
+### **2. Add New Features or Actions—On-the-Fly**
+
+You can easily **introduce new functionality** tailored to your application, without touching the original agent code.
+
+```python
+class Agent1Modified(Agent1):
+    class Action3(Action3):  # ✅ Add a new action via subclass
+        pass
+    class Action4(Action):
+        async def pre(self, context):
+            pass
+
+# ...or even after class declaration!
+Agent1Modified.add_child(Action4)
+```
+
+### **3. Nest or Stack Customizations—Hierarchical Inheritance**
+
+Support for **deep or recursive composition** means you can specialize at any level and new features propagate upward:
+
+```python
+class Agent2(Action):
+    class Child1(Agent1):  # Inherit vanilla Agent1—optionally override/Add/Remove further!
+        pass
+    class Child2(Agent1Modified):  # Inherit the modified agent
+        pass
+```
+
+### **4. Dynamically Add Children or Grandchildren—At Any Level**
+
+You can **inject actions into any layer**—even after class definition—making it easy to build up or compose complex hierarchies.
+
+```python
+# Add a child directly to an action
+Agent1Modified.add_child(Action4)
+
+# Add a grandchild: extend an existing child
+Agent1Modified.Action1.add_child(Action4)
+```
+
+---
+
+### **🚀 Why Does This Matter?**
+
+- **No Forking Headaches:**
+  Update or specialize any open-source agent without messy copy-paste or deep forking. Just inherit and override as needed.
+
+- **Collaborative Workflows:**
+  Teams or open-source contributors can confidently extend, update, or tweak only the parts they care about, while benefiting from upstream improvements.
+
+- **Reusable Components:**
+  Publish a library of "Action" classes—others can combine, override, or swap in/out as building blocks.
+
+- **Composable Agents:**
+  Agents remain modular and maintainable, as each intent/tool is encapsulated and easily customized.
+
+- **Safe Experimentation:**
+  Try new logic or models in descendants without breaking or altering the original agent.
+
+---
+
+## 👐 Community Example Use-Cases
+
+- **Company A** builds a base agent for internal workflows.
+    - **Team X** specializes this base with proprietary logic.
+    - **Team Y** removes certain features and augments others.
+- **Open-source contributors** share a library of actions; users combine and override them to suit their projects.
+- **Product teams** rapidly prototype and test features (‘what if translation is powered by a different LLM?
+
+---
+
 ## **🔄 Understanding the Action Life Cycle**
 
 ![Action Life Cycle](docs/action-life-cycle.png "Action Life Cycle")
