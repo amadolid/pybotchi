@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pybotchi"
-version = "1.0.0"
+version = "1.0.1"
 description = "A deterministic, intent-based AI agent builder."
 authors = [
   "Alexie (Boyong) Madolid <madolid.alexie@gmail.com>"
@@ -15,8 +15,8 @@ orjson = ">=3.9.11"
 
 # langchain dependency to be removed
 # Should be optional
-langchain = "0.3.26"
-langchain-openai = "0.3.27"
+langchain = ">=0.3.26"
+langchain-openai = ">=0.3.27"
 
 # fastapi dependency to be removed
 # Should be optional
