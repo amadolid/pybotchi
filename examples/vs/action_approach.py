@@ -23,6 +23,60 @@ LLM.add(
 
 
 ##############################################################################
+#                               FOR APPROACH 0                               #
+##############################################################################
+
+print("Starting Approach0...")
+
+
+# ITERATION ACTION
+class Approach0(Action):
+    """Casual Generic Chat."""
+
+    __max_child_iteration__ = 5
+
+    async def fallback(self, context: Context, content: str) -> ActionReturn:
+        """Execute pre process."""
+        await context.add_message(ChatRole.ASSISTANT, content)
+        return ActionReturn.END
+
+    class Weather(Action):
+        """Call to get the current weather."""
+
+        location: str
+
+        async def pre(self, context: Context) -> ActionReturn:
+            """Execute pre process."""
+            if self.location.lower() in ["yorkshire"]:
+                await context.add_response(self, "It's cold and wet.")
+            else:
+                await context.add_response(self, "It's warm and sunny.")
+
+            return ActionReturn.GO
+
+
+async def main() -> None:
+    """Test."""
+    total = 0.0
+    for _i in range(10):
+        now = datetime.now().timestamp()
+        exec = Context(
+            prompts=[
+                {"content": "", "role": ChatRole.SYSTEM},
+                {"content": "Whats the weather in yorkshire?", "role": ChatRole.USER},
+            ],
+        )
+        await exec.start(Approach0)
+        print(exec.prompts[-1]["content"])
+        total += datetime.now().timestamp() - now
+    print(f"Approach1: {total / 10}")
+
+
+run(main())
+
+# ----------------------------------------------------------------------------#
+
+##############################################################################
 #                               FOR APPROACH 1                               #
 ##############################################################################
 
@@ -56,19 +110,25 @@ class Approach1(Action):
 # Add action on Weather pointed to Approach1
 Approach1.Weather.add_child(Approach1, "DefaultAction")
 
-total = 0.0
-for _i in range(10):
-    now = datetime.now().timestamp()
-    exec = Context(
-        prompts=[
-            {"content": "", "role": ChatRole.SYSTEM},
-            {"content": "Whats the weather in yorkshire?", "role": ChatRole.USER},
-        ],
-    )
-    run(exec.start(Approach1))
-    print(exec.prompts[-1]["content"])
-    total += datetime.now().timestamp() - now
-print(f"Approach1: {total / 10}")
+
+async def main() -> None:  # type: ignore[no-redef]
+    """Test."""
+    total = 0.0
+    for _i in range(10):
+        now = datetime.now().timestamp()
+        exec = Context(
+            prompts=[
+                {"content": "", "role": ChatRole.SYSTEM},
+                {"content": "Whats the weather in yorkshire?", "role": ChatRole.USER},
+            ],
+        )
+        await exec.start(Approach1)
+        print(exec.prompts[-1]["content"])
+        total += datetime.now().timestamp() - now
+    print(f"Approach1: {total / 10}")
+
+
+run(main())
 
 # ----------------------------------------------------------------------------#
 
@@ -105,19 +165,24 @@ class Approach2(Action):
             return result
 
 
-total = 0.0
-for _i in range(10):
-    now = datetime.now().timestamp()
-    exec = Context(
-        prompts=[
-            {"content": "", "role": ChatRole.SYSTEM},
-            {"content": "Whats the weather in yorkshire?", "role": ChatRole.USER},
-        ],
-    )
-    run(exec.start(Approach2))
-    print(exec.prompts[-1]["content"])
-    total += datetime.now().timestamp() - now
-print(f"Approach2: {total / 10}")
+async def main() -> None:  # type: ignore[no-redef]
+    """Test."""
+    total = 0.0
+    for _i in range(10):
+        now = datetime.now().timestamp()
+        exec = Context(
+            prompts=[
+                {"content": "", "role": ChatRole.SYSTEM},
+                {"content": "Whats the weather in yorkshire?", "role": ChatRole.USER},
+            ],
+        )
+        await exec.start(Approach2)
+        print(exec.prompts[-1]["content"])
+        total += datetime.now().timestamp() - now
+    print(f"Approach2: {total / 10}")
+
+
+run(main())
 
 # ----------------------------------------------------------------------------#
 
@@ -164,18 +229,24 @@ class Approach3(Action):
 
 Approach3.Weather.add_child(Approach3, "DefaultAction")
 
-total = 0.0
-for _i in range(10):
-    now = datetime.now().timestamp()
-    exec = Context(
-        prompts=[
-            {"content": "", "role": ChatRole.SYSTEM},
-            {"content": "Whats the weather in yorkshire?", "role": ChatRole.USER},
-        ],
-    )
-    run(exec.start(Approach3))
-    print(exec.prompts[-1]["content"])
-    total += datetime.now().timestamp() - now
-print(f"Approach3: {total / 10}")
+
+async def main() -> None:  # type: ignore[no-redef]
+    """Test."""
+    total = 0.0
+    for _i in range(10):
+        now = datetime.now().timestamp()
+        exec = Context(
+            prompts=[
+                {"content": "", "role": ChatRole.SYSTEM},
+                {"content": "Whats the weather in yorkshire?", "role": ChatRole.USER},
+            ],
+        )
+        await exec.start(Approach3)
+        print(exec.prompts[-1]["content"])
+        total += datetime.now().timestamp() - now
+    print(f"Approach3: {total / 10}")
+
+
+run(main())
 
 # ----------------------------------------------------------------------------#

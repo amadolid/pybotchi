@@ -2,6 +2,7 @@
 
 from asyncio import run
 from datetime import datetime
+from os import getenv
 from typing import Annotated, Literal
 
 from langchain_core.tools import tool
@@ -11,8 +12,6 @@ from langchain_openai import AzureChatOpenAI
 from langgraph.graph import StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
-
-from pybotchi.settings import getenv
 
 from typing_extensions import TypedDict
 
@@ -78,10 +77,16 @@ graph.add_edge("tool_node", "prompt_node")
 graph.set_entry_point("prompt_node")
 APP = graph.compile()
 
-total = 0.0
-for _i in range(10):
-    now = datetime.now().timestamp()
-    new_state = run(APP.ainvoke({"messages": ["Whats the weather in yorkshire?"]}))
-    print(new_state["messages"][-1].content)
-    total += datetime.now().timestamp() - now
-print(total / 10)
+
+async def main() -> None:
+    """Test."""
+    total = 0.0
+    for _i in range(10):
+        now = datetime.now().timestamp()
+        new_state = await APP.ainvoke({"messages": ["Whats the weather in yorkshire?"]})
+        print(new_state["messages"][-1].content)
+        total += datetime.now().timestamp() - now
+    print(total / 10)
+
+
+run(main())
