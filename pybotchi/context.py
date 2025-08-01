@@ -69,13 +69,15 @@ class Context(BaseModel, Generic[TLLM]):
     def add_usage(
         self,
         action: "Action",
-        model: BaseChatModel,
+        model: BaseChatModel | str,
         usage: UsageMetadata,
         name: str | None = None,
     ) -> None:
         """Add usage."""
-        model_name = getattr(
-            model, "model_name", getattr(model, "deployment_name", UNSPECIFIED)
+        model_name = (
+            getattr(model, "model_name", getattr(model, "deployment_name", UNSPECIFIED))
+            if isinstance(model, BaseChatModel)
+            else model
         )
         action._usage.append(Usage(name=name, model=model_name, usage=usage))
 
