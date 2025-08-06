@@ -53,7 +53,7 @@ class Translation(Action):
 class MathProblem(Action):
     """Solve math problems."""
 
-    answer: str = Field(description="Your answer to the math problem")
+    answer: str
 
     async def pre(self, context: Context) -> ActionReturn:
         await context.add_response(self, self.answer)
@@ -95,6 +95,28 @@ asyncio.run(test())
 
 _Paliwanag sa Filipino:_
 _Ang pag-multiply ng 4 sa 4 ay nangangahulugang ipinadadagdag mo ang bilang na 4 ng apat na beses (4 + 4 + 4 + 4), na nagreresulta sa sagot na 16._
+
+### **Graph**
+
+```python
+from pybotchi import graph
+
+async def print_mermaid_graph():
+    print(await graph(MultiAgent))
+```
+
+**Result:**
+
+```
+flowchart TD
+__main__.MultiAgent.Translate[__main__.MultiAgent.Translate]
+__main__.MultiAgent[__main__.MultiAgent]
+__main__.MultiAgent.SolveMath[__main__.MultiAgent.SolveMath]
+__main__.MultiAgent --> __main__.MultiAgent.Translate
+__main__.MultiAgent --> __main__.MultiAgent.SolveMath
+```
+
+![MultiAgent Graph](docs/mermaid.png)
 
 ---
 

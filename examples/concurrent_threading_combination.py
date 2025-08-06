@@ -64,13 +64,10 @@ async def test() -> None:
         prompts=[
             {
                 "role": ChatRole.SYSTEM,
-                "content": """
-Your primary focus is to prioritize tool usage and efficiently handle multiple tool calls, including invoking the same tool multiple times if necessary.
-Ensure that all relevant tools are effectively utilized and properly sequenced to accurately and comprehensively address the user's inquiry.
-""".strip(),
+                "content": "",
             },
             {
-                "role": ChatRole.SYSTEM,
+                "role": ChatRole.USER,
                 "content": "Tell me a joke and incorporate it on a very short story",
             },
         ],
