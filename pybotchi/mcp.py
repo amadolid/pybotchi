@@ -26,7 +26,15 @@ from mcp.client.streamable_http import (
 )
 from mcp.server.fastmcp import FastMCP
 from mcp.shared.session import ProgressFnT
-from mcp.types import ContentBlock, TextContent
+from mcp.types import (
+    AudioContent,
+    ContentBlock,
+    EmbeddedResource,
+    ImageContent,
+    ResourceLink,
+    TextContent,
+    TextResourceContents,
+)
 
 from orjson import dumps, loads
 
@@ -256,13 +264,41 @@ class MCPToolAction(Action):
 
         return progress_callback
 
-    def clean_content(self, content: ContentBlock) -> ContentBlock:
+    def clean_content(self, content: ContentBlock) -> str:
         """Clean text if json."""
-        if isinstance(content, TextContent):
-            with suppress(Exception):
-                if content.text:
-                    content.text = dumps(loads(content.text.strip().encode())).decode()
-        return content
+        match content:
+            case AudioContent():
+                return f'<audio controls>\n\t<source src="data:{content.mimeType};base64,{content.data}" type="{content.mimeType}">\n</audio>'
+            case ImageContent():
+                return f'<img src="data:{content.mimeType};base64,{content.data}">'
+            case TextContent():
+                with suppress(Exception):
+                    return dumps(loads(content.text.strip().encode())).decode()
+                return content.text
+            case EmbeddedResource():
+                if isinstance(resource := content.resource, TextResourceContents):
+                    return f'<a href="{resource.uri}">\n{resource.text}\n</a>'
+                else:
+                    mime = (
+                        resource.mimeType.lower().split("/")
+                        if resource.mimeType
+                        else None
+                    )
+                    source = f'<source src="data:{resource.mimeType};base64,{resource.blob}" type="{resource.mimeType}">'
+                    match mime:
+                        case "video":
+                            return f"<video controls>\n\t{source}\n</video>"
+                        case "audio":
+                            return f"<audio controls>\n\t{source}\n</audio>"
+                        case _:
+                            return source
+            case ResourceLink():
+                description = (
+                    f"\n{content.description}\n" if content.description else ""
+                )
+                return f'<a href="{content.uri}">{description}</a>'
+            case _:
+                return f"The response of {self.__class__.__name__} is yet supported: {content.__class__.__name__}"
 
     async def pre(self, context: "Context") -> ActionReturn:
         """Execute pre process."""
@@ -282,9 +318,9 @@ class MCPToolAction(Action):
             tool_args,
             progress_callback=self.build_progress_callback(context),
         )
-        content = dumps(
-            [self.clean_content(c).model_dump() for c in result.content]
-        ).decode()
+
+        content = "\n\n---\n\n".join(self.clean_content(c) for c in result.content)
+
         await context.notify(
             {
                 "event": event,
