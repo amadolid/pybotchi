@@ -140,7 +140,6 @@ class Context(BaseModel, Generic[TLLM]):
     def detached_kwargs(self) -> dict[str, Any]:
         """Retrieve detached kwargs."""
         return {
-            "llm": self.llm,
             "prompts": deepcopy(self.prompts),
             "allowed_actions": deepcopy(self.allowed_actions),
             "metadata": deepcopy(self.metadata),
