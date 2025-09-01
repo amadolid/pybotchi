@@ -71,6 +71,7 @@ class Action(BaseModel):
 
     __enabled__: bool = True
     __system_prompt__: str | None = None
+    __tool_call_prompt__: str | None = None
     __temperature__: float | None = None
     __max_tool_prompts__: int | None = None
     __default_tool__ = DEFAULT_ACTION
@@ -220,7 +221,7 @@ class Action(BaseModel):
             [
                 {
                     "content": apply_placeholders(
-                        DEFAULT_TOOL_CALL_PROMPT,
+                        self.__tool_call_prompt__ or DEFAULT_TOOL_CALL_PROMPT,
                         tool_choice=tool_choice,
                         default=self.__default_tool__,
                         system=self.__system_prompt__
