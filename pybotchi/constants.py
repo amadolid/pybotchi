@@ -42,15 +42,7 @@ class UsageMetadata(TypedDict):
     output_token_details: NotRequired[OutputTokenDetails]
 
 
-class Usage(BaseModel):
-    """Token Usage."""
-
-    name: str | None
-    model: str
-    usage: UsageMetadata
-
-
-class UsageResponse(TypedDict):
+class UsageData(TypedDict):
     """Usage Response."""
 
     name: str | None
@@ -63,7 +55,7 @@ class ActionItem(TypedDict):
 
     name: str
     args: dict[str, Any]
-    usages: list[UsageResponse]
+    usages: list[UsageData]
 
 
 class ActionEntry(ActionItem):

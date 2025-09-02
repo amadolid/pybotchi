@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field, PrivateAttr
 from typing_extensions import TypeVar
 
 from .action import Action, ActionReturn, T, TAction
-from .constants import ChatRole, UNSPECIFIED, Usage
+from .constants import ChatRole, UNSPECIFIED
 from .llm import LLM
 
 TContext = TypeVar("TContext", bound="Context")
@@ -79,7 +79,7 @@ class Context(BaseModel, Generic[TLLM]):
             if isinstance(model, BaseChatModel)
             else model
         )
-        action._usage.append(Usage(name=name, model=model_name, usage=usage))
+        action._usage.append({"name": name, "model": model_name, "usage": usage})
 
         if model_name not in self.usage:
             self.usage[model_name] = 0

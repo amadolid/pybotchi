@@ -18,7 +18,7 @@ from openai.types.chat.chat_completion_message_tool_call_param import (
 
 from pydantic import BaseModel, PrivateAttr
 
-from .constants import ActionEntry, ActionReturn, Usage
+from .constants import ActionEntry, ActionReturn, UsageData
 from .utils import apply_placeholders
 
 if TYPE_CHECKING:
@@ -99,7 +99,7 @@ class Action(BaseModel):
     #                     INSTANCE VARIABLES                     #
     ##############################################################
 
-    _usage: list[Usage] = PrivateAttr(default_factory=list)
+    _usage: list[UsageData] = PrivateAttr(default_factory=list)
     _actions: list["Action"] = PrivateAttr(default_factory=list)
 
     # ---------------------------------------------------------- #
@@ -354,7 +354,7 @@ class Action(BaseModel):
         return {
             "name": self.__class__.__name__,
             "args": self.model_dump(),
-            "usages": [u.model_dump() for u in self._usage],  # type: ignore[misc]
+            "usages": self._usage,
             "actions": [a.serialize() for a in self._actions],
         }
 
