@@ -1,9 +1,13 @@
 [tool.poetry]
 name = "pybotchi-files"
-version = "0.1.0"
-description = ""
-authors = ["Alexie (Boyong) Madolid <maex@tuta.io>"]
+version = "0.2.0"
+description = "PyBotchi implementation for manipulating file/s"
+authors = [
+  "Alexie (Boyong) Madolid <madolid.alexie@gmail.com>"
+]
 readme = "README.md"
+repository = "https://github.com/amadolid/pybotchi"
+packages = [{include = "pybotchi_files"}]
 
 [tool.poetry.dependencies]
 python = "<4.0,>=3.13.0"
