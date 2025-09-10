@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pybotchi-files"
-version = "0.2.0"
+version = "0.2.1"
 description = "PyBotchi implementation for manipulating file/s"
 authors = [
   "Alexie (Boyong) Madolid <madolid.alexie@gmail.com>"
