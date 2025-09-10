@@ -57,7 +57,7 @@ class Translation(Action):
 
     async def pre(self, context):
         message = await context.llm.ainvoke(context.prompts)
-        await context.add_response(self, message.content)
+        await context.add_response(self, message.text())
         return ActionReturn.GO
 ```
 
@@ -151,7 +151,7 @@ class TranslateToEnglish(Action):
         message = await context.llm.ainvoke(
             f"Translate this to english: {self.sentence}"
         )
-        await context.add_response(self, message.content)
+        await context.add_response(self, message.text())
         return ActionReturn.GO
 
 
@@ -289,7 +289,7 @@ class GeneralChat(Action):
             message = await context.llm.ainvoke("generate very short joke")
             context.add_usage(self, context.llm, message.usage_metadata)
 
-            await context.add_response(self, message.content)
+            await context.add_response(self, message.text())
             print("Done executing Joke...")
             return ActionReturn.GO
 
@@ -303,14 +303,14 @@ class GeneralChat(Action):
             message = await context.llm.ainvoke("generate a very short story")
             context.add_usage(self, context.llm, message.usage_metadata)
 
-            await context.add_response(self, message.content)
+            await context.add_response(self, message.text())
             print("Done executing StoryTelling...")
             return ActionReturn.GO
 
     async def post(self, context):
         print("Executing post...")
         message = await context.llm.ainvoke(context.prompts)
-        await context.add_message(ChatRole.ASSISTANT, message.content)
+        await context.add_message(ChatRole.ASSISTANT, message.text())
         print("Done executing post...")
         return ActionReturn.END
 
@@ -401,16 +401,16 @@ class YourAction(Action):
 
         # default using langchain
         message = await context.llm.ainvoke(prompts)
-        content = message.content
+        content = message.text()
 
         # other langchain library
         message = await custom_base_chat_model.ainvoke(prompts)
-        content = message.content
+        content = message.text()
 
         # Langgraph
         APP = your_graph.compile()
         message = await APP.ainvoke(prompts)
-        content = message["messages"][-1].content
+        content = message["messages"][-1].text()
 
         # CrewAI
         content = await crew.kickoff_async(inputs=your_customized_prompts)

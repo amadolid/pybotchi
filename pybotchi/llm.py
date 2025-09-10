@@ -1,6 +1,6 @@
 """Pybotchi LLMs."""
 
-from typing import Any, TypeVar, overload
+from typing import Any, Literal, TypeVar, overload
 
 T = TypeVar("T")
 
@@ -25,7 +25,17 @@ class LLM:
 
     @overload
     @classmethod
+    def get(cls, llm: str, type: type[T], throw: Literal[True]) -> T:
+        """Get LLM."""
+
+    @overload
+    @classmethod
     def get(cls, llm: str, type: type[T]) -> T:
+        """Get LLM."""
+
+    @overload
+    @classmethod
+    def get(cls, llm: str, type: type[T], throw: Literal[False]) -> T | None:
         """Get LLM."""
 
     @overload
@@ -34,7 +44,7 @@ class LLM:
         """Get LLM."""
 
     @classmethod
-    def get(cls, llm: str, type: type[T] | None = None) -> T | None:
+    def get(cls, llm: str, type: type[T] | None = None, throw: bool = True) -> T | None:
         """Get LLM."""
         instance = cls.__instances__.get(llm)
         if type is None:
@@ -43,4 +53,7 @@ class LLM:
         if isinstance(instance, type):
             return instance
 
-        raise Exception(f"LLM {llm} is not a valid {type}: {instance}")
+        if throw:
+            raise Exception(f"LLM `{llm}` is not a valid {type}: {instance}")
+        else:
+            return None

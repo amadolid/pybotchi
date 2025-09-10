@@ -5,6 +5,8 @@ from datetime import datetime
 from os import getenv
 from typing import Annotated, Literal
 
+from dotenv import load_dotenv
+
 from langchain_core.tools import tool
 
 from langchain_openai import AzureChatOpenAI
@@ -14,6 +16,20 @@ from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
 
 from typing_extensions import TypedDict
+
+
+load_dotenv()
+
+llm = AzureChatOpenAI(
+    api_key=getenv("CHAT_KEY"),  # type: ignore[arg-type]
+    azure_endpoint=getenv("CHAT_ENDPOINT"),
+    azure_deployment=getenv("CHAT_DEPLOYMENT"),
+    model=getenv("CHAT_MODEL"),
+    api_version=getenv("CHAT_VERSION"),
+    temperature=int(getenv("CHAT_TEMPERATURE", "1")),
+    stream_usage=True,
+    verbose=True,
+)
 
 
 class State(TypedDict):
@@ -33,17 +49,6 @@ def get_weather(location: str) -> str:
     else:
         return "It's warm and sunny."
 
-
-llm = AzureChatOpenAI(
-    api_key=getenv("CHAT_KEY"),
-    azure_endpoint=getenv("CHAT_ENDPOINT"),
-    azure_deployment=getenv("CHAT_DEPLOYMENT"),
-    model=getenv("CHAT_MODEL"),
-    openai_api_version=getenv("CHAT_VERSION"),
-    temperature=int(getenv("CHAT_TEMPERATURE", "1")),
-    stream_usage=True,
-    verbose=True,
-)
 
 tools = [get_weather]
 
@@ -84,7 +89,7 @@ async def main() -> None:
     for _i in range(10):
         now = datetime.now().timestamp()
         new_state = await APP.ainvoke({"messages": ["Whats the weather in yorkshire?"]})
-        print(new_state["messages"][-1].content)
+        print(new_state["messages"][-1].text())
         total += datetime.now().timestamp() - now
     print(total / 10)
 

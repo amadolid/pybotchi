@@ -7,7 +7,7 @@ from collections import OrderedDict
 from inspect import getmembers
 from itertools import islice
 from os import getenv
-from typing import Any, TYPE_CHECKING, TypeAlias, TypeVar, cast
+from typing import Any, TYPE_CHECKING, TypeAlias, TypeVar
 from uuid import uuid4
 
 from mcp.server.fastmcp import FastMCP
@@ -244,7 +244,7 @@ class Action(BaseModel):
             child_actions[call["name"]](**call["args"]) for call in message.tool_calls  # type: ignore[attr-defined]
         ]
 
-        return next_actions, cast(str, message.content)
+        return next_actions, message.text()
 
     async def execution(self, context: Context) -> ActionReturn:
         """Execute core process."""
@@ -331,7 +331,7 @@ class Action(BaseModel):
                 }
             )
 
-            if (result := await self.fallback(context, message.content)).is_break:  # type: ignore[arg-type]
+            if (result := await self.fallback(context, message.text())).is_break:  # type: ignore[arg-type]
                 return result
 
         return ActionReturn.GO

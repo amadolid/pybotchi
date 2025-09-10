@@ -35,10 +35,9 @@ class GeneralChat(MCPAction):
         async def pre(self, context: Context) -> ActionReturn:
             """Test."""
             message = await context.llm.ainvoke(context.prompts)
-            content = message.content
             context.add_usage(self, context.llm, message.usage_metadata)
 
-            await context.add_response(self, content)
+            await context.add_response(self, message.text())
 
             return ActionReturn.BREAK
 

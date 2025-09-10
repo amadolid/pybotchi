@@ -4,9 +4,14 @@ from asyncio import run
 from datetime import datetime
 from os import getenv
 
+from dotenv import load_dotenv
+
 from langchain_openai import AzureChatOpenAI
 
 from pybotchi import Action, ActionReturn, ChatRole, Context, LLM
+
+
+load_dotenv()
 
 LLM.add(
     base=AzureChatOpenAI(
@@ -206,7 +211,7 @@ class Approach3(Action):
             # any other process here
             # streaming, binding, with config
             message = await context.llm.ainvoke(context.prompts)
-            await context.add_message(ChatRole.ASSISTANT, message.content)
+            await context.add_message(ChatRole.ASSISTANT, message.text())
 
             return ActionReturn.END
 

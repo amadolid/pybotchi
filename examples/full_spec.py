@@ -102,7 +102,7 @@ class GeneralChat(Action):
         """This Assistant is used when user's inquiry is related to Math Problem."""
 
         # action's attributes that tool selection trigger can populate
-        answer: str = Field(description="You answer to the math problem")
+        answer: str = Field(description="Your answer to the math problem")
 
         async def pre(self, context: Context) -> ActionReturn:
             """Execute pre process."""
@@ -119,7 +119,7 @@ class GeneralChat(Action):
             """Execute pre process."""
             message = await context.llm.ainvoke(context.prompts)
             context.add_usage(self, context.llm, message.usage_metadata)
-            await context.add_response(self, message.content)
+            await context.add_response(self, message.text())
 
             return ActionReturn.GO
 

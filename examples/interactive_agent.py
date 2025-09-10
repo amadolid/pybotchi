@@ -39,7 +39,7 @@ class GeneralChat(Action):
     class MathProblem(Action):
         """This Assistant is used when user's inquiry is related to Math Problem."""
 
-        answer: int = Field(description="You answer to the math problem")
+        answer: int = Field(description="Your answer to the math problem")
 
         async def pre(self, context: InteractiveContext) -> ActionReturn:
             """Execute pre process."""
@@ -51,9 +51,9 @@ class GeneralChat(Action):
             )
 
             if int(reply.strip()) != self.answer:
-                message = f"You Wrong! Answer is {self.answer}"
+                message = f"You're Wrong! Answer is {self.answer}"
             else:
-                message = "You Correct!"
+                message = "You're Correct!"
 
             await context.add_message(ChatRole.ASSISTANT, message)
 
