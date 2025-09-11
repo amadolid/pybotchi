@@ -29,7 +29,7 @@ class Context(BaseModel, Generic[TLLM]):
     prompts: list[dict[str, Any]] = Field(default_factory=list)
     allowed_actions: dict[str, bool] = Field(default_factory=dict)
     metadata: dict[str, Any] = Field(default_factory=dict)
-    integration: dict[str, MCPIntegration] = Field(default_factory=dict)
+    integrations: dict[str, MCPIntegration] = Field(default_factory=dict)
     usage: dict[str, int] = Field(default_factory=dict)
     streaming: bool = False
     max_self_loop: int | None = None
@@ -144,7 +144,7 @@ class Context(BaseModel, Generic[TLLM]):
             "prompts": deepcopy(self.prompts),
             "allowed_actions": deepcopy(self.allowed_actions),
             "metadata": deepcopy(self.metadata),
-            "integration": deepcopy(self.integration),
+            "integration": deepcopy(self.integrations),
             "streaming": self.streaming,
             "max_self_loop": self.max_self_loop,
             "detached": True,

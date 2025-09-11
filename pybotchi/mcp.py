@@ -229,7 +229,7 @@ class MCPAction(Action):
                 return ActionReturn.END
 
             async with multi_streamable_clients(
-                context.integration, self.__mcp_connections__
+                context.integrations, self.__mcp_connections__
             ) as clients:
                 self.__mcp_clients__ = clients
 

@@ -67,7 +67,7 @@ async def test() -> None:
             },
         ],
         allowed_actions={"IgnoredAction": True},
-        integration={"jira": {"allowed_tools": {"JiraSearch", "JiraGetIssue"}}},
+        integrations={"jira": {"allowed_tools": {"JiraSearch", "JiraGetIssue"}}},
     )
     action, result = await context.start(GeneralChat)
     print(dumps(context.prompts, indent=4))
