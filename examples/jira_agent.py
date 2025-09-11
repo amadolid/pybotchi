@@ -20,7 +20,7 @@ class GeneralChat(MCPAction):
     """Casual Generic Chat."""
 
     __mcp_connections__ = [MCPConnection("jira", "http://0.0.0.0:9000/mcp")]
-    __max_child_iteration__ = 1
+    __max_child_iteration__ = 5
     # __detached__ = True
 
     class JiraSearch(MCPToolAction):  # noqa: D106
@@ -72,13 +72,7 @@ async def test() -> None:
     action, result = await context.start(GeneralChat)
     print(dumps(context.prompts, indent=4))
     print(dumps(action.serialize(), indent=4))
-    print(
-        await graph(
-            GeneralChat,
-            allowed_actions={"IgnoredAction": False},
-            integration={"jira": {"allowed_tools": {}}},
-        )
-    )
+    print(await graph(GeneralChat, allowed_actions={"IgnoredAction": False}))
 
 
 run(test())

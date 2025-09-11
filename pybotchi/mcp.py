@@ -5,7 +5,7 @@ from contextlib import AsyncExitStack, asynccontextmanager, suppress
 from datetime import timedelta
 from inspect import getdoc
 from os import getenv
-from typing import Any, Callable, TYPE_CHECKING
+from typing import Any, Callable, TYPE_CHECKING, TypedDict
 
 from datamodel_code_generator import DataModelType, PythonVersion
 from datamodel_code_generator.model import get_data_model_types
@@ -51,19 +51,38 @@ DMT = get_data_model_types(
 )
 
 
+class MCPConfig(TypedDict, total=False):
+    """MCP Config."""
+
+    url: str
+    headers: dict[str, str] | None
+    timeout: float | timedelta
+    sse_read_timeout: float | timedelta
+    terminate_on_close: bool
+    httpx_client_factory: Any
+    auth: Any
+
+
+class MCPIntegration(TypedDict, total=False):
+    """MCP Integration."""
+
+    config: MCPConfig
+    allowed_tools: set[str]
+
+
 class MCPClient:
     """MCP Client."""
 
     def __init__(
         self,
         name: str,
-        kwargs: dict[str, Any],
+        config: MCPConfig,
         allowed_tools: set[str],
         client: ClientSession,
     ) -> None:
         """Build MCP Client."""
         self.name = name
-        self.kwargs = kwargs
+        self.config = config
         self.allowed_tools = allowed_tools
         self.client = client
 
@@ -129,9 +148,9 @@ class MCPConnection:
         self,
         name: str,
         url: str = "",
-        headers: dict[str, Any] | None = None,
-        timeout: timedelta = timedelta(seconds=30),
-        sse_read_timeout: timedelta = timedelta(seconds=60 * 5),
+        headers: dict[str, str] | None = None,
+        timeout: float | timedelta = 30.0,
+        sse_read_timeout: float | timedelta = 300.0,
         terminate_on_close: bool = True,
         httpx_client_factory: McpHttpClientFactory = create_mcp_http_client,
         auth: Auth | None = None,
@@ -147,11 +166,22 @@ class MCPConnection:
         self.terminate_on_close = terminate_on_close
         self.httpx_client_factory = httpx_client_factory
         self.auth = auth
-        self.allowed_tools: set[str] = set() if allowed_tools is None else allowed_tools
+        self.allowed_tools = set[str]() if allowed_tools is None else allowed_tools
         self.require_integration = require_integration
 
-    def get_kwargs(self, override: dict[str, Any]) -> dict[str, Any]:
+    def get_config(self, override: MCPConfig | None) -> MCPConfig:
         """Generate config."""
+        if override is None:
+            return {
+                "url": self.url,
+                "headers": self.headers,
+                "timeout": self.timeout,
+                "sse_read_timeout": self.sse_read_timeout,
+                "terminate_on_close": self.terminate_on_close,
+                "httpx_client_factory": self.httpx_client_factory,
+                "auth": self.auth,
+            }
+
         url = override.get("url", self.url)
         timeout = override.get("timeout", self.timeout)
         sse_read_timeout = override.get("sse_read_timeout", self.sse_read_timeout)
@@ -161,6 +191,7 @@ class MCPConnection:
         )
         auth = override.get("auth", self.auth)
 
+        headers: dict[str, str] | None
         if _headers := override.get("headers"):
             if self.headers is None:
                 headers = _headers
@@ -336,7 +367,7 @@ class MCPToolAction(Action):
 
 @asynccontextmanager
 async def multi_streamable_clients(
-    integration: dict[str, dict[str, Any]],
+    integrations: dict[str, MCPIntegration],
     connections: list[MCPConnection],
     bypass: bool = False,
 ) -> AsyncGenerator[dict[str, MCPClient], None]:
@@ -344,34 +375,34 @@ async def multi_streamable_clients(
     async with AsyncExitStack() as stack:
         clients: dict[str, MCPClient] = {}
         for conn in connections:
-            config = integration.get(conn.name)
-            if not bypass and (conn.require_integration and config is None):
+            integration: MCPIntegration | None = integrations.get(conn.name)
+            if not bypass and (conn.require_integration and integration is None):
                 continue
 
-            if config is None:
-                config = {}
+            if integration is None:
+                integration = {}
 
-            kwargs = conn.get_kwargs(config or {})
-            _allowed_tools: list[str] | None = config.get("allowed_tools")
+            overrided_config = conn.get_config(integration.get("config"))
+            _allowed_tools = integration.get("allowed_tools") or set[str]()
             if conn.allowed_tools:
-                allowed_tools = (
+                allowed_tools = set(
                     {tool for tool in _allowed_tools if tool in conn.allowed_tools}
                     if _allowed_tools
                     else conn.allowed_tools
                 )
-            elif _allowed_tools is None:
-                allowed_tools = set[str]()
             else:
-                allowed_tools = set(_allowed_tools)
+                allowed_tools = _allowed_tools
 
             read_stream, write_stream, _ = await stack.enter_async_context(
-                streamablehttp_client(**kwargs)
+                streamablehttp_client(**overrided_config)
             )
             client = await stack.enter_async_context(
                 ClientSession(read_stream, write_stream)
             )
             await client.initialize()
-            clients[conn.name] = MCPClient(conn.name, kwargs, allowed_tools, client)
+            clients[conn.name] = MCPClient(
+                conn.name, overrided_config, allowed_tools, client
+            )
 
         yield clients
 

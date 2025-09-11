@@ -2,11 +2,10 @@
 
 from collections import OrderedDict
 from collections.abc import Generator
-from typing import Any
 
 from .action import Action
 from .constants import Graph
-from .mcp import MCPAction, multi_streamable_clients
+from .mcp import MCPAction, MCPIntegration, multi_streamable_clients
 
 
 def all_agents() -> Generator[type["Action"]]:
@@ -23,7 +22,7 @@ def all_agents() -> Generator[type["Action"]]:
 async def graph(
     action: type[Action],
     allowed_actions: dict[str, bool] | None = None,
-    integration: dict[str, dict[str, Any]] | None = None,
+    integrations: dict[str, MCPIntegration] | None = None,
 ) -> str:
     """Retrieve Graph."""
     graph = Graph()
@@ -32,10 +31,10 @@ async def graph(
     if allowed_actions is None:
         allowed_actions = {}
 
-    if integration is None:
-        integration = {}
+    if integrations is None:
+        integrations = {}
 
-    await traverse(graph, action, allowed_actions, integration)
+    await traverse(graph, action, allowed_actions, integrations)
 
     content = ""
     for node in graph.nodes:
@@ -50,7 +49,7 @@ async def traverse(
     graph: Graph,
     action: type[Action],
     allowed_actions: dict[str, bool],
-    integration: dict[str, dict[str, Any]],
+    integrations: dict[str, MCPIntegration],
 ) -> None:
     """Retrieve Graph."""
     parent = f"{action.__module__}.{action.__qualname__}"
@@ -66,7 +65,7 @@ async def traverse(
 
     if issubclass(action, MCPAction):
         async with multi_streamable_clients(
-            integration, action.__mcp_connections__, True
+            integrations, action.__mcp_connections__, True
         ) as clients:
             [
                 await client.patch_tools(child_actions, action.__mcp_tool_actions__)
@@ -78,4 +77,4 @@ async def traverse(
         graph.edges.add((parent, node, child_action.__concurrent__))
         if node not in graph.nodes:
             graph.nodes.add(node)
-            await traverse(graph, child_action, allowed_actions, integration)
+            await traverse(graph, child_action, allowed_actions, integrations)

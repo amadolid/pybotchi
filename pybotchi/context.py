@@ -17,6 +17,7 @@ from typing_extensions import TypeVar
 from .action import Action, ActionReturn, T, TAction
 from .constants import ChatRole, UNSPECIFIED
 from .llm import LLM
+from .mcp import MCPIntegration
 
 TContext = TypeVar("TContext", bound="Context")
 TLLM = TypeVar("TLLM", default=BaseChatModel)
@@ -28,7 +29,7 @@ class Context(BaseModel, Generic[TLLM]):
     prompts: list[dict[str, Any]] = Field(default_factory=list)
     allowed_actions: dict[str, bool] = Field(default_factory=dict)
     metadata: dict[str, Any] = Field(default_factory=dict)
-    integration: dict[str, Any] = Field(default_factory=dict)
+    integration: dict[str, MCPIntegration] = Field(default_factory=dict)
     usage: dict[str, int] = Field(default_factory=dict)
     streaming: bool = False
     max_self_loop: int | None = None
