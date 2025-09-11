@@ -144,7 +144,7 @@ class Context(BaseModel, Generic[TLLM]):
             "prompts": deepcopy(self.prompts),
             "allowed_actions": deepcopy(self.allowed_actions),
             "metadata": deepcopy(self.metadata),
-            "integration": deepcopy(self.integrations),
+            "integrations": deepcopy(self.integrations),
             "streaming": self.streaming,
             "max_self_loop": self.max_self_loop,
             "detached": True,
