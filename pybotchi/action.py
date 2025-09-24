@@ -274,7 +274,10 @@ class Action(BaseModel):
                     "event": "tool",
                     "type": "selection",
                     "status": "completed",
-                    "data": [n.__display_name__ for n in next_actions],
+                    "data": [
+                        {"action": n.__display_name__, "args": n.model_dump()}
+                        for n in next_actions
+                    ],
                 }
             )
 
