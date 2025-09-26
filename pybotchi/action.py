@@ -101,6 +101,7 @@ class Action(BaseModel):
 
     _usage: list[UsageData] = PrivateAttr(default_factory=list)
     _actions: list["Action"] = PrivateAttr(default_factory=list)
+    _parent: Action
 
     # ---------------------------------------------------------- #
 
@@ -194,6 +195,17 @@ class Action(BaseModel):
         """Execute fallback process."""
         return ActionReturn.GO
 
+    def child_selection_prompt(self, context: Context, tool_choice: str) -> str:
+        """Get child selection prompt."""
+        return apply_placeholders(
+            self.__tool_call_prompt__ or DEFAULT_TOOL_CALL_PROMPT,
+            tool_choice=tool_choice,
+            default=self.__default_tool__,
+            system=self.__system_prompt__
+            or context.prompts[0]["content"]
+            or "Not defined",
+        )
+
     async def child_selection(
         self,
         context: Context,
@@ -220,14 +232,7 @@ class Action(BaseModel):
         message = await llm.ainvoke(
             [
                 {
-                    "content": apply_placeholders(
-                        self.__tool_call_prompt__ or DEFAULT_TOOL_CALL_PROMPT,
-                        tool_choice=tool_choice,
-                        default=self.__default_tool__,
-                        system=self.__system_prompt__
-                        or context.prompts[0]["content"]
-                        or "Not defined",
-                    ),
+                    "content": self.child_selection_prompt(context, tool_choice),
                     "role": "system",
                 },
                 *islice(context.prompts, min, max),
@@ -241,10 +246,16 @@ class Action(BaseModel):
         )
 
         next_actions = [
-            child_actions[call["name"]](**call["args"]) for call in message.tool_calls  # type: ignore[attr-defined]
+            self.child_init(child_actions[call["name"]], **call["args"]) for call in message.tool_calls  # type: ignore[attr-defined]
         ]
 
         return next_actions, message.text()
+
+    def child_init(self, child: type[TAction], *args: Any, **kwargs: Any) -> TAction:
+        """Initialize child and append parent."""
+        instance = child(*args, **kwargs)
+        instance._parent = self
+        return instance
 
     async def execution(self, context: Context) -> ActionReturn:
         """Execute core process."""
@@ -254,7 +265,7 @@ class Action(BaseModel):
             and not (action := next(iter(child_actions.values()))).model_fields
             and not self.__has_fallback__
         ):
-            self._actions.append(next_action := action())  # type: ignore[call-arg]
+            self._actions.append(next_action := self.child_init(action))  # type: ignore[call-arg]
             if (result := await next_action.execute(context)).is_break:
                 return result
         elif child_actions:
