@@ -43,6 +43,7 @@ from orjson import dumps, loads
 
 from .action import Action, ActionReturn, ChildActions
 from .constants import ChatRole
+from .utils import is_camel_case
 
 if TYPE_CHECKING:
     from .context import Context
@@ -100,7 +101,11 @@ class MCPClient:
     def build_tool(self, tool: Tool) -> tuple[str, type[Action]]:
         """Build MCPToolAction."""
         globals: dict[str, Any] = {}
-        class_name = title_to_class_name(tool.name)
+        class_name = (
+            tool.name.title()
+            if is_camel_case(tool.name)
+            else title_to_class_name(tool.name)
+        )
         exec(
             JsonSchemaParser(
                 dumps(tool.inputSchema).decode(),
