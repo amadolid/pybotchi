@@ -14,6 +14,7 @@ from pybotchi import (
     LLM,
     MCPAction,
     MCPConnection,
+    MCPIntegration,
     MCPToolAction,
     graph,
 )
@@ -39,6 +40,7 @@ __all__ = [
     "Context",
     "MCPAction",
     "MCPConnection",
+    "MCPIntegration",
     "MCPToolAction",
     "graph",
 ]

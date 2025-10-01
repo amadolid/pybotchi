@@ -3,9 +3,11 @@
 from collections.abc import AsyncGenerator, Awaitable
 from contextlib import AsyncExitStack, asynccontextmanager, suppress
 from datetime import timedelta
+from enum import StrEnum
 from inspect import getdoc
+from itertools import islice
 from os import getenv
-from typing import Any, Callable, TYPE_CHECKING, TypedDict
+from typing import Any, Callable, Literal, TYPE_CHECKING, TypedDict
 
 from datamodel_code_generator import DataModelType, PythonVersion
 from datamodel_code_generator.model import get_data_model_types
@@ -19,6 +21,7 @@ from fastapi import FastAPI
 from httpx import Auth
 
 from mcp import ClientSession, Tool
+from mcp.client.sse import sse_client
 from mcp.client.streamable_http import (
     McpHttpClientFactory,
     create_mcp_http_client,
@@ -51,6 +54,13 @@ DMT = get_data_model_types(
 )
 
 
+class MCPMode(StrEnum):
+    """MCP Mode."""
+
+    SSE = "SSE"
+    SHTTP = "SHTTP"
+
+
 class MCPConfig(TypedDict, total=False):
     """MCP Config."""
 
@@ -66,6 +76,7 @@ class MCPConfig(TypedDict, total=False):
 class MCPIntegration(TypedDict, total=False):
     """MCP Integration."""
 
+    mode: MCPMode | Literal["SSE", "SHTTP"]
     config: MCPConfig
     allowed_tools: set[str]
 
@@ -147,6 +158,7 @@ class MCPConnection:
     def __init__(
         self,
         name: str,
+        mode: MCPMode | Literal["SSE", "SHTTP"],
         url: str = "",
         headers: dict[str, str] | None = None,
         timeout: float | timedelta = 30.0,
@@ -159,6 +171,7 @@ class MCPConnection:
     ) -> None:
         """Build MCP Connection."""
         self.name = name
+        self.mode = mode
         self.url = url
         self.headers = headers
         self.timeout = timeout
@@ -383,6 +396,11 @@ async def multi_streamable_clients(
                 integration = {}
 
             overrided_config = conn.get_config(integration.get("config"))
+            if integration.get("mode", conn.mode) == MCPMode.SSE:
+                overrided_config.pop("terminate_on_close", None)
+                client_builder: Callable = sse_client
+            else:
+                client_builder = streamablehttp_client
             _allowed_tools = integration.get("allowed_tools") or set[str]()
             if conn.allowed_tools:
                 allowed_tools = set(
@@ -392,12 +410,11 @@ async def multi_streamable_clients(
                 )
             else:
                 allowed_tools = _allowed_tools
-
-            read_stream, write_stream, _ = await stack.enter_async_context(
-                streamablehttp_client(**overrided_config)
+            streams = await stack.enter_async_context(
+                client_builder(**overrided_config)
             )
             client = await stack.enter_async_context(
-                ClientSession(read_stream, write_stream)
+                ClientSession(*islice(streams, 0, 2))
             )
             await client.initialize()
             clients[conn.name] = MCPClient(

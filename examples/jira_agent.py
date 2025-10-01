@@ -11,6 +11,7 @@ from prerequisite import (
     Context,
     MCPAction,
     MCPConnection,
+    MCPIntegration,
     MCPToolAction,
     graph,
 )
@@ -19,7 +20,7 @@ from prerequisite import (
 class GeneralChat(MCPAction):
     """Casual Generic Chat."""
 
-    __mcp_connections__ = [MCPConnection("jira", "http://0.0.0.0:9000/mcp")]
+    __mcp_connections__ = [MCPConnection("jira", "SSE", "http://localhost:9000/sse")]
     __max_child_iteration__ = 5
     # __detached__ = True
 
@@ -52,6 +53,19 @@ class GeneralChat(MCPAction):
 
 async def test() -> None:
     """Chat."""
+    integrations: dict[str, MCPIntegration] = {
+        "jira": {
+            # ----------------------------------------- #
+            # OVERRIDE BASE CONNECTION
+            # ----------------------------------------- #
+            # "mode": "SHTTP",
+            # "config": {
+            #     "url": "http://localhost:9000/mcp",
+            # },
+            # ----------------------------------------- #
+            "allowed_tools": {"JiraSearch", "JiraGetIssue"},
+        }
+    }
     context = Context(
         prompts=[
             {
@@ -67,12 +81,12 @@ async def test() -> None:
             },
         ],
         allowed_actions={"IgnoredAction": True},
-        integrations={"jira": {"allowed_tools": {"JiraSearch", "JiraGetIssue"}}},
+        integrations=integrations,
     )
     action, result = await context.start(GeneralChat)
     print(dumps(context.prompts, indent=4))
     print(dumps(action.serialize(), indent=4))
-    print(await graph(GeneralChat, allowed_actions={"IgnoredAction": False}))
+    print(await graph(GeneralChat, {"IgnoredAction": False}, integrations))
 
 
 run(test())

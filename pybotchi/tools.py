@@ -23,6 +23,7 @@ async def graph(
     action: type[Action],
     allowed_actions: dict[str, bool] | None = None,
     integrations: dict[str, MCPIntegration] | None = None,
+    bypass: bool = False,
 ) -> str:
     """Retrieve Graph."""
     graph = Graph()
@@ -34,7 +35,7 @@ async def graph(
     if integrations is None:
         integrations = {}
 
-    await traverse(graph, action, allowed_actions, integrations)
+    await traverse(graph, action, allowed_actions, integrations, bypass)
 
     content = ""
     for node in graph.nodes:
@@ -50,6 +51,7 @@ async def traverse(
     action: type[Action],
     allowed_actions: dict[str, bool],
     integrations: dict[str, MCPIntegration],
+    bypass: bool = False,
 ) -> None:
     """Retrieve Graph."""
     parent = f"{action.__module__}.{action.__qualname__}"
@@ -65,7 +67,7 @@ async def traverse(
 
     if issubclass(action, MCPAction):
         async with multi_streamable_clients(
-            integrations, action.__mcp_connections__, True
+            integrations, action.__mcp_connections__, bypass
         ) as clients:
             [
                 await client.patch_tools(child_actions, action.__mcp_tool_actions__)
@@ -77,4 +79,4 @@ async def traverse(
         graph.edges.add((parent, node, child_action.__concurrent__))
         if node not in graph.nodes:
             graph.nodes.add(node)
-            await traverse(graph, child_action, allowed_actions, integrations)
+            await traverse(graph, child_action, allowed_actions, integrations, bypass)
