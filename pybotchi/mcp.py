@@ -252,7 +252,6 @@ class MCPAction(Action):
     async def execute(self, context: "Context") -> ActionReturn:
         """Execute main process."""
         parent = context
-        to_commit = True
         try:
             if self.__detached__:
                 context = await context.detach_context()
@@ -289,11 +288,15 @@ class MCPAction(Action):
                     return result
 
                 return ActionReturn.GO
-        except Exception:
-            to_commit = False
-            raise
+        except Exception as exception:
+            if (
+                self.__has_on_error__
+                and (result := await self.on_error(context, exception)).is_break
+            ):
+                return result
+            return ActionReturn.GO
         finally:
-            if to_commit and self.__detached__:
+            if self.__to_commit__ and self.__detached__:
                 await self.commit_context(parent, context)
 
     async def get_child_actions(self, context: "Context") -> ChildActions:

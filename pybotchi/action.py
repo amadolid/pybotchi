@@ -81,6 +81,7 @@ class Action(BaseModel):
 
     __has_pre__: bool
     __has_fallback__: bool
+    __has_on_error__: bool
     __has_post__: bool
     __detached__: bool
 
@@ -94,6 +95,7 @@ class Action(BaseModel):
     __agent__: bool = False
     __display_name__: str
     __mcp_groups__: list[str] | None
+    __to_commit__: bool = True
 
     # ---------------------------------------------------------- #
 
@@ -115,11 +117,13 @@ class Action(BaseModel):
         cls.__display_name__ = src.get("__display_name__", cls.__name__)
         cls.__has_pre__ = cls.pre is not Action.pre
         cls.__has_fallback__ = cls.fallback is not Action.fallback
+        cls.__has_on_error__ = cls.on_error is not Action.on_error
         cls.__has_post__ = cls.post is not Action.post
         cls.__detached__ = src.get(
             "__detached__", cls.commit_context is not Action.commit_context
         )
         cls.__mcp_groups__ = src.get("__mcp_groups__")
+        cls.__to_commit__ = src.get("__to_commit__", True)
 
         cls.__mcp_tool_actions__ = OrderedDict()
         cls.__child_actions__ = OrderedDict()
@@ -154,7 +158,6 @@ class Action(BaseModel):
     async def execute(self, context: Context) -> ActionReturn:
         """Execute main process."""
         parent = context
-        to_commit = True
         try:
             if self.__detached__:
                 context = await context.detach_context()
@@ -180,11 +183,15 @@ class Action(BaseModel):
                 return result
 
             return ActionReturn.GO
-        except Exception:
-            to_commit = False
-            raise
+        except Exception as exception:
+            if (
+                self.__has_on_error__
+                and (result := await self.on_error(context, exception)).is_break
+            ):
+                return result
+            return ActionReturn.GO
         finally:
-            if to_commit and self.__detached__:
+            if self.__to_commit__ and self.__detached__:
                 await self.commit_context(parent, context)
 
     async def pre(self, context: Context) -> ActionReturn:
@@ -194,6 +201,11 @@ class Action(BaseModel):
     async def fallback(self, context: Context, content: str) -> ActionReturn:
         """Execute fallback process."""
         return ActionReturn.GO
+
+    async def on_error(self, context: Context, exception: Exception) -> ActionReturn:
+        """Execute on error process."""
+        self.__to_commit__ = False
+        raise exception
 
     def child_selection_prompt(self, context: Context, tool_choice: str) -> str:
         """Get child selection prompt."""
