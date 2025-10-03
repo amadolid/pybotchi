@@ -319,16 +319,15 @@ class MCPToolAction(Action):
 
     def build_progress_callback(self, context: "Context") -> ProgressFnT:
         """Generate progress callback function."""
-        tool_name = self.__class__.__name__
-        event = f"mcp-{self.__mcp_tool_name__}"
 
         async def progress_callback(
             progress: float, total: float | None, message: str | None
         ) -> None:
             await context.notify(
                 {
-                    "event": event,
-                    "type": tool_name,
+                    "event": "mcp-call-tool",
+                    "class": self.__class__.__name__,
+                    "type": self.__mcp_tool_name__,
                     "status": "inprogress",
                     "data": {"progress": progress, "total": total, "message": message},
                 }
@@ -375,11 +374,10 @@ class MCPToolAction(Action):
     async def pre(self, context: "Context") -> ActionReturn:
         """Execute pre process."""
         tool_args = self.model_dump()
-        event = f"mcp-{self.__mcp_tool_name__}"
-
         await context.notify(
             {
-                "event": event,
+                "event": "mcp-call-tool",
+                "class": self.__class__.__name__,
                 "type": self.__mcp_tool_name__,
                 "status": "started",
                 "data": tool_args,
@@ -395,7 +393,8 @@ class MCPToolAction(Action):
 
         await context.notify(
             {
-                "event": event,
+                "event": "mcp-call-tool",
+                "class": self.__class__.__name__,
                 "type": self.__mcp_tool_name__,
                 "status": "completed",
                 "data": content,
