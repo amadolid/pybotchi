@@ -184,10 +184,10 @@ class Action(BaseModel):
 
             return ActionReturn.GO
         except Exception as exception:
-            if (
-                self.__has_on_error__
-                and (result := await self.on_error(context, exception)).is_break
-            ):
+            if not self.__has_on_error__:
+                self.__to_commit__ = False
+                raise exception
+            elif (result := await self.on_error(context, exception)).is_break:
                 return result
             return ActionReturn.GO
         finally:
@@ -204,8 +204,7 @@ class Action(BaseModel):
 
     async def on_error(self, context: Context, exception: Exception) -> ActionReturn:
         """Execute on error process."""
-        self.__to_commit__ = False
-        raise exception
+        return ActionReturn.GO
 
     def child_selection_prompt(self, context: Context, tool_choice: str) -> str:
         """Get child selection prompt."""
