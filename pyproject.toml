@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pybotchi"
-version = "1.0.17"
+version = "1.0.18"
 description = "A deterministic, intent-based AI agent builder."
 authors = [
   "Alexie (Boyong) Madolid <madolid.alexie@gmail.com>"

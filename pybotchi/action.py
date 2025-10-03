@@ -79,18 +79,20 @@ class Action(BaseModel):
     __concurrent__ = False
     __mcp_hosts__: list[str] | None = None
 
-    # --------------------- not inheritable -------------------- #
-
-    __agent__: bool = False
-    __max_iteration__: int | None
-    __display_name__: str
     __has_pre__: bool
     __has_fallback__: bool
     __has_post__: bool
     __detached__: bool
+
+    __max_iteration__: int | None
     __max_child_iteration__: int | None
     __child_actions__: ChildActions
     __mcp_tool_actions__: ChildActions
+
+    # --------------------- not inheritable -------------------- #
+
+    __agent__: bool = False
+    __display_name__: str
     __mcp_groups__: list[str] | None
 
     # ---------------------------------------------------------- #
@@ -117,13 +119,11 @@ class Action(BaseModel):
         cls.__detached__ = src.get(
             "__detached__", cls.commit_context is not Action.commit_context
         )
-        cls.__max_iteration__ = src.get("__max_iteration__")
-        cls.__max_child_iteration__ = src.get("__max_child_iteration__")
         cls.__mcp_groups__ = src.get("__mcp_groups__")
 
         cls.__mcp_tool_actions__ = OrderedDict()
         cls.__child_actions__ = OrderedDict()
-        for _name, attr in getmembers(cls):
+        for _, attr in getmembers(cls):
             if isinstance(attr, type):
                 if getattr(attr, "__mcp_tool__", False):
                     cls.__mcp_tool_actions__[attr.__name__] = attr
