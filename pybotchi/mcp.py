@@ -102,7 +102,7 @@ class MCPClient:
         """Build MCPToolAction."""
         globals: dict[str, Any] = {}
         class_name = (
-            tool.name.title()
+            f"{tool.name[0].upper()}{tool.name[1:]}"
             if is_camel_case(tool.name)
             else title_to_class_name(tool.name)
         )
