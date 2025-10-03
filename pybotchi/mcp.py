@@ -235,6 +235,20 @@ class MCPAction(Action):
     __mcp_clients__: dict[str, MCPClient]
     __mcp_connections__: list[MCPConnection]
 
+    # --------------------- not inheritable -------------------- #
+
+    __has_pre_mcp__: bool
+
+    @classmethod
+    def __pydantic_init_subclass__(cls, **kwargs: Any) -> None:
+        """Override __pydantic_init_subclass__."""
+        super().__pydantic_init_subclass__(**kwargs)
+        cls.__has_pre_mcp__ = cls.pre_mcp is not MCPAction.pre_mcp
+
+    async def pre_mcp(self, context: "Context") -> ActionReturn:
+        """Execute pre mcp process."""
+        return ActionReturn.GO
+
     async def execute(self, context: "Context") -> ActionReturn:
         """Execute main process."""
         parent = context
@@ -245,6 +259,12 @@ class MCPAction(Action):
 
             if context.check_self_recursion(self):
                 return ActionReturn.END
+
+            if (
+                self.__has_pre_mcp__
+                and (result := await self.pre_mcp(context)).is_break
+            ):
+                return result
 
             async with multi_streamable_clients(
                 context.integrations, self.__mcp_connections__

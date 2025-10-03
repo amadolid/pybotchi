@@ -24,6 +24,14 @@ class GeneralChat(MCPAction):
     __max_child_iteration__ = 5
     # __detached__ = True
 
+    async def pre_mcp(self, context: Context) -> ActionReturn:
+        """Execute pre mcp execution."""
+        print("Trigger anything here before mcp client connection")
+        print("Build context.integrations['jira']['config']")
+        print("Refresh tokens")
+        print("etc ...")
+        return ActionReturn.GO
+
     class JiraSearch(MCPToolAction):  # noqa: D106
         async def pre(self, context: Context) -> ActionReturn:
             """Execute pre execution."""
