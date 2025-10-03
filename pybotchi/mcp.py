@@ -80,6 +80,7 @@ class MCPIntegration(TypedDict, total=False):
     mode: MCPMode | Literal["SSE", "SHTTP"]
     config: MCPConfig
     allowed_tools: set[str]
+    exclude_unset: bool
 
 
 class MCPClient:
@@ -91,12 +92,14 @@ class MCPClient:
         config: MCPConfig,
         allowed_tools: set[str],
         client: ClientSession,
+        exclude_unset: bool,
     ) -> None:
         """Build MCP Client."""
         self.name = name
         self.config = config
         self.allowed_tools = allowed_tools
         self.client = client
+        self.exclude_unset = exclude_unset
 
     def build_tool(self, tool: Tool) -> tuple[str, type[Action]]:
         """Build MCPToolAction."""
@@ -121,15 +124,19 @@ class MCPClient:
             .removeprefix("from __future__ import annotations"),  # type: ignore[union-attr]
             globals=globals,
         )
+        base_class = globals[class_name]
         action = type(
             class_name,
             (
-                globals[class_name],
+                base_class,
                 MCPToolAction,
             ),
             {
                 "__mcp_tool_name__": tool.name,
                 "__mcp_client__": self.client,
+                "__mcp_exclude_unset__": getattr(
+                    base_class, "__mcp_exclude_unset__", self.exclude_unset
+                ),
                 "__module__": f"mcp.{self.name}",
             },
         )
@@ -172,6 +179,7 @@ class MCPConnection:
         httpx_client_factory: McpHttpClientFactory = create_mcp_http_client,
         auth: Auth | None = None,
         allowed_tools: set[str] | None = None,
+        exclude_unset: bool = True,
         require_integration: bool = True,
     ) -> None:
         """Build MCP Connection."""
@@ -185,6 +193,7 @@ class MCPConnection:
         self.httpx_client_factory = httpx_client_factory
         self.auth = auth
         self.allowed_tools = set[str]() if allowed_tools is None else allowed_tools
+        self.exclude_unset = exclude_unset
         self.require_integration = require_integration
 
     def get_config(self, override: MCPConfig | None) -> MCPConfig:
@@ -316,6 +325,7 @@ class MCPToolAction(Action):
 
     __mcp_client__: ClientSession
     __mcp_tool_name__: str
+    __mcp_exclude_unset__: bool
 
     def build_progress_callback(self, context: "Context") -> ProgressFnT:
         """Generate progress callback function."""
@@ -373,7 +383,7 @@ class MCPToolAction(Action):
 
     async def pre(self, context: "Context") -> ActionReturn:
         """Execute pre process."""
-        tool_args = self.model_dump()
+        tool_args = self.model_dump(exclude_unset=self.__mcp_exclude_unset__)
         await context.notify(
             {
                 "event": "mcp-call-tool",
@@ -445,7 +455,14 @@ async def multi_streamable_clients(
             )
             await client.initialize()
             clients[conn.name] = MCPClient(
-                conn.name, overrided_config, allowed_tools, client
+                conn.name,
+                overrided_config,
+                allowed_tools,
+                client,
+                exclude_unset=integration.get(
+                    "exclude_unset",
+                    conn.exclude_unset,
+                ),
             )
 
         yield clients
