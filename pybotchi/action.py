@@ -301,19 +301,14 @@ class Action(BaseModel):
             )
 
             if next_actions:
-                async with TaskGroup() as tg:
-                    for next_action in (
-                        islice(next_actions, 1)
-                        if self.__first_tool_only__
-                        else next_actions
-                    ):
-                        self._actions.append(next_action)
-                        if next_action.__concurrent__:
-                            tg.create_task(next_action.execute(context, self))
-                        elif (
-                            result := await next_action.execute(context, self)
-                        ).is_break:
-                            return result
+                if (
+                    result := await (
+                        self.concurrent_children_execution
+                        if any(True for na in next_actions if na.__concurrent__)
+                        else self.sequential_children_execution
+                    )(context, next_actions)
+                ).is_break:
+                    return result
             elif (
                 self.__has_fallback__
                 and (result := await self.fallback(context, content)).is_break
@@ -356,6 +351,35 @@ class Action(BaseModel):
             )
 
             if (result := await self.fallback(context, message.text())).is_break:  # type: ignore[arg-type]
+                return result
+
+        return ActionReturn.GO
+
+    async def concurrent_children_execution(
+        self, context: Context, next_actions: list[Action]
+    ) -> ActionReturn:
+        """Run children execution with concurrent."""
+        async with TaskGroup() as tg:
+            for next_action in (
+                islice(next_actions, 1) if self.__first_tool_only__ else next_actions
+            ):
+                self._actions.append(next_action)
+                if next_action.__concurrent__:
+                    tg.create_task(next_action.execute(context, self))
+                elif (result := await next_action.execute(context, self)).is_break:
+                    return result
+
+        return ActionReturn.GO
+
+    async def sequential_children_execution(
+        self, context: Context, next_actions: list[Action]
+    ) -> ActionReturn:
+        """Run children execution sequentially."""
+        for next_action in (
+            islice(next_actions, 1) if self.__first_tool_only__ else next_actions
+        ):
+            self._actions.append(next_action)
+            if (result := await next_action.execute(context, self)).is_break:
                 return result
 
         return ActionReturn.GO
