@@ -105,7 +105,7 @@ class Action(BaseModel):
 
     _usage: list[UsageData] = PrivateAttr(default_factory=list)
     _actions: list["Action"] = PrivateAttr(default_factory=list)
-    _parent: Action
+    _parent: Action | None = PrivateAttr(None)
 
     # ---------------------------------------------------------- #
 
@@ -155,9 +155,12 @@ class Action(BaseModel):
             "type": "function",
         }
 
-    async def execute(self, context: Context) -> ActionReturn:
+    async def execute(
+        self, context: Context, parent: Action | None = None
+    ) -> ActionReturn:
         """Execute main process."""
-        parent = context
+        self._parent = parent
+        parent_context = context
         try:
             if self.__detached__:
                 context = await context.detach_context()
@@ -192,7 +195,7 @@ class Action(BaseModel):
             return ActionReturn.GO
         finally:
             if self.__to_commit__ and self.__detached__:
-                await self.commit_context(parent, context)
+                await self.commit_context(parent_context, context)
 
     async def pre(self, context: Context) -> ActionReturn:
         """Execute pre process."""
@@ -257,16 +260,10 @@ class Action(BaseModel):
         )
 
         next_actions = [
-            self.child_init(child_actions[call["name"]], **call["args"]) for call in message.tool_calls  # type: ignore[attr-defined]
+            child_actions[call["name"]](**call["args"]) for call in message.tool_calls  # type: ignore[attr-defined]
         ]
 
         return next_actions, message.text()
-
-    def child_init(self, child: type[TAction], *args: Any, **kwargs: Any) -> TAction:
-        """Initialize child and append parent."""
-        instance = child(*args, **kwargs)
-        instance._parent = self
-        return instance
 
     async def execution(self, context: Context) -> ActionReturn:
         """Execute core process."""
@@ -276,8 +273,8 @@ class Action(BaseModel):
             and not (action := next(iter(child_actions.values()))).model_fields
             and not self.__has_fallback__
         ):
-            self._actions.append(next_action := self.child_init(action))  # type: ignore[call-arg]
-            if (result := await next_action.execute(context)).is_break:
+            self._actions.append(next_action := action())  # type: ignore[call-arg]
+            if (result := await next_action.execute(context, self)).is_break:
                 return result
         elif child_actions:
             await context.notify(
@@ -312,8 +309,10 @@ class Action(BaseModel):
                     ):
                         self._actions.append(next_action)
                         if next_action.__concurrent__:
-                            tg.create_task(next_action.execute(context))
-                        elif (result := await next_action.execute(context)).is_break:
+                            tg.create_task(next_action.execute(context, self))
+                        elif (
+                            result := await next_action.execute(context, self)
+                        ).is_break:
                             return result
             elif (
                 self.__has_fallback__

@@ -475,7 +475,7 @@ class YourAction(Action):
 
 ### **Framework Comparison (Get Weather)**
 
-- [`Pybotchi`](https://github.com/amadolid/pybotchi/blob/master/examples/vs/action_approach.py)
+- [`Pybotchi`](https://github.com/amadolid/pybotchi/blob/master/examples/vs/pybotchi_approach.py)
 - [`LangGraph`](https://github.com/amadolid/pybotchi/blob/master/examples/vs/langgraph_approach.py)
 
 Feel free to comment or message me for examples. I hope this helps with your development too.

@@ -258,9 +258,12 @@ class MCPAction(Action):
         """Execute pre mcp process."""
         return ActionReturn.GO
 
-    async def execute(self, context: "Context") -> ActionReturn:
+    async def execute(
+        self, context: "Context", parent: Action | None = None
+    ) -> ActionReturn:
         """Execute main process."""
-        parent = context
+        self._parent = parent
+        parent_context = context
         try:
             if self.__detached__:
                 context = await context.detach_context()
@@ -306,7 +309,7 @@ class MCPAction(Action):
             return ActionReturn.GO
         finally:
             if self.__to_commit__ and self.__detached__:
-                await self.commit_context(parent, context)
+                await self.commit_context(parent_context, context)
 
     async def get_child_actions(self, context: "Context") -> ChildActions:
         """Retrieve child Actions."""
