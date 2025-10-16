@@ -105,7 +105,11 @@ class Action(BaseModel):
 
     _usage: list[UsageData] = PrivateAttr(default_factory=list)
     _actions: list["Action"] = PrivateAttr(default_factory=list)
-    _parent: Action | None = PrivateAttr(None)
+
+    # ------------------ life cycle variables ------------------ #
+
+    _parent: "Action" | None = PrivateAttr(None)
+    _children: list["Action"] = PrivateAttr(default_factory=list)
 
     # ---------------------------------------------------------- #
 
@@ -287,6 +291,7 @@ class Action(BaseModel):
             )
 
             next_actions, content = await self.child_selection(context, child_actions)
+            self._children = next_actions
 
             await context.notify(
                 {
