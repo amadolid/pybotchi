@@ -5,7 +5,7 @@ from collections.abc import Coroutine
 from concurrent.futures import Executor
 from copy import deepcopy
 from functools import cached_property
-from typing import Any, Generic
+from typing import Any, Generic, Self
 
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages.ai import UsageMetadata
@@ -33,7 +33,7 @@ class Context(BaseModel, Generic[TLLM]):
     usage: dict[str, int] = Field(default_factory=dict)
     streaming: bool = False
     max_self_loop: int | None = None
-    detached: bool = False
+    parent: Self | None = None
 
     _action_call: dict[str, int] = PrivateAttr(default_factory=dict)
 
@@ -136,7 +136,7 @@ class Context(BaseModel, Generic[TLLM]):
 
     async def detach_context(self: TContext) -> TContext:
         """Spawn detached context."""
-        return self.__class__(**self.detached_kwargs())
+        return self.__class__(**self.detached_kwargs(), parent=self)
 
     def detached_kwargs(self) -> dict[str, Any]:
         """Retrieve detached kwargs."""
@@ -147,7 +147,6 @@ class Context(BaseModel, Generic[TLLM]):
             "integrations": deepcopy(self.integrations),
             "streaming": self.streaming,
             "max_self_loop": self.max_self_loop,
-            "detached": True,
         }
 
     async def detached_start(
