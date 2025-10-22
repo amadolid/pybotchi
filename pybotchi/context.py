@@ -8,14 +8,13 @@ from functools import cached_property
 from typing import Any, Generic, Self
 
 from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_core.messages.ai import UsageMetadata
 
 from pydantic import BaseModel, Field, PrivateAttr
 
 from typing_extensions import TypeVar
 
 from .action import Action, ActionReturn, T, TAction
-from .constants import ChatRole, UNSPECIFIED
+from .constants import ChatRole, UNSPECIFIED, UsageMetadata
 from .llm import LLM
 from .mcp import MCPIntegration
 
@@ -30,7 +29,7 @@ class Context(BaseModel, Generic[TLLM]):
     allowed_actions: dict[str, bool] = Field(default_factory=dict)
     metadata: dict[str, Any] = Field(default_factory=dict)
     integrations: dict[str, MCPIntegration] = Field(default_factory=dict)
-    usage: dict[str, int] = Field(default_factory=dict)
+    usage: dict[str, UsageMetadata] = Field(default_factory=dict)
     streaming: bool = False
     max_self_loop: int | None = None
     parent: Self | None = None
@@ -82,10 +81,42 @@ class Context(BaseModel, Generic[TLLM]):
         )
         action._usage.append({"name": name, "model": model_name, "usage": usage})
 
-        if model_name not in self.usage:
-            self.usage[model_name] = 0
+        if not (model_usage := self.usage.get(model_name)):
+            model_usage = self.usage[model_name] = {
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "total_tokens": 0,
+                "input_token_details": {
+                    "audio": 0,
+                    "cache_creation": 0,
+                    "cache_read": 0,
+                },
+                "output_token_details": {
+                    "audio": 0,
+                    "reasoning": 0,
+                },
+            }
 
-        self.usage[model_name] += usage["total_tokens"]
+        model_usage["input_tokens"] += usage["input_tokens"]
+        model_usage["output_tokens"] += usage["output_tokens"]
+        model_usage["total_tokens"] += usage["total_tokens"]
+
+        _input_token_details = model_usage["input_token_details"]
+        if input_token_details := usage.get("input_token_details"):
+            _input_token_details["audio"] += input_token_details.get("audio", 0)
+            _input_token_details["cache_creation"] += input_token_details.get(
+                "cache_creation", 0
+            )
+            _input_token_details["cache_read"] += input_token_details.get(
+                "cache_read", 0
+            )
+
+        _output_token_details = model_usage["output_token_details"]
+        if output_token_details := usage.get("output_token_details"):
+            _output_token_details["audio"] += output_token_details.get("audio", 0)
+            _output_token_details["reasoning"] += output_token_details.get(
+                "reasoning", 0
+            )
 
     async def add_message(
         self, role: ChatRole, content: str, metadata: dict[str, Any] | None = None
