@@ -122,7 +122,7 @@ class MCPClient:
             )
             .parse()
             .removeprefix("from __future__ import annotations"),  # type: ignore[union-attr]
-            globals=globals,
+            globals,
         )
         base_class = globals[class_name]
         action = type(
