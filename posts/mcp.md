@@ -30,7 +30,7 @@ class AtlassianAgent(MCPAction):
 
     async def post(self, context):
         readable_response = await context.llm.ainvoke(context.prompts)
-        await context.add_response(self, readable_response.text())
+        await context.add_response(self, readable_response.text)
         return ActionReturn.END
 ```
 
@@ -163,7 +163,7 @@ class AtlassianAgent(MCPAction):
 
     async def post(self, context):
         readable_response = await context.llm.ainvoke(context.prompts)
-        await context.add_response(self, readable_response.text())
+        await context.add_response(self, readable_response.text)
         return ActionReturn.END
 
     class JiraSearch(MCPToolAction):
@@ -222,7 +222,7 @@ class TranslateToEnglish(Action):
         message = await context.llm.ainvoke(
             f"Translate this to english: {self.sentence}"
         )
-        await context.add_response(self, message.text())
+        await context.add_response(self, message.text)
         return ActionReturn.GO
 
 class TranslateToFilipino(Action):
@@ -236,7 +236,7 @@ class TranslateToFilipino(Action):
         message = await context.llm.ainvoke(
             f"Translate this to Filipino: {self.sentence}"
         )
-        await context.add_response(self, message.text())
+        await context.add_response(self, message.text)
         return ActionReturn.GO
 
 @asynccontextmanager

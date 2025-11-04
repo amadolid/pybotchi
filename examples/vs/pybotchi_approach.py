@@ -211,7 +211,7 @@ class Approach3(Action):
             # any other process here
             # streaming, binding, with config
             message = await context.llm.ainvoke(context.prompts)
-            await context.add_message(ChatRole.ASSISTANT, message.text())
+            await context.add_message(ChatRole.ASSISTANT, message.text)
 
             return ActionReturn.END
 

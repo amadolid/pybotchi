@@ -20,7 +20,7 @@ class GeneralChat(Action):
             message = await context.llm.ainvoke("generate very short joke")
             context.add_usage(self, context.llm, message.usage_metadata)
 
-            await context.add_response(self, message.text())
+            await context.add_response(self, message.text)
             print("Done executing Joke...")
             return ActionReturn.GO
 
@@ -39,7 +39,7 @@ class GeneralChat(Action):
             message = await context.llm.ainvoke("generate a very short story")
             context.add_usage(self, context.llm, message.usage_metadata)
 
-            await context.add_response(self, message.text())
+            await context.add_response(self, message.text)
             print("Done executing StoryTelling...")
             return ActionReturn.GO
 
@@ -53,7 +53,7 @@ class GeneralChat(Action):
         message = await context.llm.ainvoke(context.prompts)
         context.add_usage(self, context.llm, message.usage_metadata, "combine")
 
-        await context.add_message(ChatRole.ASSISTANT, message.text())
+        await context.add_message(ChatRole.ASSISTANT, message.text)
         print("Done executing post...")
         return ActionReturn.END
 

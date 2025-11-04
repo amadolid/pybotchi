@@ -267,7 +267,7 @@ class Action(BaseModel):
             child_actions[call["name"]](**call["args"]) for call in message.tool_calls  # type: ignore[attr-defined]
         ]
 
-        return next_actions, message.text()
+        return next_actions, message.text
 
     async def execution(self, context: Context) -> ActionReturn:
         """Execute core process."""
@@ -355,7 +355,7 @@ class Action(BaseModel):
                 }
             )
 
-            if (result := await self.fallback(context, message.text())).is_break:  # type: ignore[arg-type]
+            if (result := await self.fallback(context, message.text)).is_break:  # type: ignore[arg-type]
                 return result
 
         return ActionReturn.GO
@@ -395,12 +395,8 @@ class Action(BaseModel):
 
     async def commit_context(self, parent: Context, child: Context) -> None:
         """Execute commit context if it's detached."""
-        usage = parent.usage
-        for model, token in child.usage.items():
-            if model not in usage:
-                usage[model] = token
-            else:
-                usage[model] += token
+        for model, usage in child.usages.items():
+            parent.merge_to_usages(model, usage)
 
     def serialize(self) -> ActionEntry:
         """Serialize Action."""

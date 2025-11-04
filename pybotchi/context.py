@@ -29,7 +29,7 @@ class Context(BaseModel, Generic[TLLM]):
     allowed_actions: dict[str, bool] = Field(default_factory=dict)
     metadata: dict[str, Any] = Field(default_factory=dict)
     integrations: dict[str, MCPIntegration] = Field(default_factory=dict)
-    usage: dict[str, UsageMetadata] = Field(default_factory=dict)
+    usages: dict[str, UsageMetadata] = Field(default_factory=dict)
     streaming: bool = False
     max_self_loop: int | None = None
     parent: Self | None = None
@@ -66,23 +66,10 @@ class Context(BaseModel, Generic[TLLM]):
                 return True
         return False
 
-    def add_usage(
-        self,
-        action: "Action",
-        model: BaseChatModel | str,
-        usage: UsageMetadata,
-        name: str | None = None,
-    ) -> None:
-        """Add usage."""
-        model_name = (
-            getattr(model, "model_name", getattr(model, "deployment_name", UNSPECIFIED))
-            if isinstance(model, BaseChatModel)
-            else model
-        )
-        action._usage.append({"name": name, "model": model_name, "usage": usage})
-
-        if not (model_usage := self.usage.get(model_name)):
-            model_usage = self.usage[model_name] = {
+    def merge_to_usages(self, model: str, usage: UsageMetadata) -> None:
+        """Merge usage to usages."""
+        if not (base := self.usages.get(model)):
+            base = self.usages[model] = {
                 "input_tokens": 0,
                 "output_tokens": 0,
                 "total_tokens": 0,
@@ -97,11 +84,11 @@ class Context(BaseModel, Generic[TLLM]):
                 },
             }
 
-        model_usage["input_tokens"] += usage["input_tokens"]
-        model_usage["output_tokens"] += usage["output_tokens"]
-        model_usage["total_tokens"] += usage["total_tokens"]
+        base["input_tokens"] += usage["input_tokens"]
+        base["output_tokens"] += usage["output_tokens"]
+        base["total_tokens"] += usage["total_tokens"]
 
-        _input_token_details = model_usage["input_token_details"]
+        _input_token_details = base["input_token_details"]
         if input_token_details := usage.get("input_token_details"):
             _input_token_details["audio"] += input_token_details.get("audio", 0)
             _input_token_details["cache_creation"] += input_token_details.get(
@@ -111,12 +98,35 @@ class Context(BaseModel, Generic[TLLM]):
                 "cache_read", 0
             )
 
-        _output_token_details = model_usage["output_token_details"]
+        _output_token_details = base["output_token_details"]
         if output_token_details := usage.get("output_token_details"):
             _output_token_details["audio"] += output_token_details.get("audio", 0)
             _output_token_details["reasoning"] += output_token_details.get(
                 "reasoning", 0
             )
+
+    def add_usage(
+        self,
+        action: "Action",
+        model: BaseChatModel | str,
+        usage: UsageMetadata | None,
+        name: str | None = None,
+        raise_error: bool = False,
+    ) -> None:
+        """Add usage."""
+        if not usage:
+            if raise_error:
+                raise AttributeError("Adding usage but usage is not available!")
+            return
+
+        model_name = (
+            getattr(model, "model_name", getattr(model, "deployment_name", UNSPECIFIED))
+            if isinstance(model, BaseChatModel)
+            else model
+        )
+        action._usage.append({"name": name, "model": model_name, "usage": usage})
+
+        self.merge_to_usages(model_name, usage)
 
     async def add_message(
         self, role: ChatRole, content: str, metadata: dict[str, Any] | None = None

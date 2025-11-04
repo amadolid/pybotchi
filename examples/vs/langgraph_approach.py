@@ -89,7 +89,7 @@ async def main() -> None:
     for _i in range(10):
         now = datetime.now().timestamp()
         new_state = await APP.ainvoke({"messages": ["Whats the weather in yorkshire?"]})
-        print(new_state["messages"][-1].text())
+        print(new_state["messages"][-1].text)
         total += datetime.now().timestamp() - now
     print(total / 10)
 

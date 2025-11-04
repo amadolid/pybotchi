@@ -71,7 +71,7 @@ class ManipulateFilesContent(Action):
                 *islice(context.prompts, 1, None),
             ]
         )
-        await context.add_response(self, response.text())
+        await context.add_response(self, response.text)
 
         return ActionReturn.GO
 
@@ -357,7 +357,7 @@ ${files}
                     },
                 ]
             )
-            return name, response.text()
+            return name, response.text
 
     async def skip_image(
         self,

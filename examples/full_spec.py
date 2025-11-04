@@ -119,7 +119,7 @@ class GeneralChat(Action):
             """Execute pre process."""
             message = await context.llm.ainvoke(context.prompts)
             context.add_usage(self, context.llm, message.usage_metadata)
-            await context.add_response(self, message.text())
+            await context.add_response(self, message.text)
 
             return ActionReturn.GO
 

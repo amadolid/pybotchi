@@ -43,7 +43,7 @@ class Translation(Action):
 
     async def pre(self, context: Context) -> ActionReturn:
         message = await context.llm.ainvoke(context.prompts)
-        await context.add_response(self, message.text())
+        await context.add_response(self, message.text)
         return ActionReturn.GO
 ```
 
