@@ -64,11 +64,28 @@ class ActionEntry(ActionItem):
     actions: list["ActionEntry"]
 
 
+class Groups(TypedDict, total=False):
+    """Action Groups."""
+
+    mcp: set[str]
+    a2a: set[str]
+
+
 class Graph(BaseModel):
     """Action Result Class."""
 
     nodes: set[str] = Field(default_factory=set)
     edges: set[tuple[str, str, bool]] = Field(default_factory=set)
+
+    def flowchart(self) -> str:
+        """Draw Mermaid flowchart."""
+        content = ""
+        for node in self.nodes:
+            content += f"{node}[{node}]\n"
+        for source, target, concurrent in self.edges:
+            content += f'{source} -->{"|Concurrent|" if concurrent else ""} {target}\n'
+
+        return f"flowchart TD\n{content}"
 
 
 class ActionReturn(BaseModel):

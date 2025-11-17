@@ -4,13 +4,11 @@ from __future__ import annotations
 
 from asyncio import TaskGroup
 from collections import OrderedDict
+from collections.abc import Generator
 from inspect import getmembers
 from itertools import islice
 from os import getenv
-from typing import Any, TYPE_CHECKING, TypeAlias, TypeVar
-from uuid import uuid4
-
-from mcp.server.fastmcp import FastMCP
+from typing import Any, Generic, TYPE_CHECKING, TypeAlias, TypeVar
 
 from openai.types.chat.chat_completion_message_tool_call_param import (
     ChatCompletionMessageToolCallParam,
@@ -18,18 +16,11 @@ from openai.types.chat.chat_completion_message_tool_call_param import (
 
 from pydantic import BaseModel, PrivateAttr
 
-from .constants import ActionEntry, ActionReturn, UsageData
-from .utils import apply_placeholders
+from .common import ActionEntry, ActionReturn, Graph, Groups, UsageData
+from .utils import apply_placeholders, uuid
 
 if TYPE_CHECKING:
     from .context import Context
-
-try:
-    from uuid6 import uuid7  # type: ignore[import-not-found]
-
-    gen_uuid = uuid7
-except Exception:
-    gen_uuid = uuid4
 
 
 DEFAULT_ACTION = getenv("DEFAULT_ACTION", "DefaultAction")
@@ -55,15 +46,14 @@ ${addons}
 )
 
 TAction = TypeVar("TAction", bound="Action")
+TContext = TypeVar("TContext", bound="Context")
 T = TypeVar("T")
 
 ChildActions: TypeAlias = OrderedDict[str, type["Action"]]
 
 
-class Action(BaseModel):
+class Action(BaseModel, Generic[TContext]):
     """Base Agent Action."""
-
-    __mcp_servers__: dict[str, FastMCP] = {}
 
     ##############################################################
     #                       CLASS VARIABLES                      #
@@ -77,7 +67,6 @@ class Action(BaseModel):
     __default_tool__ = DEFAULT_ACTION
     __first_tool_only__ = False
     __concurrent__ = False
-    __mcp_hosts__: list[str] | None = None
 
     __has_pre__: bool
     __has_fallback__: bool
@@ -88,13 +77,12 @@ class Action(BaseModel):
     __max_iteration__: int | None = None
     __max_child_iteration__: int | None = None
     __child_actions__: ChildActions
-    __mcp_tool_actions__: ChildActions
 
     # --------------------- not inheritable -------------------- #
 
     __agent__: bool = False
     __display_name__: str
-    __mcp_groups__: list[str] | None
+    __groups__: Groups | None
     __to_commit__: bool = True
 
     # ---------------------------------------------------------- #
@@ -126,19 +114,15 @@ class Action(BaseModel):
         cls.__detached__ = src.get(
             "__detached__", cls.commit_context is not Action.commit_context
         )
-        cls.__mcp_groups__ = src.get("__mcp_groups__")
+        cls.__groups__ = src.get("__groups__")
         cls.__to_commit__ = src.get("__to_commit__", True)
 
-        cls.__mcp_tool_actions__ = OrderedDict()
         cls.__child_actions__ = OrderedDict()
         for _, attr in getmembers(cls):
-            if isinstance(attr, type):
-                if getattr(attr, "__mcp_tool__", False):
-                    cls.__mcp_tool_actions__[attr.__name__] = attr
-                elif issubclass(attr, Action):
-                    cls.__child_actions__[attr.__name__] = attr
+            if isinstance(attr, type) and issubclass(attr, Action):
+                cls.__child_actions__[attr.__name__] = attr
 
-    async def get_child_actions(self, context: Context) -> ChildActions:
+    async def get_child_actions(self, context: TContext) -> ChildActions:
         """Retrieve child Actions."""
         return OrderedDict(
             item
@@ -149,7 +133,7 @@ class Action(BaseModel):
     @property
     def _tool_call(self) -> ChatCompletionMessageToolCallParam:
         """Override post init."""
-        tool_id = f"call_{gen_uuid().hex}"
+        tool_id = f"call_{uuid().hex}"
         return {
             "id": tool_id,
             "function": {
@@ -160,7 +144,7 @@ class Action(BaseModel):
         }
 
     async def execute(
-        self, context: Context, parent: Action | None = None
+        self, context: TContext, parent: Action | None = None
     ) -> ActionReturn:
         """Execute main process."""
         self._parent = parent
@@ -201,19 +185,19 @@ class Action(BaseModel):
             if self.__to_commit__ and self.__detached__:
                 await self.commit_context(parent_context, context)
 
-    async def pre(self, context: Context) -> ActionReturn:
+    async def pre(self, context: TContext) -> ActionReturn:
         """Execute pre process."""
         return ActionReturn.GO
 
-    async def fallback(self, context: Context, content: str) -> ActionReturn:
+    async def fallback(self, context: TContext, content: str) -> ActionReturn:
         """Execute fallback process."""
         return ActionReturn.GO
 
-    async def on_error(self, context: Context, exception: Exception) -> ActionReturn:
+    async def on_error(self, context: TContext, exception: Exception) -> ActionReturn:
         """Execute on error process."""
         return ActionReturn.GO
 
-    def child_selection_prompt(self, context: Context, tool_choice: str) -> str:
+    def child_selection_prompt(self, context: TContext, tool_choice: str) -> str:
         """Get child selection prompt."""
         return apply_placeholders(
             self.__tool_call_prompt__ or DEFAULT_TOOL_CALL_PROMPT,
@@ -226,7 +210,7 @@ class Action(BaseModel):
 
     async def child_selection(
         self,
-        context: Context,
+        context: TContext,
         child_actions: ChildActions | None = None,
     ) -> tuple[list["Action"], str]:
         """Execute tool selection process."""
@@ -269,7 +253,7 @@ class Action(BaseModel):
 
         return next_actions, message.text
 
-    async def execution(self, context: Context) -> ActionReturn:
+    async def execution(self, context: TContext) -> ActionReturn:
         """Execute core process."""
         child_actions = await self.get_child_actions(context)
         if (
@@ -361,7 +345,7 @@ class Action(BaseModel):
         return ActionReturn.GO
 
     async def concurrent_children_execution(
-        self, context: Context, next_actions: list[Action]
+        self, context: TContext, next_actions: list[Action]
     ) -> ActionReturn:
         """Run children execution with concurrent."""
         async with TaskGroup() as tg:
@@ -377,7 +361,7 @@ class Action(BaseModel):
         return ActionReturn.GO
 
     async def sequential_children_execution(
-        self, context: Context, next_actions: list[Action]
+        self, context: TContext, next_actions: list[Action]
     ) -> ActionReturn:
         """Run children execution sequentially."""
         for next_action in (
@@ -389,7 +373,7 @@ class Action(BaseModel):
 
         return ActionReturn.GO
 
-    async def post(self, context: Context) -> ActionReturn:
+    async def post(self, context: TContext) -> ActionReturn:
         """Execute post process."""
         return ActionReturn.GO
 
@@ -430,10 +414,7 @@ class Action(BaseModel):
         if extended:
             action = type(name, (action,), {"__module__": action.__module__})
 
-        if getattr(action, "__mcp_tool__", False):
-            cls.__mcp_tool_actions__[name] = action
-        else:
-            cls.__child_actions__[name] = action
+        cls.__child_actions__[name] = action
         setattr(cls, name, action)
 
     @classmethod
@@ -447,3 +428,55 @@ class Action(BaseModel):
         """Add child action."""
         for ccls in cls.__child_actions__.values():
             ccls.add_child(action, name, override, extended)
+
+
+##########################################################################
+#                            Action Utilities                            #
+##########################################################################
+
+
+def all_agents() -> Generator[type["Action"]]:
+    """Agent Generator."""
+    queue: list[type[Action]] = [Action]
+    while queue and (cls := queue.pop(0)):
+        if cls.__agent__:
+            yield cls
+
+        for scls in cls.__subclasses__():
+            queue.append(scls)
+
+
+async def graph(
+    action: type[Action], allowed_actions: dict[str, bool] | None = None
+) -> str:
+    """Retrieve Graph."""
+    await traverse(
+        graph := Graph(nodes={f"{action.__module__}.{action.__qualname__}"}),
+        action,
+        allowed_actions,
+    )
+
+    return graph.flowchart()
+
+
+async def traverse(
+    graph: Graph, action: type[Action], allowed_actions: dict[str, bool] | None
+) -> None:
+    """Retrieve Graph."""
+    parent = f"{action.__module__}.{action.__qualname__}"
+
+    if allowed_actions:
+        child_actions = OrderedDict(
+            item
+            for item in action.__child_actions__.items()
+            if allowed_actions.get(item[0], item[1].__enabled__)
+        )
+    else:
+        child_actions = action.__child_actions__.copy()
+
+    for child_action in child_actions.values():
+        node = f"{child_action.__module__}.{child_action.__qualname__}"
+        graph.edges.add((parent, node, child_action.__concurrent__))
+        if node not in graph.nodes:
+            graph.nodes.add(node)
+            await traverse(graph, child_action, allowed_actions)

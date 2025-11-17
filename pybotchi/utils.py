@@ -1,7 +1,10 @@
 """Pybotchi Utilities."""
 
+from contextlib import suppress
+from importlib import import_module
 from re import compile
-from typing import Any
+from typing import Any, Callable
+from uuid import UUID
 
 from orjson import loads
 
@@ -22,3 +25,8 @@ def apply_placeholders(target: str, **placeholders: Any) -> str:
 def is_camel_case(data: str) -> bool:
     """Check if string is in camel case."""
     return CAMEL_CASE.fullmatch(data) is not None
+
+
+for module, attr in (("uuid", "uuid7"), ("uuid6", "uuid7"), ("uuid", "uuid4")):
+    with suppress(ImportError, AttributeError):
+        uuid: Callable[[], UUID] = getattr(import_module(module), attr)

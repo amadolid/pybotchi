@@ -214,7 +214,7 @@ from pybotchi import Action, ActionReturn, start_mcp_servers
 class TranslateToEnglish(Action):
     """Translate sentence to english."""
 
-    __mcp_groups__ = ["your_endpoint1", "your_endpoint2"]
+    __groups__ = {"mcp": {"your_endpoint1", "your_endpoint2"}}
 
     sentence: str
 
@@ -228,7 +228,7 @@ class TranslateToEnglish(Action):
 class TranslateToFilipino(Action):
     """Translate sentence to filipino."""
 
-    __mcp_groups__ = ["your_endpoint2"]
+    __groups__ = {"mcp": {"your_endpoint2"}}
 
     sentence: str
 
@@ -243,7 +243,7 @@ class TranslateToFilipino(Action):
 async def lifespan(app):
     """Override life cycle."""
     async with AsyncExitStack() as stack:
-        await start_mcp_servers(app, stack)
+        await mount_mcp_groups(app, stack)
         yield
 
 

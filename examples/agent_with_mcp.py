@@ -5,7 +5,7 @@ from contextlib import AsyncExitStack, asynccontextmanager
 
 from fastapi import FastAPI
 
-from pybotchi import Action, ActionReturn, ChatRole, Context, start_mcp_servers
+from mcp_prerequisite import Action, ActionReturn, ChatRole, Context, mount_mcp_groups
 
 from pydantic import Field
 
@@ -15,7 +15,7 @@ from uvicorn import run
 class SingleAction(Action):
     """You're an AI agent the generates random number."""
 
-    __mcp_groups__ = ["test2"]
+    __groups__ = {"mcp": {"test2"}}
 
     async def pre(self, context: Context) -> ActionReturn:
         """Run preperation."""
@@ -28,7 +28,7 @@ class NestedAgent(Action):
 
     query: str = Field(description="User question.")
 
-    __mcp_groups__ = ["test"]
+    __groups__ = {"mcp": {"test", "test2"}}
 
     async def pre(self, context: Context) -> ActionReturn:
         """Run preperation."""
@@ -60,7 +60,7 @@ class NestedAgent(Action):
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, FastAPI]:
     """Override life cycle."""
     async with AsyncExitStack() as stack:
-        await start_mcp_servers(app, stack)
+        await mount_mcp_groups(app, stack)
 
         yield
 

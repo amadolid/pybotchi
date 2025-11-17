@@ -4,13 +4,13 @@ from asyncio import run
 from json import dumps
 
 
-from prerequisite import (
+from mcp_prerequisite import (
     Action,
     ActionReturn,
     ChatRole,
-    Context,
     MCPAction,
     MCPConnection,
+    MCPContext,
     MCPIntegration,
     MCPToolAction,
     graph,
@@ -24,7 +24,7 @@ class GeneralChat(MCPAction):
     __max_child_iteration__ = 5
     # __detached__ = True
 
-    async def pre_mcp(self, context: Context) -> ActionReturn:
+    async def pre_mcp(self, context: MCPContext) -> ActionReturn:
         """Execute pre mcp execution."""
         print("Trigger anything here before mcp client connection")
         print("Build context.integrations['jira']['config']")
@@ -33,7 +33,7 @@ class GeneralChat(MCPAction):
         return ActionReturn.GO
 
     class JiraSearch(MCPToolAction):  # noqa: D106
-        async def pre(self, context: Context) -> ActionReturn:
+        async def pre(self, context: MCPContext) -> ActionReturn:
             """Execute pre execution."""
             print("#####################################")
             return await super().pre(context)
@@ -41,7 +41,7 @@ class GeneralChat(MCPAction):
     class FinalResponse(Action):
         """Finalize Response."""
 
-        async def pre(self, context: Context) -> ActionReturn:
+        async def pre(self, context: MCPContext) -> ActionReturn:
             """Test."""
             message = await context.llm.ainvoke(context.prompts)
             context.add_usage(self, context.llm, message.usage_metadata)
@@ -53,7 +53,7 @@ class GeneralChat(MCPAction):
     class IgnoredAction(Action):
         """Ignored Action."""
 
-    async def commit_context(self, parent: Context, child: Context) -> None:
+    async def commit_context(self, parent: MCPContext, child: MCPContext) -> None:
         """Execute commit context if it's detached."""
         await super().commit_context(parent, child)
         await parent.add_response(self, child.prompts[-1]["content"])
@@ -66,15 +66,15 @@ async def test() -> None:
             # ----------------------------------------- #
             # OVERRIDE BASE CONNECTION
             # ----------------------------------------- #
-            # "mode": "SHTTP",
-            # "config": {
-            #     "url": "http://localhost:9000/mcp",
-            # },
+            "mode": "SHTTP",
+            "config": {
+                "url": "http://localhost:9000/mcp",
+            },
             # ----------------------------------------- #
             "allowed_tools": {"JiraSearch", "JiraGetIssue"},
         }
     }
-    context = Context(
+    context = MCPContext(
         prompts=[
             {
                 "role": ChatRole.SYSTEM,

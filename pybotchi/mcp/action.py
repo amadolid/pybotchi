@@ -1,13 +1,12 @@
 """Pybotchi MCP Classes."""
 
+from collections import OrderedDict
 from collections.abc import AsyncGenerator, Awaitable
 from contextlib import AsyncExitStack, asynccontextmanager, suppress
-from datetime import timedelta
-from enum import StrEnum
-from inspect import getdoc
+from inspect import getdoc, getmembers
 from itertools import islice
 from os import getenv
-from typing import Any, Callable, Literal, TYPE_CHECKING, TypedDict
+from typing import Any, Callable, Generic, TypeVar
 
 from datamodel_code_generator import DataModelType, PythonVersion
 from datamodel_code_generator.model import get_data_model_types
@@ -16,17 +15,9 @@ from datamodel_code_generator.parser.jsonschema import (
     JsonSchemaParser,
 )
 
-from fastapi import FastAPI
-
-from httpx import Auth
-
 from mcp import ClientSession, Tool
 from mcp.client.sse import sse_client
-from mcp.client.streamable_http import (
-    McpHttpClientFactory,
-    create_mcp_http_client,
-    streamablehttp_client,
-)
+from mcp.client.streamable_http import streamablehttp_client
 from mcp.server.fastmcp import FastMCP
 from mcp.shared.session import ProgressFnT
 from mcp.types import (
@@ -41,46 +32,20 @@ from mcp.types import (
 
 from orjson import dumps, loads
 
-from .action import Action, ActionReturn, ChildActions
-from .constants import ChatRole
-from .utils import is_camel_case
+from starlette.applications import AppType
 
-if TYPE_CHECKING:
-    from .context import Context
+from .common import MCPConfig, MCPConnection, MCPIntegration, MCPMode
+from .context import MCPContext
+from ..action import Action, ActionReturn, ChildActions
+from ..common import ChatRole, Graph
+from ..utils import is_camel_case
 
 
+TContext = TypeVar("TContext", bound="MCPContext")
 DMT = get_data_model_types(
     DataModelType.PydanticV2BaseModel,
     target_python_version=PythonVersion.PY_313,
 )
-
-
-class MCPMode(StrEnum):
-    """MCP Mode."""
-
-    SSE = "SSE"
-    SHTTP = "SHTTP"
-
-
-class MCPConfig(TypedDict, total=False):
-    """MCP Config."""
-
-    url: str
-    headers: dict[str, str] | None
-    timeout: float | timedelta
-    sse_read_timeout: float | timedelta
-    terminate_on_close: bool
-    httpx_client_factory: Any
-    auth: Any
-
-
-class MCPIntegration(TypedDict, total=False):
-    """MCP Integration."""
-
-    mode: MCPMode | Literal["SSE", "SHTTP"]
-    config: MCPConfig
-    allowed_tools: set[str]
-    exclude_unset: bool
 
 
 class MCPClient:
@@ -101,7 +66,7 @@ class MCPClient:
         self.client = client
         self.exclude_unset = exclude_unset
 
-    def build_tool(self, tool: Tool) -> tuple[str, type[Action]]:
+    def build_tool(self, tool: Tool) -> tuple[str, type["MCPToolAction"]]:
         """Build MCPToolAction."""
         globals: dict[str, Any] = {}
         class_name = (
@@ -164,85 +129,14 @@ class MCPClient:
         return actions
 
 
-class MCPConnection:
-    """MCP Connection configurations."""
-
-    def __init__(
-        self,
-        name: str,
-        mode: MCPMode | Literal["SSE", "SHTTP"],
-        url: str = "",
-        headers: dict[str, str] | None = None,
-        timeout: float | timedelta = 30.0,
-        sse_read_timeout: float | timedelta = 300.0,
-        terminate_on_close: bool = True,
-        httpx_client_factory: McpHttpClientFactory = create_mcp_http_client,
-        auth: Auth | None = None,
-        allowed_tools: set[str] | None = None,
-        exclude_unset: bool = True,
-        require_integration: bool = True,
-    ) -> None:
-        """Build MCP Connection."""
-        self.name = name
-        self.mode = mode
-        self.url = url
-        self.headers = headers
-        self.timeout = timeout
-        self.sse_read_timeout = sse_read_timeout
-        self.terminate_on_close = terminate_on_close
-        self.httpx_client_factory = httpx_client_factory
-        self.auth = auth
-        self.allowed_tools = set[str]() if allowed_tools is None else allowed_tools
-        self.exclude_unset = exclude_unset
-        self.require_integration = require_integration
-
-    def get_config(self, override: MCPConfig | None) -> MCPConfig:
-        """Generate config."""
-        if override is None:
-            return {
-                "url": self.url,
-                "headers": self.headers,
-                "timeout": self.timeout,
-                "sse_read_timeout": self.sse_read_timeout,
-                "terminate_on_close": self.terminate_on_close,
-                "httpx_client_factory": self.httpx_client_factory,
-                "auth": self.auth,
-            }
-
-        url = override.get("url", self.url)
-        timeout = override.get("timeout", self.timeout)
-        sse_read_timeout = override.get("sse_read_timeout", self.sse_read_timeout)
-        terminate_on_close = override.get("terminate_on_close", self.terminate_on_close)
-        httpx_client_factory = override.get(
-            "httpx_client_factory", self.httpx_client_factory
-        )
-        auth = override.get("auth", self.auth)
-
-        headers: dict[str, str] | None
-        if _headers := override.get("headers"):
-            if self.headers is None:
-                headers = _headers
-            else:
-                headers = self.headers | _headers
-        else:
-            headers = self.headers
-
-        return {
-            "url": url,
-            "headers": headers,
-            "timeout": timeout,
-            "sse_read_timeout": sse_read_timeout,
-            "terminate_on_close": terminate_on_close,
-            "httpx_client_factory": httpx_client_factory,
-            "auth": auth,
-        }
-
-
-class MCPAction(Action):
+class MCPAction(Action[TContext], Generic[TContext]):
     """MCP Tool Action."""
+
+    __mcp_servers__: dict[str, FastMCP] = {}
 
     __mcp_clients__: dict[str, MCPClient]
     __mcp_connections__: list[MCPConnection]
+    __mcp_tool_actions__: ChildActions
 
     # --------------------- not inheritable -------------------- #
 
@@ -254,12 +148,21 @@ class MCPAction(Action):
         super().__pydantic_init_subclass__(**kwargs)
         cls.__has_pre_mcp__ = cls.pre_mcp is not MCPAction.pre_mcp
 
-    async def pre_mcp(self, context: "Context") -> ActionReturn:
+        cls.__mcp_tool_actions__ = OrderedDict()
+        cls.__child_actions__ = OrderedDict()
+        for _, attr in getmembers(cls):
+            if isinstance(attr, type):
+                if issubclass(attr, MCPToolAction):
+                    cls.__mcp_tool_actions__[attr.__name__] = attr
+                elif issubclass(attr, Action):
+                    cls.__child_actions__[attr.__name__] = attr
+
+    async def pre_mcp(self, context: TContext) -> ActionReturn:
         """Execute pre mcp process."""
         return ActionReturn.GO
 
     async def execute(
-        self, context: "Context", parent: Action | None = None
+        self, context: TContext, parent: Action | None = None
     ) -> ActionReturn:
         """Execute main process."""
         self._parent = parent
@@ -311,7 +214,7 @@ class MCPAction(Action):
             if self.__to_commit__ and self.__detached__:
                 await self.commit_context(parent_context, context)
 
-    async def get_child_actions(self, context: "Context") -> ChildActions:
+    async def get_child_actions(self, context: TContext) -> ChildActions:
         """Retrieve child Actions."""
         normal_tools = await super().get_child_actions(context)
         [
@@ -320,17 +223,44 @@ class MCPAction(Action):
         ]
         return normal_tools
 
+    ####################################################################################################
+    #                                          MCPACTION TOOLS                                         #
+    # ------------------------------------------------------------------------------------------------ #
+
+    @classmethod
+    def add_child(
+        cls,
+        action: type["Action"],
+        name: str | None = None,
+        override: bool = False,
+        extended: bool = True,
+    ) -> None:
+        """Add child action."""
+        name = name or action.__name__
+        if not override and hasattr(cls, name):
+            raise ValueError(f"Attribute {name} already exists!")
+
+        if not issubclass(action, Action):
+            raise ValueError(f"{action.__name__} is not a valid action!")
+
+        if extended:
+            action = type(name, (action,), {"__module__": action.__module__})
+
+        if issubclass(action, MCPToolAction):
+            cls.__mcp_tool_actions__[name] = action
+        else:
+            cls.__child_actions__[name] = action
+        setattr(cls, name, action)
+
 
 class MCPToolAction(Action):
     """MCP Tool Action."""
-
-    __mcp_tool__ = True
 
     __mcp_client__: ClientSession
     __mcp_tool_name__: str
     __mcp_exclude_unset__: bool
 
-    def build_progress_callback(self, context: "Context") -> ProgressFnT:
+    def build_progress_callback(self, context: TContext) -> ProgressFnT:
         """Generate progress callback function."""
 
         async def progress_callback(
@@ -384,7 +314,7 @@ class MCPToolAction(Action):
             case _:
                 return f"The response of {self.__class__.__name__} is yet supported: {content.__class__.__name__}"
 
-    async def pre(self, context: "Context") -> ActionReturn:
+    async def pre(self, context: TContext) -> ActionReturn:
         """Execute pre process."""
         tool_args = self.model_dump(exclude_unset=self.__mcp_exclude_unset__)
         await context.notify(
@@ -471,18 +401,18 @@ async def multi_streamable_clients(
         yield clients
 
 
-async def start_mcp_servers(app: FastAPI, stack: AsyncExitStack) -> None:
+async def mount_mcp_groups(app: AppType, stack: AsyncExitStack) -> None:
     """Start MCP Servers."""
     queue = Action.__subclasses__()
     while queue:
         que = queue.pop()
-        if que.__mcp_groups__:
+        if que.__groups__ and (mcp_groups := que.__groups__.get("mcp")):
             entry = build_mcp_entry(que)
-            for group in que.__mcp_groups__:
+            for group in mcp_groups:
                 await add_mcp_server(group.lower(), que, entry)
         queue.extend(que.__subclasses__())
 
-    for server, mcp in Action.__mcp_servers__.items():
+    for server, mcp in MCPAction.__mcp_servers__.items():
         app.mount(f"/{server}", mcp.streamable_http_app())
         await stack.enter_async_context(mcp.session_manager.run())
 
@@ -530,10 +460,72 @@ async def add_mcp_server(
     group: str, action: type["Action"], entry: Callable[..., Awaitable[str]]
 ) -> None:
     """Add action."""
-    if not (server := Action.__mcp_servers__.get(group)):
-        server = Action.__mcp_servers__[group] = FastMCP(
+    if not (server := MCPAction.__mcp_servers__.get(group)):
+        server = MCPAction.__mcp_servers__[group] = FastMCP(
             f"mcp-{group}",
             stateless_http=True,
-            log_level=getenv("MCP_LOGGER_LEVEL", "WARNING"),
+            log_level=getenv("MCP_LOGGER_LEVEL", "WARNING"),  # type: ignore[arg-type]
         )
     server.add_tool(entry, action.__name__, getdoc(action))
+
+
+##########################################################################
+#                           MCPAction Utilities                          #
+##########################################################################
+
+
+async def graph(
+    action: type[Action],
+    allowed_actions: dict[str, bool] | None = None,
+    integrations: dict[str, MCPIntegration] | None = None,
+    bypass: bool = False,
+) -> str:
+    """Retrieve Graph."""
+    if integrations is None:
+        integrations = {}
+
+    await traverse(
+        graph := Graph(nodes={f"{action.__module__}.{action.__qualname__}"}),
+        action,
+        allowed_actions,
+        integrations,
+        bypass,
+    )
+
+    return graph.flowchart()
+
+
+async def traverse(
+    graph: Graph,
+    action: type[Action],
+    allowed_actions: dict[str, bool] | None,
+    integrations: dict[str, MCPIntegration],
+    bypass: bool = False,
+) -> None:
+    """Retrieve Graph."""
+    parent = f"{action.__module__}.{action.__qualname__}"
+
+    if allowed_actions:
+        child_actions = OrderedDict(
+            item
+            for item in action.__child_actions__.items()
+            if allowed_actions.get(item[0], item[1].__enabled__)
+        )
+    else:
+        child_actions = action.__child_actions__.copy()
+
+    if issubclass(action, MCPAction):
+        async with multi_streamable_clients(
+            integrations, action.__mcp_connections__, bypass
+        ) as clients:
+            [
+                await client.patch_tools(child_actions, action.__mcp_tool_actions__)
+                for client in clients.values()
+            ]
+
+    for child_action in child_actions.values():
+        node = f"{child_action.__module__}.{child_action.__qualname__}"
+        graph.edges.add((parent, node, child_action.__concurrent__))
+        if node not in graph.nodes:
+            graph.nodes.add(node)
+            await traverse(graph, child_action, allowed_actions, integrations, bypass)

@@ -14,9 +14,8 @@ from pydantic import BaseModel, Field, PrivateAttr
 from typing_extensions import TypeVar
 
 from .action import Action, ActionReturn, T, TAction
-from .constants import ChatRole, UNSPECIFIED, UsageMetadata
+from .common import ChatRole, UNSPECIFIED, UsageMetadata
 from .llm import LLM
-from .mcp import MCPIntegration
 
 TContext = TypeVar("TContext", bound="Context")
 TLLM = TypeVar("TLLM", default=BaseChatModel)
@@ -28,7 +27,6 @@ class Context(BaseModel, Generic[TLLM]):
     prompts: list[dict[str, Any]] = Field(default_factory=list)
     allowed_actions: dict[str, bool] = Field(default_factory=dict)
     metadata: dict[str, Any] = Field(default_factory=dict)
-    integrations: dict[str, MCPIntegration] = Field(default_factory=dict)
     usages: dict[str, UsageMetadata] = Field(default_factory=dict)
     streaming: bool = False
     max_self_loop: int | None = None
@@ -179,15 +177,15 @@ class Context(BaseModel, Generic[TLLM]):
         """Spawn detached context."""
         return self.__class__(**self.detached_kwargs(), parent=self)
 
-    def detached_kwargs(self) -> dict[str, Any]:
+    def detached_kwargs(self, **kwargs: Any) -> dict[str, Any]:
         """Retrieve detached kwargs."""
         return {
             "prompts": deepcopy(self.prompts),
             "allowed_actions": deepcopy(self.allowed_actions),
             "metadata": deepcopy(self.metadata),
-            "integrations": deepcopy(self.integrations),
             "streaming": self.streaming,
             "max_self_loop": self.max_self_loop,
+            **kwargs,
         }
 
     async def detached_start(

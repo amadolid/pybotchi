@@ -138,12 +138,12 @@ Since our agents are now modular, each agent will have isolated development. Age
 ```python
 from contextlib import AsyncExitStack, asynccontextmanager
 from fastapi import FastAPI
-from pybotchi import Action, ActionReturn, start_mcp_servers
+from pybotchi import Action, ActionReturn, mount_mcp_groups
 
 class TranslateToEnglish(Action):
     """Translate sentence to english."""
 
-    __mcp_groups__ = ["your_endpoint"]
+    __groups__ = {"mcp": {"your_endpoint"}}
 
     sentence: str
 
