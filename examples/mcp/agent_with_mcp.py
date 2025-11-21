@@ -5,7 +5,7 @@ from contextlib import AsyncExitStack, asynccontextmanager
 
 from fastapi import FastAPI
 
-from mcp_prerequisite import Action, ActionReturn, ChatRole, Context, mount_mcp_groups
+from prerequisite import Action, ActionReturn, ChatRole, Context, mount_mcp_groups
 
 from pydantic import Field
 

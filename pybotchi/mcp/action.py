@@ -6,7 +6,7 @@ from contextlib import AsyncExitStack, asynccontextmanager, suppress
 from inspect import getdoc, getmembers
 from itertools import islice
 from os import getenv
-from typing import Any, Callable, Generic, TypeVar
+from typing import Any, Callable, Generic
 
 from datamodel_code_generator import DataModelType, PythonVersion
 from datamodel_code_generator.model import get_data_model_types
@@ -35,13 +35,11 @@ from orjson import dumps, loads
 from starlette.applications import AppType
 
 from .common import MCPConfig, MCPConnection, MCPIntegration, MCPMode
-from .context import MCPContext
-from ..action import Action, ActionReturn, ChildActions
-from ..common import ChatRole, Graph
+from .context import TContext
+from ..action import Action, ChildActions
+from ..common import ActionReturn, ChatRole, Graph
 from ..utils import is_camel_case
 
-
-TContext = TypeVar("TContext", bound="MCPContext")
 DMT = get_data_model_types(
     DataModelType.PydanticV2BaseModel,
     target_python_version=PythonVersion.PY_313,
@@ -53,10 +51,10 @@ class MCPClient:
 
     def __init__(
         self,
+        client: ClientSession,
         name: str,
         config: MCPConfig,
         allowed_tools: set[str],
-        client: ClientSession,
         exclude_unset: bool,
     ) -> None:
         """Build MCP Client."""
@@ -148,11 +146,14 @@ class MCPAction(Action[TContext], Generic[TContext]):
         super().__pydantic_init_subclass__(**kwargs)
         cls.__has_pre_mcp__ = cls.pre_mcp is not MCPAction.pre_mcp
 
+    @classmethod
+    def __init_child_actions__(cls, **kwargs: Any) -> None:
+        """Initialize defined child actions."""
         cls.__mcp_tool_actions__ = OrderedDict()
         cls.__child_actions__ = OrderedDict()
         for _, attr in getmembers(cls):
             if isinstance(attr, type):
-                if issubclass(attr, MCPToolAction):
+                if getattr(attr, "__mcp_tool__", False):
                     cls.__mcp_tool_actions__[attr.__name__] = attr
                 elif issubclass(attr, Action):
                     cls.__child_actions__[attr.__name__] = attr
@@ -180,7 +181,7 @@ class MCPAction(Action[TContext], Generic[TContext]):
             ):
                 return result
 
-            async with multi_streamable_clients(
+            async with multi_mcp_clients(
                 context.integrations, self.__mcp_connections__
             ) as clients:
                 self.__mcp_clients__ = clients
@@ -255,6 +256,8 @@ class MCPAction(Action[TContext], Generic[TContext]):
 
 class MCPToolAction(Action):
     """MCP Tool Action."""
+
+    __mcp_tool__ = True
 
     __mcp_client__: ClientSession
     __mcp_tool_name__: str
@@ -349,12 +352,12 @@ class MCPToolAction(Action):
 
 
 @asynccontextmanager
-async def multi_streamable_clients(
+async def multi_mcp_clients(
     integrations: dict[str, MCPIntegration],
     connections: list[MCPConnection],
     bypass: bool = False,
 ) -> AsyncGenerator[dict[str, MCPClient], None]:
-    """Connect to multiple streamable clients."""
+    """Connect to multiple mcp clients."""
     async with AsyncExitStack() as stack:
         clients: dict[str, MCPClient] = {}
         for conn in connections:
@@ -388,11 +391,11 @@ async def multi_streamable_clients(
             )
             await client.initialize()
             clients[conn.name] = MCPClient(
+                client,
                 conn.name,
                 overrided_config,
                 allowed_tools,
-                client,
-                exclude_unset=integration.get(
+                integration.get(
                     "exclude_unset",
                     conn.exclude_unset,
                 ),
@@ -515,7 +518,7 @@ async def traverse(
         child_actions = action.__child_actions__.copy()
 
     if issubclass(action, MCPAction):
-        async with multi_streamable_clients(
+        async with multi_mcp_clients(
             integrations, action.__mcp_connections__, bypass
         ) as clients:
             [

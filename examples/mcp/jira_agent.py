@@ -3,8 +3,7 @@
 from asyncio import run
 from json import dumps
 
-
-from mcp_prerequisite import (
+from prerequisite import (
     Action,
     ActionReturn,
     ChatRole,
@@ -66,10 +65,10 @@ async def test() -> None:
             # ----------------------------------------- #
             # OVERRIDE BASE CONNECTION
             # ----------------------------------------- #
-            "mode": "SHTTP",
-            "config": {
-                "url": "http://localhost:9000/mcp",
-            },
+            # "mode": "SHTTP",
+            # "config": {
+            #     "url": "http://localhost:9000/mcp",
+            # },
             # ----------------------------------------- #
             "allowed_tools": {"JiraSearch", "JiraGetIssue"},
         }

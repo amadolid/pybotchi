@@ -72,6 +72,7 @@ class Action(BaseModel, Generic[TContext]):
     __has_fallback__: bool
     __has_on_error__: bool
     __has_post__: bool
+    __has_as_tool__: bool
     __detached__: bool
 
     __max_iteration__: int | None = None
@@ -111,24 +112,21 @@ class Action(BaseModel, Generic[TContext]):
         cls.__has_fallback__ = cls.fallback is not Action.fallback
         cls.__has_on_error__ = cls.on_error is not Action.on_error
         cls.__has_post__ = cls.post is not Action.post
+        cls.__has_as_tool__ = cls._as_tool is not Action._as_tool
         cls.__detached__ = src.get(
             "__detached__", cls.commit_context is not Action.commit_context
         )
         cls.__groups__ = src.get("__groups__")
         cls.__to_commit__ = src.get("__to_commit__", True)
+        cls.__init_child_actions__(**kwargs)
 
+    @classmethod
+    def __init_child_actions__(cls, **kwargs: Any) -> None:
+        """Initialize defined child actions."""
         cls.__child_actions__ = OrderedDict()
         for _, attr in getmembers(cls):
             if isinstance(attr, type) and issubclass(attr, Action):
                 cls.__child_actions__[attr.__name__] = attr
-
-    async def get_child_actions(self, context: TContext) -> ChildActions:
-        """Retrieve child Actions."""
-        return OrderedDict(
-            item
-            for item in self.__child_actions__.items()
-            if context.allowed_actions.get(item[0], item[1].__enabled__)
-        )
 
     @property
     def _tool_call(self) -> ChatCompletionMessageToolCallParam:
@@ -142,6 +140,102 @@ class Action(BaseModel, Generic[TContext]):
             },
             "type": "function",
         }
+
+    @classmethod
+    async def _as_tool(cls, context: TContext) -> dict[str, Any] | type[BaseModel]:
+        """Convert Action to tool."""
+        return cls
+
+    async def pre(self, context: TContext) -> ActionReturn:
+        """Execute pre process."""
+        return ActionReturn.GO
+
+    async def fallback(self, context: TContext, content: str) -> ActionReturn:
+        """Execute fallback process."""
+        return ActionReturn.GO
+
+    async def on_error(self, context: TContext, exception: Exception) -> ActionReturn:
+        """Execute on error process."""
+        return ActionReturn.GO
+
+    async def post(self, context: TContext) -> ActionReturn:
+        """Execute post process."""
+        return ActionReturn.GO
+
+    async def commit_context(self, parent: Context, child: Context) -> None:
+        """Execute commit context if it's detached."""
+        for model, usage in child.usages.items():
+            parent.merge_to_usages(model, usage)
+
+    def child_selection_prompt(self, context: TContext, tool_choice: str) -> str:
+        """Get child selection prompt."""
+        return apply_placeholders(
+            self.__tool_call_prompt__ or DEFAULT_TOOL_CALL_PROMPT,
+            tool_choice=tool_choice,
+            default=self.__default_tool__,
+            system=self.__system_prompt__
+            or context.prompts[0]["content"]
+            or "Not defined",
+        )
+
+    async def get_child_actions(self, context: TContext) -> ChildActions:
+        """Retrieve child Actions."""
+        return OrderedDict(
+            item
+            for item in self.__child_actions__.items()
+            if context.allowed_actions.get(item[0], item[1].__enabled__)
+        )
+
+    async def child_selection(
+        self,
+        context: TContext,
+        child_actions: ChildActions | None = None,
+    ) -> tuple[list["Action"], str]:
+        """Execute tool selection process."""
+        tool_choice = "auto" if self.__has_fallback__ else "required"
+
+        if child_actions is None:
+            child_actions = await self.get_child_actions(context)
+        llm = context.llm.bind_tools(
+            [
+                await child._as_tool(context) if child.__has_as_tool__ else child
+                for child in child_actions.values()
+            ],
+            tool_choice=tool_choice,
+        )
+        if self.__temperature__ is not None:
+            llm = llm.with_config(
+                configurable={"llm_temperature": self.__temperature__}
+            )
+
+        max = len(context.prompts)
+        if self.__max_tool_prompts__:
+            min = max - self.__max_tool_prompts__
+            min = 1 if min < 1 else min
+        else:
+            min = 1
+
+        message = await llm.ainvoke(
+            [
+                {
+                    "content": self.child_selection_prompt(context, tool_choice),
+                    "role": "system",
+                },
+                *islice(context.prompts, min, max),
+            ]
+        )
+        context.add_usage(
+            self,
+            context.llm,
+            message.usage_metadata,  # type: ignore[attr-defined]
+            "$tool",
+        )
+
+        next_actions = [
+            child_actions[call["name"]](**call["args"]) for call in message.tool_calls  # type: ignore[attr-defined]
+        ]
+
+        return next_actions, message.text
 
     async def execute(
         self, context: TContext, parent: Action | None = None
@@ -184,74 +278,6 @@ class Action(BaseModel, Generic[TContext]):
         finally:
             if self.__to_commit__ and self.__detached__:
                 await self.commit_context(parent_context, context)
-
-    async def pre(self, context: TContext) -> ActionReturn:
-        """Execute pre process."""
-        return ActionReturn.GO
-
-    async def fallback(self, context: TContext, content: str) -> ActionReturn:
-        """Execute fallback process."""
-        return ActionReturn.GO
-
-    async def on_error(self, context: TContext, exception: Exception) -> ActionReturn:
-        """Execute on error process."""
-        return ActionReturn.GO
-
-    def child_selection_prompt(self, context: TContext, tool_choice: str) -> str:
-        """Get child selection prompt."""
-        return apply_placeholders(
-            self.__tool_call_prompt__ or DEFAULT_TOOL_CALL_PROMPT,
-            tool_choice=tool_choice,
-            default=self.__default_tool__,
-            system=self.__system_prompt__
-            or context.prompts[0]["content"]
-            or "Not defined",
-        )
-
-    async def child_selection(
-        self,
-        context: TContext,
-        child_actions: ChildActions | None = None,
-    ) -> tuple[list["Action"], str]:
-        """Execute tool selection process."""
-        tool_choice = "auto" if self.__has_fallback__ else "required"
-
-        if child_actions is None:
-            child_actions = await self.get_child_actions(context)
-        llm = context.llm.bind_tools([*child_actions.values()], tool_choice=tool_choice)
-        if self.__temperature__ is not None:
-            llm = llm.with_config(
-                configurable={"llm_temperature": self.__temperature__}
-            )
-
-        max = len(context.prompts)
-        if self.__max_tool_prompts__:
-            min = max - self.__max_tool_prompts__
-            min = 1 if min < 1 else min
-        else:
-            min = 1
-
-        message = await llm.ainvoke(
-            [
-                {
-                    "content": self.child_selection_prompt(context, tool_choice),
-                    "role": "system",
-                },
-                *islice(context.prompts, min, max),
-            ]
-        )
-        context.add_usage(
-            self,
-            context.llm,
-            message.usage_metadata,  # type: ignore[attr-defined]
-            "$tool",
-        )
-
-        next_actions = [
-            child_actions[call["name"]](**call["args"]) for call in message.tool_calls  # type: ignore[attr-defined]
-        ]
-
-        return next_actions, message.text
 
     async def execution(self, context: TContext) -> ActionReturn:
         """Execute core process."""
@@ -372,15 +398,6 @@ class Action(BaseModel, Generic[TContext]):
                 return result
 
         return ActionReturn.GO
-
-    async def post(self, context: TContext) -> ActionReturn:
-        """Execute post process."""
-        return ActionReturn.GO
-
-    async def commit_context(self, parent: Context, child: Context) -> None:
-        """Execute commit context if it's detached."""
-        for model, usage in child.usages.items():
-            parent.merge_to_usages(model, usage)
 
     def serialize(self) -> ActionEntry:
         """Serialize Action."""
