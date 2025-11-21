@@ -16,9 +16,25 @@ orjson = ">=3.9.11"
 # Should be optional
 langchain = ">=0.3.15"
 
-# MCP optional
+# MCP Optional
 mcp = { version = ">=1.15.0", optional = true }
 datamodel-code-generator = { version = ">=0.31.2", optional = true }
+
+# A2A Optional
+a2a-sdk = { version = ">=0.3.13", optional = true }
+fastapi = { version = ">=0.116.2", optional = true }
+sse-starlette = { version = ">=3.0.3", optional = true }
+starlette = { version = ">=0.40.0", optional = true }
+grpcio = { version = ">=1.76.0", optional = true }
+grpcio-tools = { version = ">=1.76.0", optional = true }
+grpcio_reflection = { version = ">=1.76.0", optional = true }
+
+[tool.poetry.extras]
+mcp = ["mcp", "datamodel-code-generator"]
+a2a-fastapi = ["a2a-sdk", "fastapi", "datamodel-code-generator"]
+a2a-sse-starlette = ["a2a-sdk", "sse-starlette"]
+a2a-starlette = ["a2a-sdk", "starlette"]
+a2a-grpc = ["a2a-sdk", "grpcio", "grpcio-tools", "grpcio_reflection"]
 
 [tool.poetry.group.dev.dependencies]
 mypy = "1.16.1"
@@ -38,9 +54,7 @@ pep8-naming = "0.15.1"
 # for examples
 langchain-openai = ">=0.3.15"
 fastapi = ">=0.109.0"
-
-[tool.poetry.extras]
-mcp = ["mcp", "datamodel-code-generator"]
+uvicorn = ">=0.38.0"
 
 [build-system]
 requires = ["poetry-core"]
