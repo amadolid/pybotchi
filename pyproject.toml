@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pybotchi"
-version = "2.0.2"
+version = "2.0.3"
 description = "A deterministic, intent-based AI agent builder."
 authors = ["Alexie (Boyong) Madolid <madolid.alexie@gmail.com>"]
 readme = "README.md"
@@ -12,9 +12,9 @@ python = "<4.0,>=3.12.0"
 pydantic = ">=2.0"
 orjson = ">=3.9.11"
 
-# langchain dependency to be removed
+# langchain-core dependency to be removed
 # Should be optional
-langchain = ">=0.3.15"
+langchain-core = ">=0.3.15"
 
 # MCP optional
 mcp = { version = ">=1.15.0", optional = true }

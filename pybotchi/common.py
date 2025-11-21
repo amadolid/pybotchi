@@ -2,7 +2,7 @@
 
 from enum import StrEnum
 from functools import cached_property
-from typing import Annotated, Any, ClassVar, NotRequired, TypedDict
+from typing import Annotated, Any, ClassVar, Literal, NotRequired, Required, TypedDict
 
 from pydantic import BaseModel, Field, SkipValidation
 
@@ -69,6 +69,21 @@ class Groups(TypedDict, total=False):
 
     mcp: set[str]
     a2a: set[str]
+
+
+class Function(TypedDict, total=False):
+    """Tool Function."""
+
+    arguments: Required[str]
+    name: Required[str]
+
+
+class ToolCall(TypedDict, total=False):
+    """Tool Call."""
+
+    id: Required[str]
+    function: Required[Function]
+    type: Required[Literal["function"]]
 
 
 class Graph(BaseModel):

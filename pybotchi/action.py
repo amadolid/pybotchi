@@ -10,13 +10,9 @@ from itertools import islice
 from os import getenv
 from typing import Any, Generic, TYPE_CHECKING, TypeAlias, TypeVar
 
-from openai.types.chat.chat_completion_message_tool_call_param import (
-    ChatCompletionMessageToolCallParam,
-)
-
 from pydantic import BaseModel, PrivateAttr
 
-from .common import ActionEntry, ActionReturn, Graph, Groups, UsageData
+from .common import ActionEntry, ActionReturn, Graph, Groups, ToolCall, UsageData
 from .utils import apply_placeholders, uuid
 
 if TYPE_CHECKING:
@@ -129,7 +125,7 @@ class Action(BaseModel, Generic[TContext]):
                 cls.__child_actions__[attr.__name__] = attr
 
     @property
-    def _tool_call(self) -> ChatCompletionMessageToolCallParam:
+    def _tool_call(self) -> ToolCall:
         """Override post init."""
         tool_id = f"call_{uuid().hex}"
         return {
