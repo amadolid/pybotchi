@@ -1,5 +1,6 @@
-"""Pybotchi MCP Classes."""
+"""Pybotchi GRPC Classes."""
 
+from asyncio import Queue
 from collections import OrderedDict
 from collections.abc import AsyncGenerator, Awaitable
 from contextlib import AsyncExitStack, asynccontextmanager, suppress
@@ -15,27 +16,18 @@ from datamodel_code_generator.parser.jsonschema import (
     JsonSchemaParser,
 )
 
-from mcp import ClientSession, Tool
-from mcp.client.sse import sse_client
-from mcp.client.streamable_http import streamablehttp_client
-from mcp.server.fastmcp import FastMCP
-from mcp.shared.session import ProgressFnT
-from mcp.types import (
-    AudioContent,
-    ContentBlock,
-    EmbeddedResource,
-    ImageContent,
-    ResourceLink,
-    TextContent,
-    TextResourceContents,
-)
+from google.protobuf.json_format import MessageToJson
 
-from orjson import dumps, loads
+from grpc.aio import insecure_channel
+
+from orjson import dumps
 
 from starlette.applications import AppType
 
-from .common import MCPConfig, MCPConnection, MCPIntegration, MCPMode
+from .common import GRPCConfig, GRPCConnection, GRPCIntegration
 from .context import TContext
+from .pybotchi_pb2 import ActionListRequest, ActionListResponse, Event, JSONSchema
+from .pybotchi_pb2_grpc import PyBotchiGRPCStub
 from ..action import Action, ChildActions
 from ..common import ActionReturn, ChatRole, Graph
 from ..utils import is_camel_case
@@ -46,35 +38,35 @@ DMT = get_data_model_types(
 )
 
 
-class MCPClient:
-    """MCP Client."""
+class GRPCClient:
+    """GRPC Client."""
 
     def __init__(
         self,
-        client: ClientSession,
+        stub: PyBotchiGRPCStub,
         name: str,
-        config: MCPConfig,
-        allowed_tools: set[str],
+        config: GRPCConfig,
+        allowed_actions: set[str],
         exclude_unset: bool,
     ) -> None:
-        """Build MCP Client."""
-        self.client = client
+        """Build GRPC Client."""
+        self.stub = stub
         self.name = name
         self.config = config
-        self.allowed_tools = allowed_tools
+        self.allowed_actions = allowed_actions
         self.exclude_unset = exclude_unset
 
-    def build_tool(self, tool: Tool) -> tuple[str, type["MCPToolAction"]]:
-        """Build MCPToolAction."""
+    def build_action(self, schema: JSONSchema) -> tuple[str, type["GRPCRemoteAction"]]:
+        """Build GRPCToolAction."""
         globals: dict[str, Any] = {}
         class_name = (
-            f"{tool.name[0].upper()}{tool.name[1:]}"
-            if is_camel_case(tool.name)
-            else title_to_class_name(tool.name)
+            f"{schema.title[0].upper()}{schema.title[1:]}"
+            if is_camel_case(schema.title)
+            else title_to_class_name(schema.title)
         )
         exec(
             JsonSchemaParser(
-                dumps(tool.inputSchema).decode(),
+                dumps(MessageToJson(schema)).decode(),
                 data_model_type=DMT.data_model,
                 data_model_root_type=DMT.root_model,
                 data_model_field_type=DMT.field_model,
@@ -92,74 +84,74 @@ class MCPClient:
             class_name,
             (
                 base_class,
-                MCPToolAction,
+                GRPCRemoteAction,
             ),
             {
-                "__mcp_tool_name__": tool.name,
-                "__mcp_client__": self.client,
-                "__mcp_exclude_unset__": getattr(
-                    base_class, "__mcp_exclude_unset__", self.exclude_unset
+                "__grpc_action_name__": schema.title,
+                "__grpc_client__": self,
+                "__grpc_exclude_unset__": getattr(
+                    base_class, "__grpc_exclude_unset__", self.exclude_unset
                 ),
-                "__module__": f"mcp.{self.name}",
+                "__module__": f"grpc.{self.name}",
             },
         )
 
-        if desc := tool.description:
+        if desc := schema.description:
             action.__doc__ = desc
 
         return class_name, action
 
-    async def patch_tools(
-        self, actions: ChildActions, mcp_actions: ChildActions
+    async def patch_actions(
+        self, actions: ChildActions, grpc_actions: ChildActions
     ) -> ChildActions:
         """Retrieve Tools."""
-        response = await self.client.list_tools()
-        for tool in response.tools:
-            name, action = self.build_tool(tool)
-            if not self.allowed_tools or name in self.allowed_tools:
-                if _tool := mcp_actions.get(name):
+        response: ActionListResponse = await self.stub.action_list(
+            ActionListRequest(group=self.config["group"])
+        )
+        for action in response.actions:
+            name, action = self.build_action(action)
+            if not self.allowed_actions or name in self.allowed_actions:
+                if _tool := grpc_actions.get(name):
                     action = type(
                         name,
                         (_tool, action),
-                        {"__module__": f"mcp.{self.name}.patched"},
+                        {"__module__": f"grpc.{self.name}.patched"},
                     )
                 actions[name] = action
         return actions
 
 
-class MCPAction(Action[TContext], Generic[TContext]):
-    """MCP Action."""
+class GRPCAction(Action[TContext], Generic[TContext]):
+    """GRPC Action."""
 
-    __mcp_servers__: dict[str, FastMCP] = {}
-
-    __mcp_clients__: dict[str, MCPClient]
-    __mcp_connections__: list[MCPConnection]
-    __mcp_tool_actions__: ChildActions
+    __grpc_clients__: dict[str, GRPCClient]
+    __grpc_connections__: list[GRPCConnection]
+    __grpc_tool_actions__: ChildActions
 
     # --------------------- not inheritable -------------------- #
 
-    __has_pre_mcp__: bool
+    __has_pre_grpc__: bool
 
     @classmethod
     def __pydantic_init_subclass__(cls, **kwargs: Any) -> None:
         """Override __pydantic_init_subclass__."""
         super().__pydantic_init_subclass__(**kwargs)
-        cls.__has_pre_mcp__ = cls.pre_mcp is not MCPAction.pre_mcp
+        cls.__has_pre_grpc__ = cls.pre_grpc is not GRPCAction.pre_grpc
 
     @classmethod
     def __init_child_actions__(cls, **kwargs: Any) -> None:
         """Initialize defined child actions."""
-        cls.__mcp_tool_actions__ = OrderedDict()
+        cls.__grpc_tool_actions__ = OrderedDict()
         cls.__child_actions__ = OrderedDict()
         for _, attr in getmembers(cls):
             if isinstance(attr, type):
-                if getattr(attr, "__mcp_tool__", False):
-                    cls.__mcp_tool_actions__[attr.__name__] = attr
+                if getattr(attr, "__grpc_action__", False):
+                    cls.__grpc_tool_actions__[attr.__name__] = attr
                 elif issubclass(attr, Action):
                     cls.__child_actions__[attr.__name__] = attr
 
-    async def pre_mcp(self, context: TContext) -> ActionReturn:
-        """Execute pre mcp process."""
+    async def pre_grpc(self, context: TContext) -> ActionReturn:
+        """Execute pre grpc process."""
         return ActionReturn.GO
 
     async def execute(
@@ -176,15 +168,15 @@ class MCPAction(Action[TContext], Generic[TContext]):
                 return ActionReturn.END
 
             if (
-                self.__has_pre_mcp__
-                and (result := await self.pre_mcp(context)).is_break
+                self.__has_pre_grpc__
+                and (result := await self.pre_grpc(context)).is_break
             ):
                 return result
 
-            async with multi_mcp_clients(
-                context.integrations, self.__mcp_connections__
+            async with multi_grpc_clients(
+                context.integrations, self.__grpc_connections__
             ) as clients:
-                self.__mcp_clients__ = clients
+                self.__grpc_clients__ = clients
 
                 if self.__has_pre__ and (result := await self.pre(context)).is_break:
                     return result
@@ -219,13 +211,13 @@ class MCPAction(Action[TContext], Generic[TContext]):
         """Retrieve child Actions."""
         normal_tools = await super().get_child_actions(context)
         [
-            await client.patch_tools(normal_tools, self.__mcp_tool_actions__)
-            for client in self.__mcp_clients__.values()
+            await client.patch_actions(normal_tools, self.__grpc_tool_actions__)
+            for client in self.__grpc_clients__.values()
         ]
         return normal_tools
 
     ####################################################################################################
-    #                                          MCPACTION TOOLS                                         #
+    #                                          GRPCACTION TOOLS                                         #
     # ------------------------------------------------------------------------------------------------ #
 
     @classmethod
@@ -247,91 +239,67 @@ class MCPAction(Action[TContext], Generic[TContext]):
         if extended:
             action = type(name, (action,), {"__module__": action.__module__})
 
-        if issubclass(action, MCPToolAction):
-            cls.__mcp_tool_actions__[name] = action
+        if issubclass(action, GRPCRemoteAction):
+            cls.__grpc_tool_actions__[name] = action
         else:
             cls.__child_actions__[name] = action
         setattr(cls, name, action)
 
 
-class MCPToolAction(Action):
-    """MCP Tool Action."""
+class GRPCRemoteAction(Action[TContext], Generic[TContext]):
+    """GRPC Remote Action."""
 
-    __mcp_tool__ = True
+    __grpc_action__ = True
 
-    __mcp_client__: ClientSession
-    __mcp_tool_name__: str
-    __mcp_exclude_unset__: bool
+    __grpc_client__: GRPCClient
+    __grpc_action_name__: str
+    __grpc_exclude_unset__: bool
+    __grpc_queue__: Queue[Event]
 
-    def build_progress_callback(self, context: TContext) -> ProgressFnT:
-        """Generate progress callback function."""
+    async def grpc_queue(self) -> AsyncGenerator[Event]:
+        """Stream event queue."""
+        while que := await self.__grpc_queue__.get():
+            yield que
 
-        async def progress_callback(
-            progress: float, total: float | None, message: str | None
-        ) -> None:
-            await context.notify(
-                {
-                    "event": "mcp-call-tool",
-                    "class": self.__class__.__name__,
-                    "type": self.__mcp_tool_name__,
-                    "status": "inprogress",
-                    "data": {"progress": progress, "total": total, "message": message},
-                }
+    async def grpc_connect(self, context: TContext) -> None:
+        """Trigger grpc connect."""
+        self.__grpc_queue__ = Queue()
+
+        if metadata := self.__grpc_client__.config.get("metadata"):
+            data: dict[str, Any] | None = metadata.get("connect")
+        else:
+            data = None
+
+        await self.__grpc_queue__.put(Event(name="connect", data=data))
+        await self.__grpc_queue__.put(
+            Event(
+                name="trigger",
+                data={
+                    "group": self.__grpc_client__.config["group"],
+                    "name": self.__grpc_action_name__,
+                    "args": self.model_dump(exclude_unset=self.__grpc_exclude_unset__),
+                },
             )
+        )
 
-        return progress_callback
-
-    def clean_content(self, content: ContentBlock) -> str:
-        """Clean text if json."""
-        match content:
-            case AudioContent():
-                return f'<audio controls>\n\t<source src="data:{content.mimeType};base64,{content.data}" type="{content.mimeType}">\n</audio>'
-            case ImageContent():
-                return f'<img src="data:{content.mimeType};base64,{content.data}">'
-            case TextContent():
-                with suppress(Exception):
-                    return dumps(loads(content.text.strip().encode())).decode()
-                return content.text
-            case EmbeddedResource():
-                if isinstance(resource := content.resource, TextResourceContents):
-                    return f'<a href="{resource.uri}">\n{resource.text}\n</a>'
-                else:
-                    mime = (
-                        resource.mimeType.lower().split("/")
-                        if resource.mimeType
-                        else None
-                    )
-                    source = f'<source src="data:{resource.mimeType};base64,{resource.blob}" type="{resource.mimeType}">'
-                    match mime:
-                        case "video":
-                            return f"<video controls>\n\t{source}\n</video>"
-                        case "audio":
-                            return f"<audio controls>\n\t{source}\n</audio>"
-                        case _:
-                            return source
-            case ResourceLink():
-                description = (
-                    f"\n{content.description}\n" if content.description else ""
-                )
-                return f'<a href="{content.uri}">{description}</a>'
-            case _:
-                return f"The response of {self.__class__.__name__} is yet supported: {content.__class__.__name__}"
+        async for response in self.__grpc_client__.stub.connect(self.grpc_queue()):
+            print(response)
 
     async def pre(self, context: TContext) -> ActionReturn:
         """Execute pre process."""
-        tool_args = self.model_dump(exclude_unset=self.__mcp_exclude_unset__)
         await context.notify(
             {
-                "event": "mcp-call-tool",
+                "event": "grpc-connect",
                 "class": self.__class__.__name__,
-                "type": self.__mcp_tool_name__,
+                "type": self.__grpc_action_name__,
                 "status": "started",
-                "data": tool_args,
+                "data": action_args,
             }
         )
-        result = await self.__mcp_client__.call_tool(
-            self.__mcp_tool_name__,
-            tool_args,
+
+        result = await self.__grpc_client__.call_tool(
+            self.__grpc_action_name__,
+            action_args,
             progress_callback=self.build_progress_callback(context),
         )
 
@@ -339,9 +307,9 @@ class MCPToolAction(Action):
 
         await context.notify(
             {
-                "event": "mcp-call-tool",
+                "event": "grpc-call-tool",
                 "class": self.__class__.__name__,
-                "type": self.__mcp_tool_name__,
+                "type": self.__grpc_action_name__,
                 "status": "completed",
                 "data": content,
             }
@@ -352,16 +320,16 @@ class MCPToolAction(Action):
 
 
 @asynccontextmanager
-async def multi_mcp_clients(
-    integrations: dict[str, MCPIntegration],
-    connections: list[MCPConnection],
+async def multi_grpc_clients(
+    integrations: dict[str, GRPCIntegration],
+    connections: list[GRPCConnection],
     bypass: bool = False,
-) -> AsyncGenerator[dict[str, MCPClient], None]:
-    """Connect to multiple mcp clients."""
+) -> AsyncGenerator[dict[str, GRPCClient], None]:
+    """Connect to multiple grpc clients."""
     async with AsyncExitStack() as stack:
-        clients: dict[str, MCPClient] = {}
+        clients: dict[str, GRPCClient] = {}
         for conn in connections:
-            integration: MCPIntegration | None = integrations.get(conn.name)
+            integration: GRPCIntegration | None = integrations.get(conn.name)
             if not bypass and (conn.require_integration and integration is None):
                 continue
 
@@ -369,7 +337,7 @@ async def multi_mcp_clients(
                 integration = {}
 
             overrided_config = conn.get_config(integration.get("config"))
-            if integration.get("mode", conn.mode) == MCPMode.SSE:
+            if integration.get("mode", conn.mode) == GRPCMode.SSE:
                 overrided_config.pop("terminate_on_close", None)
                 client_builder: Callable = sse_client
             else:
@@ -390,7 +358,7 @@ async def multi_mcp_clients(
                 ClientSession(*islice(streams, 0, 2))
             )
             await client.initialize()
-            clients[conn.name] = MCPClient(
+            clients[conn.name] = GRPCClient(
                 client,
                 conn.name,
                 overrided_config,
@@ -404,24 +372,24 @@ async def multi_mcp_clients(
         yield clients
 
 
-async def mount_mcp_groups(app: AppType, stack: AsyncExitStack) -> None:
-    """Start MCP Servers."""
+async def mount_grpc_groups(app: AppType, stack: AsyncExitStack) -> None:
+    """Start GRPC Servers."""
     queue = Action.__subclasses__()
     while queue:
         que = queue.pop()
-        if que.__groups__ and (mcp_groups := que.__groups__.get("mcp")):
-            entry = build_mcp_entry(que)
-            for group in mcp_groups:
-                await add_mcp_server(group.lower(), que, entry)
+        if que.__groups__ and (grpc_groups := que.__groups__.get("grpc")):
+            entry = build_grpc_entry(que)
+            for group in grpc_groups:
+                await add_grpc_server(group.lower(), que, entry)
         queue.extend(que.__subclasses__())
 
-    for server, mcp in MCPAction.__mcp_servers__.items():
-        app.mount(f"/{server}", mcp.streamable_http_app())
-        await stack.enter_async_context(mcp.session_manager.run())
+    for server, grpc in GRPCAction.__grpc_servers__.items():
+        app.mount(f"/{server}", grpc.streamable_http_app())
+        await stack.enter_async_context(grpc.session_manager.run())
 
 
-def build_mcp_entry(action: type["Action"]) -> Callable[..., Awaitable[str]]:
-    """Build MCP Entry."""
+def build_grpc_entry(action: type["Action"]) -> Callable[..., Awaitable[str]]:
+    """Build GRPC Entry."""
     from .context import Context
 
     async def process(data: dict[str, Any]) -> str:
@@ -459,28 +427,28 @@ async def tool({", ".join(kwargs)}):
     return globals["tool"]
 
 
-async def add_mcp_server(
+async def add_grpc_server(
     group: str, action: type["Action"], entry: Callable[..., Awaitable[str]]
 ) -> None:
     """Add action."""
-    if not (server := MCPAction.__mcp_servers__.get(group)):
-        server = MCPAction.__mcp_servers__[group] = FastMCP(
-            f"mcp-{group}",
+    if not (server := GRPCAction.__grpc_servers__.get(group)):
+        server = GRPCAction.__grpc_servers__[group] = FastGRPC(
+            f"grpc-{group}",
             stateless_http=True,
-            log_level=getenv("MCP_LOGGER_LEVEL", "WARNING"),  # type: ignore[arg-type]
+            log_level=getenv("GRPC_LOGGER_LEVEL", "WARNING"),  # type: ignore[arg-type]
         )
     server.add_tool(entry, action.__name__, getdoc(action))
 
 
 ##########################################################################
-#                           MCPAction Utilities                          #
+#                           GRPCAction Utilities                          #
 ##########################################################################
 
 
 async def graph(
     action: type[Action],
     allowed_actions: dict[str, bool] | None = None,
-    integrations: dict[str, MCPIntegration] | None = None,
+    integrations: dict[str, GRPCIntegration] | None = None,
     bypass: bool = False,
 ) -> str:
     """Retrieve Graph."""
@@ -502,7 +470,7 @@ async def traverse(
     graph: Graph,
     action: type[Action],
     allowed_actions: dict[str, bool] | None,
-    integrations: dict[str, MCPIntegration],
+    integrations: dict[str, GRPCIntegration],
     bypass: bool = False,
 ) -> None:
     """Retrieve Graph."""
@@ -517,12 +485,12 @@ async def traverse(
     else:
         child_actions = action.__child_actions__.copy()
 
-    if issubclass(action, MCPAction):
-        async with multi_mcp_clients(
-            integrations, action.__mcp_connections__, bypass
+    if issubclass(action, GRPCAction):
+        async with multi_grpc_clients(
+            integrations, action.__grpc_connections__, bypass
         ) as clients:
             [
-                await client.patch_tools(child_actions, action.__mcp_tool_actions__)
+                await client.patch_actions(child_actions, action.__grpc_tool_actions__)
                 for client in clients.values()
             ]
 
@@ -532,3 +500,20 @@ async def traverse(
         if node not in graph.nodes:
             graph.nodes.add(node)
             await traverse(graph, child_action, allowed_actions, integrations, bypass)
+
+
+async def connect() -> None:
+    """Test connect."""
+    async with insecure_channel("localhost:50051") as channel:
+        stub = PyBotchiGRPCStub(channel)
+
+        queue = Queue[Event]()
+        await queue.put(Event(name="connect", data={}))
+
+        async for response in stub.connect(stream(queue)):
+            print(response)
+
+        a: ActionListResponse = await stub.action_list(ActionListRequest(group="test"))
+        print(a.actions)
+        a = await stub.action_list(ActionListRequest(group="test2"))
+        print(a.actions)
