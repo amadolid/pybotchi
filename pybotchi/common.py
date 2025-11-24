@@ -67,6 +67,7 @@ class ActionEntry(ActionItem):
 class Groups(TypedDict, total=False):
     """Action Groups."""
 
+    grpc: set[str]
     mcp: set[str]
     a2a: set[str]
 

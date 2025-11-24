@@ -3,7 +3,7 @@
 from asyncio import run
 from json import dumps
 
-from prerequisite import (
+from mcp_prerequisite import (
     Action,
     ActionReturn,
     ChatRole,

@@ -1,11 +1,11 @@
-"""User APIs."""
+"""Direct MCP Agent Server."""
 
 from collections.abc import AsyncGenerator
 from contextlib import AsyncExitStack, asynccontextmanager
 
 from fastapi import FastAPI
 
-from prerequisite import Action, ActionReturn, ChatRole, Context, mount_mcp_groups
+from mcp_prerequisite import Action, ActionReturn, ChatRole, Context, mount_mcp_groups
 
 from pydantic import Field
 

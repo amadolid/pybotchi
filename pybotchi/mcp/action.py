@@ -128,7 +128,7 @@ class MCPClient:
 
 
 class MCPAction(Action[TContext], Generic[TContext]):
-    """MCP Tool Action."""
+    """MCP Action."""
 
     __mcp_servers__: dict[str, FastMCP] = {}
 
