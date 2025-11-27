@@ -1,9 +1,9 @@
 """PyBotchi CLI."""
 
-from asyncio import create_task, run
-from collections.abc import AsyncGenerator
+from asyncio import run
 from importlib.resources import files
 from importlib.util import module_from_spec, spec_from_file_location
+from inspect import getmembers, isclass
 from multiprocessing import Process, cpu_count
 from pathlib import Path
 from signal import SIGINT, SIGTERM, signal
@@ -12,7 +12,7 @@ from types import FrameType
 
 from click import argument, command, echo, option
 
-from grpc.aio import ServicerContext, UsageError, server as grpc_server
+from grpc.aio import server as grpc_server
 
 from grpc_tools import protoc
 
@@ -24,11 +24,8 @@ PROCESSES: list[Process] = []
 
 async def serve(path: str, host: str, port: int) -> None:
     """Serve GRPC."""
-    from .pybotchi_pb2 import Event, ActionListRequest, ActionListResponse, JSONSchema
-    from .pybotchi_pb2_grpc import (
-        PyBotchiGRPCServicer,
-        add_PyBotchiGRPCServicer_to_server,
-    )
+    from .pybotchi_pb2_grpc import add_PyBotchiGRPCServicer_to_server
+    from .handler import PyBotchiGRPC
 
     server = grpc_server(
         options=[
@@ -38,15 +35,21 @@ async def serve(path: str, host: str, port: int) -> None:
     target_path = Path(path).resolve()
     target_directory = target_path.parent
     target_file = target_path.stem
-    if spec := spec_from_file_location(target_file, target_path):
-        if spec.loader is None:
-            raise ImportError(
-                f"Error occured when importing `{path}`. Loader is missing."
-            )
 
-        if target_directory not in sys_path:
-            sys_path.insert(0, str(target_directory))
-        spec.loader.exec_module(module_from_spec(spec))
+    spec = spec_from_file_location(target_file, target_path)
+    if not spec or spec.loader is None:
+        raise ImportError(f"Error occured when importing `{path}`. Loader is missing.")
+
+    if target_directory not in sys_path:
+        sys_path.insert(0, str(target_directory))
+    module_spec = module_from_spec(spec)
+    spec.loader.exec_module(module_spec)
+
+    grpc_handler = PyBotchiGRPC
+    for _, member in getmembers(module_spec, isclass):
+        if issubclass(member, PyBotchiGRPC):
+            grpc_handler = member
+            break
 
     groups: dict[str, dict[str, type[Action]]] = {}
     queue = Action.__subclasses__()
@@ -59,44 +62,9 @@ async def serve(path: str, host: str, port: int) -> None:
                     groups[group] = _group = {}
 
                 _group[que.__name__] = que
-                echo(que.model_json_schema())
         queue.extend(que.__subclasses__())
 
-    class PyBotchiGRPC(PyBotchiGRPCServicer):
-        async def consume(self, events: AsyncGenerator[Event]) -> None:
-            try:
-                async for event in events:
-                    print(event)
-            except UsageError as e:
-                echo(f"Closing consumer. Reason {e}")
-
-        async def accept(self, events: AsyncGenerator[Event]) -> Event:
-            event = await anext(events)
-            create_task(self.consume(events))
-            return event
-
-        async def connect(
-            self, request_iterator: AsyncGenerator[Event], context: ServicerContext
-        ) -> AsyncGenerator[Event]:
-            event = await self.accept(request_iterator)
-
-            yield event
-
-        async def action_list(
-            self, request: ActionListRequest, context: ServicerContext
-        ) -> ActionListResponse:
-            return ActionListResponse(
-                actions=(
-                    [
-                        JSONSchema(**action.model_json_schema())
-                        for action in actions.values()
-                    ]
-                    if (actions := groups.get(request.group))
-                    else []
-                )
-            )
-
-    add_PyBotchiGRPCServicer_to_server(PyBotchiGRPC(), server)
+    add_PyBotchiGRPCServicer_to_server(grpc_handler(groups), server)
 
     address = f"{host}:{port}"
     server.add_insecure_port(address)
@@ -104,6 +72,7 @@ async def serve(path: str, host: str, port: int) -> None:
 
     echo("#----------------------------------------------#")
     echo(f"# Agent Path: {path}")
+    echo(f"# Agent Handler: {grpc_handler.__name__}")
     echo(f"# gRPC server running on {address}")
     await server.wait_for_termination()
 

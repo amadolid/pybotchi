@@ -41,6 +41,7 @@ flake8-bugbear = "24.12.12"
 flake8-annotations = "3.1.1"
 flake8_simplify = "0.22.0"
 pep8-naming = "0.15.1"
+types-protobuf = "6.32.1.20251105"
 
 # for examples
 langchain-openai = ">=0.3.15"

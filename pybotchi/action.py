@@ -158,10 +158,10 @@ class Action(BaseModel, Generic[TContext]):
         """Execute post process."""
         return ActionReturn.GO
 
-    async def commit_context(self, parent: Context, child: Context) -> None:
+    async def commit_context(self, parent: TContext, child: TContext) -> None:
         """Execute commit context if it's detached."""
         for model, usage in child.usages.items():
-            parent.merge_to_usages(model, usage)
+            await parent.merge_to_usages(model, usage)
 
     def child_selection_prompt(self, context: TContext, tool_choice: str) -> str:
         """Get child selection prompt."""
@@ -220,7 +220,7 @@ class Action(BaseModel, Generic[TContext]):
                 *islice(context.prompts, min, max),
             ]
         )
-        context.add_usage(
+        await context.add_usage(
             self,
             context.llm,
             message.usage_metadata,  # type: ignore[attr-defined]
@@ -345,7 +345,7 @@ class Action(BaseModel, Generic[TContext]):
 
             message = await llm.ainvoke(context.prompts)
 
-            context.add_usage(
+            await context.add_usage(
                 self,
                 context.llm,
                 message.usage_metadata,  # type: ignore[attr-defined]

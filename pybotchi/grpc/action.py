@@ -3,11 +3,10 @@
 from asyncio import Queue
 from collections import OrderedDict
 from collections.abc import AsyncGenerator, Awaitable
-from contextlib import AsyncExitStack, asynccontextmanager, suppress
-from inspect import getdoc, getmembers
+from contextlib import AsyncExitStack, asynccontextmanager
+from inspect import getmembers
 from itertools import islice
-from os import getenv
-from typing import Any, Callable, Generic
+from typing import Any, Generic
 
 from datamodel_code_generator import DataModelType, PythonVersion
 from datamodel_code_generator.model import get_data_model_types
@@ -16,20 +15,19 @@ from datamodel_code_generator.parser.jsonschema import (
     JsonSchemaParser,
 )
 
-from google.protobuf.json_format import MessageToJson
+from google.protobuf.json_format import MessageToDict
 
+from grpc import Compression  # type:ignore[attr-defined] # mypy issue
 from grpc.aio import insecure_channel
 
 from orjson import dumps
-
-from starlette.applications import AppType
 
 from .common import GRPCConfig, GRPCConnection, GRPCIntegration
 from .context import TContext
 from .pybotchi_pb2 import ActionListRequest, ActionListResponse, Event, JSONSchema
 from .pybotchi_pb2_grpc import PyBotchiGRPCStub
 from ..action import Action, ChildActions
-from ..common import ActionReturn, ChatRole, Graph
+from ..common import ActionReturn, Graph
 from ..utils import is_camel_case
 
 DMT = get_data_model_types(
@@ -66,7 +64,7 @@ class GRPCClient:
         )
         exec(
             JsonSchemaParser(
-                dumps(MessageToJson(schema)).decode(),
+                dumps(MessageToDict(schema)).decode(),
                 data_model_type=DMT.data_model,
                 data_model_root_type=DMT.root_model,
                 data_model_field_type=DMT.field_model,
@@ -256,40 +254,114 @@ class GRPCRemoteAction(Action[TContext], Generic[TContext]):
     __grpc_exclude_unset__: bool
     __grpc_queue__: Queue[Event]
 
-    async def grpc_queue(self) -> AsyncGenerator[Event]:
+    async def grpc_event_close(self, context: TContext, event: Event) -> None:
+        """Consume close event."""
+        await self.__grpc_queue__.put(event)
+
+    async def grpc_event_update(self, context: TContext, event: Event) -> None:
+        """Consume close event."""
+        if not (data := MessageToDict(event)["data"]):
+            raise ValueError("Not valid event!")
+
+        if (raw_exec := data.get("exec")) and self.__grpc_client__.config.get(
+            "allow_exec"
+        ):
+            exec(raw_exec, None, {"self": self, "context": context, "event": event})
+        elif target := locals().get(data["target"]):
+            attrs = data["attrs"]
+            if set := data.get("set"):
+                last_attr = attrs[-1]
+                for attr in islice(attrs, 0, len(attrs) - 1):
+                    target = getattr(target, attr)
+                if set:
+                    setattr(target, last_attr, *data["args"])
+                elif hasattr(target, last_attr):
+                    delattr(target, last_attr)
+            else:
+                for attr in attrs:
+                    target = getattr(target, attr)
+
+                ref = {"${self}": self, "${context}": context, "${event}": event}
+                args = (
+                    [
+                        ref.get(arg, arg) if isinstance(arg, str) else arg
+                        for arg in _args
+                    ]
+                    if (_args := data.get("args"))
+                    else []
+                )
+                kwargs = (
+                    {
+                        key: ref.get(value, value) if isinstance(value, str) else value
+                        for key, value in _kwargs.items()
+                    }
+                    if (_kwargs := data.get("kwargs"))
+                    else {}
+                )
+                ret = target(*args, **kwargs)
+                if isinstance(ret, Awaitable):
+                    await ret
+
+    async def grpc_queue(self, context: TContext) -> AsyncGenerator[Event, None]:
         """Stream event queue."""
         while que := await self.__grpc_queue__.get():
+            if que.name == "close":
+                break
+
             yield que
 
-    async def grpc_connect(self, context: TContext) -> None:
+    async def grpc_send(self, name: str, data: dict[str, Any] | None = None) -> None:
+        """Send event."""
+        await self.__grpc_queue__.put(
+            Event(name=name, data={} if data is None else data)
+        )
+
+    async def grpc_consume(self, context: TContext, event: Event) -> None:
+        """Consume event."""
+        if consumer := getattr(self, f"grpc_event_{event.name}", None):
+            await consumer(context, event)
+
+    async def grpc_connect(
+        self,
+        context: TContext,
+        payload: dict[str, Any],
+        metadata: dict[str, Any] | None = None,
+    ) -> AsyncGenerator[Event, None]:
         """Trigger grpc connect."""
         self.__grpc_queue__ = Queue()
 
         if metadata := self.__grpc_client__.config.get("metadata"):
-            data: dict[str, Any] | None = metadata.get("connect")
+            invocation_metadata: dict[str, Any] | None = metadata.get("connect")
         else:
-            data = None
+            invocation_metadata = None
 
-        await self.__grpc_queue__.put(Event(name="connect", data=data))
-        await self.__grpc_queue__.put(
-            Event(
-                name="trigger",
-                data={
-                    "group": self.__grpc_client__.config["group"],
-                    "name": self.__grpc_action_name__,
-                    "args": self.model_dump(exclude_unset=self.__grpc_exclude_unset__),
-                },
-            )
+        await self.grpc_send(
+            "init",
+            {
+                "group": self.__grpc_client__.config["group"],
+                "context": context.grpc_dump(),
+            },
+        )
+        await self.grpc_send(
+            "execute",
+            {
+                "name": self.__grpc_action_name__,
+                "args": payload,
+            },
         )
 
-        async for response in self.__grpc_client__.stub.connect(self.grpc_queue()):
-            print(response)
+        async for event in self.__grpc_client__.stub.connect(
+            self.grpc_queue(context), metadata=invocation_metadata
+        ):
+            yield event
 
     async def pre(self, context: TContext) -> ActionReturn:
         """Execute pre process."""
+        action_args = self.model_dump(exclude_unset=self.__grpc_exclude_unset__)
+
         await context.notify(
             {
-                "event": "grpc-connect",
+                "event": "grpc",
                 "class": self.__class__.__name__,
                 "type": self.__grpc_action_name__,
                 "status": "started",
@@ -297,24 +369,27 @@ class GRPCRemoteAction(Action[TContext], Generic[TContext]):
             }
         )
 
-        result = await self.__grpc_client__.call_tool(
-            self.__grpc_action_name__,
-            action_args,
-            progress_callback=self.build_progress_callback(context),
-        )
-
-        content = "\n\n---\n\n".join(self.clean_content(c) for c in result.content)
+        async for event in self.grpc_connect(context, action_args):
+            await context.notify(
+                {
+                    "event": "grpc",
+                    "class": self.__class__.__name__,
+                    "type": self.__grpc_action_name__,
+                    "status": "inprogress",
+                    "data": MessageToDict(event),
+                }
+            )
+            await self.grpc_consume(context, event)
 
         await context.notify(
             {
-                "event": "grpc-call-tool",
+                "event": "grpc",
                 "class": self.__class__.__name__,
                 "type": self.__grpc_action_name__,
                 "status": "completed",
-                "data": content,
+                "data": MessageToDict(event),
             }
         )
-        await context.add_response(self, content)
 
         return ActionReturn.GO
 
@@ -337,11 +412,6 @@ async def multi_grpc_clients(
                 integration = {}
 
             overrided_config = conn.get_config(integration.get("config"))
-            if integration.get("mode", conn.mode) == GRPCMode.SSE:
-                overrided_config.pop("terminate_on_close", None)
-                client_builder: Callable = sse_client
-            else:
-                client_builder = streamablehttp_client
             _allowed_tools = integration.get("allowed_tools") or set[str]()
             if conn.allowed_tools:
                 allowed_tools = set(
@@ -351,15 +421,20 @@ async def multi_grpc_clients(
                 )
             else:
                 allowed_tools = _allowed_tools
-            streams = await stack.enter_async_context(
-                client_builder(**overrided_config)
+            channel = await stack.enter_async_context(
+                insecure_channel(
+                    target=overrided_config["url"],
+                    options=overrided_config["options"],
+                    compression=(
+                        Compression[comp]
+                        if (comp := overrided_config["compression"])
+                        else None
+                    ),
+                    interceptors=conn.interceptors,
+                )
             )
-            client = await stack.enter_async_context(
-                ClientSession(*islice(streams, 0, 2))
-            )
-            await client.initialize()
             clients[conn.name] = GRPCClient(
-                client,
+                PyBotchiGRPCStub(channel),
                 conn.name,
                 overrided_config,
                 allowed_tools,
@@ -370,74 +445,6 @@ async def multi_grpc_clients(
             )
 
         yield clients
-
-
-async def mount_grpc_groups(app: AppType, stack: AsyncExitStack) -> None:
-    """Start GRPC Servers."""
-    queue = Action.__subclasses__()
-    while queue:
-        que = queue.pop()
-        if que.__groups__ and (grpc_groups := que.__groups__.get("grpc")):
-            entry = build_grpc_entry(que)
-            for group in grpc_groups:
-                await add_grpc_server(group.lower(), que, entry)
-        queue.extend(que.__subclasses__())
-
-    for server, grpc in GRPCAction.__grpc_servers__.items():
-        app.mount(f"/{server}", grpc.streamable_http_app())
-        await stack.enter_async_context(grpc.session_manager.run())
-
-
-def build_grpc_entry(action: type["Action"]) -> Callable[..., Awaitable[str]]:
-    """Build GRPC Entry."""
-    from .context import Context
-
-    async def process(data: dict[str, Any]) -> str:
-        context = Context(
-            prompts=[
-                {
-                    "role": ChatRole.SYSTEM,
-                    "content": getdoc(action) or action.__system_prompt__ or "",
-                }
-            ],
-        )
-        await context.start(action, **data)
-        return context.prompts[-1]["content"]
-
-    globals: dict[str, Any] = {"process": process}
-    kwargs: list[str] = []
-    data: list[str] = []
-    for key, val in action.model_fields.items():
-        if val.annotation is None:
-            kwargs.append(f"{key}: None")
-            data.append(f'"{key}": {key}')
-        else:
-            globals[val.annotation.__name__] = val.annotation
-            kwargs.append(f"{key}: {val.annotation.__name__}")
-            data.append(f'"{key}": {key}')
-
-    exec(
-        f"""
-async def tool({", ".join(kwargs)}):
-    return await process({{{", ".join(data)}}})
-""".strip(),
-        globals,
-    )
-
-    return globals["tool"]
-
-
-async def add_grpc_server(
-    group: str, action: type["Action"], entry: Callable[..., Awaitable[str]]
-) -> None:
-    """Add action."""
-    if not (server := GRPCAction.__grpc_servers__.get(group)):
-        server = GRPCAction.__grpc_servers__[group] = FastGRPC(
-            f"grpc-{group}",
-            stateless_http=True,
-            log_level=getenv("GRPC_LOGGER_LEVEL", "WARNING"),  # type: ignore[arg-type]
-        )
-    server.add_tool(entry, action.__name__, getdoc(action))
 
 
 ##########################################################################
@@ -500,20 +507,3 @@ async def traverse(
         if node not in graph.nodes:
             graph.nodes.add(node)
             await traverse(graph, child_action, allowed_actions, integrations, bypass)
-
-
-async def connect() -> None:
-    """Test connect."""
-    async with insecure_channel("localhost:50051") as channel:
-        stub = PyBotchiGRPCStub(channel)
-
-        queue = Queue[Event]()
-        await queue.put(Event(name="connect", data={}))
-
-        async for response in stub.connect(stream(queue)):
-            print(response)
-
-        a: ActionListResponse = await stub.action_list(ActionListRequest(group="test"))
-        print(a.actions)
-        a = await stub.action_list(ActionListRequest(group="test2"))
-        print(a.actions)

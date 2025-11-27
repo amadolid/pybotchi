@@ -1,12 +1,13 @@
 """Pybotchi."""
 
-from .action import Action, all_agents, graph
+from .action import Action, DEFAULT_ACTION, all_agents, graph
 from .common import ActionReturn, ChatRole, Groups, UsageMetadata
 from .context import Context
 from .llm import LLM
 
 __all__ = [
     "Action",
+    "DEFAULT_ACTION",
     "all_agents",
     "graph",
     "ActionReturn",

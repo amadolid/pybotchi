@@ -64,7 +64,7 @@ class Context(BaseModel, Generic[TLLM]):
                 return True
         return False
 
-    def merge_to_usages(self, model: str, usage: UsageMetadata) -> None:
+    async def merge_to_usages(self, model: str, usage: UsageMetadata) -> None:
         """Merge usage to usages."""
         if not (base := self.usages.get(model)):
             base = self.usages[model] = {
@@ -103,7 +103,7 @@ class Context(BaseModel, Generic[TLLM]):
                 "reasoning", 0
             )
 
-    def add_usage(
+    async def add_usage(
         self,
         action: "Action",
         model: BaseChatModel | str,
@@ -124,7 +124,7 @@ class Context(BaseModel, Generic[TLLM]):
         )
         action._usage.append({"name": name, "model": model_name, "usage": usage})
 
-        self.merge_to_usages(model_name, usage)
+        await self.merge_to_usages(model_name, usage)
 
     async def add_message(
         self, role: ChatRole, content: str, metadata: dict[str, Any] | None = None
