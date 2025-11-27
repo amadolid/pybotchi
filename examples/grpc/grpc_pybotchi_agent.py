@@ -1,6 +1,6 @@
 """User APIs."""
 
-from grpc_prerequisite import Action, ActionReturn, Context
+from grpc_prerequisite import Action, ActionReturn, ChatRole, Context
 
 from pydantic import Field
 
@@ -14,6 +14,11 @@ class MathProblem(Action):
 
     async def pre(self, context: Context) -> ActionReturn:
         """Execute pre process."""
+        await context.add_message(
+            ChatRole.ASSISTANT,
+            "Adding additional message",
+            metadata={"additional": True},
+        )
         await context.add_response(self, self.answer)
         return ActionReturn.GO
 

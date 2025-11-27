@@ -8,7 +8,7 @@ from pydantic import Field, PrivateAttr
 
 from .common import GRPCIntegration
 from .pybotchi_pb2 import Event
-from ..context import Action, Context, TLLM, UsageMetadata
+from ..context import Action, ChatRole, Context, TLLM, UsageMetadata
 
 
 TContext = TypeVar("TContext", bound="GRPCContext")
@@ -38,6 +38,20 @@ class GRPCContext(Context[TLLM], Generic[TLLM]):
                 "target": "context",
                 "attrs": ["merge_to_usages"],
                 "args": [model, usage],
+            },
+        )
+
+    async def add_message(
+        self, role: ChatRole, content: str, metadata: dict[str, Any] | None = None
+    ) -> None:
+        """Add message."""
+        await super().add_message(role, content, metadata)
+        await self.grpc_send(
+            "update",
+            {
+                "target": "context",
+                "attrs": ["add_message"],
+                "args": [role, content, metadata],
             },
         )
 
