@@ -30,9 +30,9 @@ repos:
     rev: v1.15.0
     hooks:
       - id: mypy
-        exclude: v1
-        additional_dependencies: [types-redis, types-Markdown]
+        exclude: pybotchi/grpc/pybotchi_pb2
         args:
+          - --python-version=3.13
           - --follow-imports=silent
           - --ignore-missing-imports
-          - --exclude=v1
+        additional_dependencies: [types-redis, types-Markdown, mcp, grpcio]

@@ -6,16 +6,16 @@ from dotenv import load_dotenv
 
 from langchain_openai import AzureChatOpenAI
 
-from pybotchi import Action, ActionReturn, ChatRole, Context, LLM
-from pybotchi.mcp import (
-    MCPAction,
-    MCPConnection,
-    MCPContext,
-    MCPIntegration,
-    MCPToolAction,
+from pybotchi import Action, ActionReturn, ChatRole, Context as BaseContext, LLM
+from pybotchi.grpc import (
+    GRPCAction,
+    GRPCConnection,
+    GRPCContext as BaseGRPCContext,
+    GRPCIntegration,
+    GRPCRemoteAction,
     graph,
-    mount_mcp_groups,
 )
+from pybotchi.grpc.pybotchi_pb2 import Event
 
 load_dotenv()
 
@@ -30,17 +30,19 @@ LLM.add(
         stream_usage=True,
     )
 )
+Context = BaseContext[AzureChatOpenAI]
+GRPCContext = BaseGRPCContext[AzureChatOpenAI]
 
 __all__ = [
     "Action",
     "ActionReturn",
     "ChatRole",
     "Context",
-    "MCPAction",
-    "MCPConnection",
-    "MCPContext",
-    "MCPIntegration",
-    "MCPToolAction",
+    "GRPCAction",
+    "GRPCConnection",
+    "GRPCContext",
+    "GRPCIntegration",
+    "GRPCRemoteAction",
     "graph",
-    "mount_mcp_groups",
+    "Event",
 ]

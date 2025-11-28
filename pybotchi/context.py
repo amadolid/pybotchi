@@ -1,11 +1,12 @@
 """Pybotchi Context."""
 
-from asyncio import get_event_loop, new_event_loop
-from collections.abc import Coroutine
+from asyncio import Future, get_event_loop, new_event_loop
+from collections.abc import Callable, Coroutine, Iterable
 from concurrent.futures import Executor
 from copy import deepcopy
-from functools import cached_property
-from typing import Any, Generic, Self
+from functools import cached_property, partial
+from itertools import islice
+from typing import Any, Generic, ParamSpec, Self
 
 from langchain_core.language_models.chat_models import BaseChatModel
 
@@ -14,11 +15,12 @@ from pydantic import BaseModel, Field, PrivateAttr
 from typing_extensions import TypeVar
 
 from .action import Action, ActionReturn, T, TAction
-from .common import ChatRole, UNSPECIFIED, UsageMetadata
+from .common import ChatRole, ToolCall, UNSPECIFIED, UsageMetadata
 from .llm import LLM
 
-TContext = TypeVar("TContext", bound="Context")
+TContext = TypeVar("TContext", bound="Context", default="Context")
 TLLM = TypeVar("TLLM", default=BaseChatModel)
+P = ParamSpec("P")
 
 
 class Context(BaseModel, Generic[TLLM]):
@@ -64,7 +66,7 @@ class Context(BaseModel, Generic[TLLM]):
                 return True
         return False
 
-    def merge_to_usages(self, model: str, usage: UsageMetadata) -> None:
+    async def merge_to_usages(self, model: str, usage: UsageMetadata) -> None:
         """Merge usage to usages."""
         if not (base := self.usages.get(model)):
             base = self.usages[model] = {
@@ -103,10 +105,10 @@ class Context(BaseModel, Generic[TLLM]):
                 "reasoning", 0
             )
 
-    def add_usage(
+    async def add_usage(
         self,
         action: "Action",
-        model: BaseChatModel | str,
+        model: str | None,
         usage: UsageMetadata | None,
         name: str | None = None,
         raise_error: bool = False,
@@ -117,14 +119,10 @@ class Context(BaseModel, Generic[TLLM]):
                 raise AttributeError("Adding usage but usage is not available!")
             return
 
-        model_name = (
-            getattr(model, "model_name", getattr(model, "deployment_name", UNSPECIFIED))
-            if isinstance(model, BaseChatModel)
-            else model
-        )
-        action._usage.append({"name": name, "model": model_name, "usage": usage})
+        model = model or UNSPECIFIED
+        action._usage.append({"name": name, "model": model, "usage": usage})
 
-        self.merge_to_usages(model_name, usage)
+        await self.merge_to_usages(model, usage)
 
     async def add_message(
         self, role: ChatRole, content: str, metadata: dict[str, Any] | None = None
@@ -134,22 +132,114 @@ class Context(BaseModel, Generic[TLLM]):
 
     async def add_response(
         self,
-        action: "Action",
+        action: "Action | ToolCall",
         content: str,
         metadata: dict[str, Any] | None = None,
     ) -> None:
-        """Add tool."""
-        tool_call = action._tool_call
+        """Add tool response."""
+        if isinstance(action, Action):
+            action = action._tool_call
+
         self.prompts.append(
             {
                 "content": "",
                 "role": ChatRole.ASSISTANT,
-                "tool_calls": [tool_call],
+                "tool_calls": [action],
             }
         )
+
         self.prompts.append(
-            {"content": content, "role": ChatRole.TOOL, "tool_call_id": tool_call["id"]}
+            {"content": content, "role": ChatRole.TOOL, "tool_call_id": action["id"]}
         )
+
+    async def set_metadata(
+        self,
+        *paths: Any,
+        value: Any,
+        update: bool = False,
+    ) -> None:
+        """Override metadata value."""
+        if paths:
+            try:
+                parent_target = self.metadata
+                for path in islice(paths, 0, len(paths) - 1):
+                    parent_target = parent_target[path]
+
+                if update:
+                    target = parent_target[paths[-1]]
+                    match (target):
+                        case dict() | set():
+                            target.update(value)
+                        case list():
+                            if isinstance(value, Iterable):
+                                target.extend(value)
+                            else:
+                                target.append(value)
+                        case tuple():
+                            match (value):
+                                case tuple():
+                                    parent_target[paths[-1]] = target + value
+                                case Iterable():
+                                    parent_target[paths[-1]] = (*target, *value)
+                                case _:
+                                    parent_target[paths[-1]] = (*target, value)
+                        case _:
+                            parent_target[paths[-1]] = value
+                else:
+                    parent_target[paths[-1]] = value
+            except Exception as e:
+                raise ValueError(
+                    f'Error occured when setting value to path `{" -> ".join(paths)}`!'
+                ) from e
+        elif not isinstance(value, dict) or any(
+            not isinstance(key, str) for key in value.keys()
+        ):
+            raise ValueError(
+                f"New metadata must be a serializable dict[str, Any], got {type(value).__name__}"
+            )
+
+        self.metadata = value
+
+    async def update_metadata(self, *paths: Any, value: Any) -> None:
+        """Override metadata value."""
+        if paths:
+            try:
+                parent_target = self.metadata
+                for path in islice(paths, 0, len(paths) - 1):
+                    parent_target = parent_target[path]
+
+                target = parent_target[paths[-1]]
+
+                match (target):
+                    case dict() | set():
+                        target.update(value)
+                    case list():
+                        if isinstance(value, Iterable):
+                            target.extend(value)
+                        else:
+                            target.append(value)
+                    case tuple():
+                        match (target):
+                            case tuple():
+                                parent_target[paths[-1]] = target + value
+                            case Iterable():
+                                parent_target[paths[-1]] = (*target, *value)
+                            case _:
+                                parent_target[paths[-1]] = (*target, value)
+                    case _:
+                        parent_target[paths[-1]] = value
+            except Exception as e:
+                raise ValueError(
+                    f'Error occured when setting value to path `{" -> ".join(paths)}`!'
+                ) from e
+        elif not isinstance(value, dict) or any(
+            not isinstance(key, str) for key in value.keys()
+        ):
+            raise ValueError(
+                f"New metadata must be a serializable dict[str, Any], got {type(value).__name__}"
+            )
+
+        self.metadata = value
 
     async def notify(self, message: dict[str, Any]) -> None:
         """Notify Client."""
@@ -165,12 +255,24 @@ class Context(BaseModel, Generic[TLLM]):
         finally:
             loop.close()
 
-    async def run_in_thread(
-        self, task: Coroutine[Any, Any, T], executor: Executor | None = None
-    ) -> T:
-        """Run concurrent on different thread."""
-        return await get_event_loop().run_in_executor(
-            executor, self.run_new_event_loop, task
+    def run_task_in_thread(
+        self,
+        task: Coroutine[Any, Any, T],
+        executor: Executor | None = None,
+    ) -> Future[T]:
+        """Run task on different thread."""
+        return get_event_loop().run_in_executor(executor, self.run_new_event_loop, task)
+
+    def run_func_in_thread(
+        self,
+        task: Callable[P, T],
+        executor: Executor | None = None,
+        *args: P.args,
+        **kwargs: P.kwargs,
+    ) -> Future[T]:
+        """Run func on different thread."""
+        return get_event_loop().run_in_executor(
+            executor, partial(task, *args, **kwargs)
         )
 
     async def detach_context(self: TContext) -> TContext:

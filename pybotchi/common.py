@@ -20,24 +20,24 @@ class ChatRole(StrEnum):
 class InputTokenDetails(TypedDict, total=False):
     """Input Token Details."""
 
-    audio: int
-    cache_creation: int
-    cache_read: int
+    audio: float
+    cache_creation: float
+    cache_read: float
 
 
 class OutputTokenDetails(TypedDict, total=False):
     """Output Token Details."""
 
-    audio: int
-    reasoning: int
+    audio: float
+    reasoning: float
 
 
 class UsageMetadata(TypedDict):
     """Usage Metadata."""
 
-    input_tokens: int
-    output_tokens: int
-    total_tokens: int
+    input_tokens: float
+    output_tokens: float
+    total_tokens: float
     input_token_details: NotRequired[InputTokenDetails]
     output_token_details: NotRequired[OutputTokenDetails]
 
@@ -67,6 +67,7 @@ class ActionEntry(ActionItem):
 class Groups(TypedDict, total=False):
     """Action Groups."""
 
+    grpc: set[str]
     mcp: set[str]
     a2a: set[str]
 

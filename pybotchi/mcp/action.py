@@ -6,7 +6,7 @@ from contextlib import AsyncExitStack, asynccontextmanager, suppress
 from inspect import getdoc, getmembers
 from itertools import islice
 from os import getenv
-from typing import Any, Callable, Generic
+from typing import Any, Callable, Generic, Literal
 
 from datamodel_code_generator import DataModelType, PythonVersion
 from datamodel_code_generator.model import get_data_model_types
@@ -58,10 +58,10 @@ class MCPClient:
         exclude_unset: bool,
     ) -> None:
         """Build MCP Client."""
+        self.client = client
         self.name = name
         self.config = config
         self.allowed_tools = allowed_tools
-        self.client = client
         self.exclude_unset = exclude_unset
 
     def build_tool(self, tool: Tool) -> tuple[str, type["MCPToolAction"]]:
@@ -128,7 +128,7 @@ class MCPClient:
 
 
 class MCPAction(Action[TContext], Generic[TContext]):
-    """MCP Tool Action."""
+    """MCP Action."""
 
     __mcp_servers__: dict[str, FastMCP] = {}
 
@@ -147,7 +147,7 @@ class MCPAction(Action[TContext], Generic[TContext]):
         cls.__has_pre_mcp__ = cls.pre_mcp is not MCPAction.pre_mcp
 
     @classmethod
-    def __init_child_actions__(cls, **kwargs: Any) -> None:
+    def __init_child_actions__(cls) -> None:
         """Initialize defined child actions."""
         cls.__mcp_tool_actions__ = OrderedDict()
         cls.__child_actions__ = OrderedDict()
@@ -374,15 +374,15 @@ async def multi_mcp_clients(
                 client_builder: Callable = sse_client
             else:
                 client_builder = streamablehttp_client
-            _allowed_tools = integration.get("allowed_tools") or set[str]()
+            _allowed_tools = integration.get("allowed_tools") or list[str]()
             if conn.allowed_tools:
-                allowed_tools = set(
+                allowed_tools = (
                     {tool for tool in _allowed_tools if tool in conn.allowed_tools}
                     if _allowed_tools
                     else conn.allowed_tools
                 )
             else:
-                allowed_tools = _allowed_tools
+                allowed_tools = set(_allowed_tools)
             streams = await stack.enter_async_context(
                 client_builder(**overrided_config)
             )
@@ -404,20 +404,42 @@ async def multi_mcp_clients(
         yield clients
 
 
-async def mount_mcp_groups(app: AppType, stack: AsyncExitStack) -> None:
-    """Start MCP Servers."""
+def initialize_mcp_groups() -> None:
+    """Initialize MCP groups."""
     queue = Action.__subclasses__()
     while queue:
         que = queue.pop()
-        if que.__groups__ and (mcp_groups := que.__groups__.get("mcp")):
+        if isinstance(_groups := que.__groups__, dict):
+            _groups = _groups.get("mcp")
+
+        if _groups:
             entry = build_mcp_entry(que)
-            for group in mcp_groups:
-                await add_mcp_server(group.lower(), que, entry)
+            for group in _groups:
+                add_mcp_server(group.lower(), que, entry)
+
         queue.extend(que.__subclasses__())
+
+
+async def mount_mcp_groups(app: AppType, stack: AsyncExitStack) -> None:
+    """Start MCP Servers."""
+    initialize_mcp_groups()
 
     for server, mcp in MCPAction.__mcp_servers__.items():
         app.mount(f"/{server}", mcp.streamable_http_app())
         await stack.enter_async_context(mcp.session_manager.run())
+
+
+def run_mcp(
+    group: str,
+    transport: Literal["stdio", "sse", "streamable-http"] = "streamable-http",
+) -> None:
+    """Start MCP server by group."""
+    initialize_mcp_groups()
+
+    if not (server := MCPAction.__mcp_servers__.get(group)):
+        raise ValueError(f"Group `{group}` is not available!")
+
+    server.run(transport)
 
 
 def build_mcp_entry(action: type["Action"]) -> Callable[..., Awaitable[str]]:
@@ -429,7 +451,7 @@ def build_mcp_entry(action: type["Action"]) -> Callable[..., Awaitable[str]]:
             prompts=[
                 {
                     "role": ChatRole.SYSTEM,
-                    "content": getdoc(action) or action.__system_prompt__ or "",
+                    "content": action.__system_prompt__ or getdoc(action) or "",
                 }
             ],
         )
@@ -459,7 +481,7 @@ async def tool({", ".join(kwargs)}):
     return globals["tool"]
 
 
-async def add_mcp_server(
+def add_mcp_server(
     group: str, action: type["Action"], entry: Callable[..., Awaitable[str]]
 ) -> None:
     """Add action."""
@@ -469,7 +491,7 @@ async def add_mcp_server(
             stateless_http=True,
             log_level=getenv("MCP_LOGGER_LEVEL", "WARNING"),  # type: ignore[arg-type]
         )
-    server.add_tool(entry, action.__name__, getdoc(action))
+    server.add_tool(entry, action.__name__, action.__display_name__, getdoc(action))
 
 
 ##########################################################################
@@ -482,7 +504,7 @@ async def graph(
     allowed_actions: dict[str, bool] | None = None,
     integrations: dict[str, MCPIntegration] | None = None,
     bypass: bool = False,
-) -> str:
+) -> Graph:
     """Retrieve Graph."""
     if integrations is None:
         integrations = {}
@@ -495,7 +517,7 @@ async def graph(
         bypass,
     )
 
-    return graph.flowchart()
+    return graph
 
 
 async def traverse(

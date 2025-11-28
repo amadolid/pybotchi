@@ -3,7 +3,7 @@
 from asyncio import run
 from json import dumps
 
-from prerequisite import (
+from mcp_prerequisite import (
     Action,
     ActionReturn,
     ChatRole,
@@ -19,6 +19,7 @@ from prerequisite import (
 class GeneralChat(MCPAction):
     """Casual Generic Chat."""
 
+    # https://github.com/sooperset/mcp-atlassian
     __mcp_connections__ = [MCPConnection("jira", "SSE", "http://localhost:9000/sse")]
     __max_child_iteration__ = 5
     # __detached__ = True
@@ -43,7 +44,9 @@ class GeneralChat(MCPAction):
         async def pre(self, context: MCPContext) -> ActionReturn:
             """Test."""
             message = await context.llm.ainvoke(context.prompts)
-            context.add_usage(self, context.llm, message.usage_metadata)
+            await context.add_usage(
+                self, context.llm.model_name, message.usage_metadata
+            )
 
             await context.add_response(self, message.text)
 
@@ -70,7 +73,7 @@ async def test() -> None:
             #     "url": "http://localhost:9000/mcp",
             # },
             # ----------------------------------------- #
-            "allowed_tools": {"JiraSearch", "JiraGetIssue"},
+            "allowed_tools": ["JiraSearch", "JiraGetIssue"],
         }
     }
     context = MCPContext(
@@ -93,7 +96,11 @@ async def test() -> None:
     action, result = await context.start(GeneralChat)
     print(dumps(context.prompts, indent=4))
     print(dumps(action.serialize(), indent=4))
-    print(await graph(GeneralChat, {"IgnoredAction": False}, integrations))
+
+    general_chat_graph = await graph(
+        GeneralChat, {"IgnoredAction": False}, integrations
+    )
+    print(general_chat_graph.flowchart())
 
 
 run(test())
