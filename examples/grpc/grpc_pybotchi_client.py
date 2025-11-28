@@ -56,6 +56,7 @@ Ensure that all relevant tools are effectively utilized and properly sequenced t
             {
                 "role": ChatRole.USER,
                 "content": "4 x 4 and explain your answer in filipino",
+                # "content": "Tell me a joke and incorporate it on a very short story",
             },
         ],
         allowed_actions={"IgnoredAction": True},

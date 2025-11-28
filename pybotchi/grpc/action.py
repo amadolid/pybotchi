@@ -16,7 +16,7 @@ from datamodel_code_generator.parser.jsonschema import (
 
 from google.protobuf.json_format import MessageToDict
 
-from grpc import Compression  # type:ignore[attr-defined] # mypy issue
+from grpc import Compression  # type: ignore[attr-defined] # mypy issue
 from grpc.aio import insecure_channel
 
 from orjson import dumps
@@ -261,6 +261,16 @@ class GRPCRemoteAction(Action[TContext], Generic[TContext]):
 
     async def grpc_event_close(self, context: TContext, event: Event) -> None:
         """Consume close event."""
+        if not (data := MessageToDict(event)["data"]):
+            raise ValueError("Not valid event!")
+
+        action = data["action"]
+        for usage in action["usages"]:
+            self._usage.append(usage)
+
+        for child in action["actions"]:
+            self._actions.append(child)
+
         await self.__grpc_queue__.put(event)
 
     async def grpc_event_update(self, context: TContext, event: Event) -> None:

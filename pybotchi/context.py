@@ -14,10 +14,10 @@ from pydantic import BaseModel, Field, PrivateAttr
 from typing_extensions import TypeVar
 
 from .action import Action, ActionReturn, T, TAction
-from .common import ChatRole, UNSPECIFIED, UsageMetadata
+from .common import ChatRole, ToolCall, UNSPECIFIED, UsageMetadata
 from .llm import LLM
 
-TContext = TypeVar("TContext", bound="Context")
+TContext = TypeVar("TContext", bound="Context", default="Context")
 TLLM = TypeVar("TLLM", default=BaseChatModel)
 
 
@@ -106,7 +106,7 @@ class Context(BaseModel, Generic[TLLM]):
     async def add_usage(
         self,
         action: "Action",
-        model: BaseChatModel | str,
+        model: str | None,
         usage: UsageMetadata | None,
         name: str | None = None,
         raise_error: bool = False,
@@ -117,14 +117,10 @@ class Context(BaseModel, Generic[TLLM]):
                 raise AttributeError("Adding usage but usage is not available!")
             return
 
-        model_name = (
-            getattr(model, "model_name", getattr(model, "deployment_name", UNSPECIFIED))
-            if isinstance(model, BaseChatModel)
-            else model
-        )
-        action._usage.append({"name": name, "model": model_name, "usage": usage})
+        model = model or UNSPECIFIED
+        action._usage.append({"name": name, "model": model, "usage": usage})
 
-        await self.merge_to_usages(model_name, usage)
+        await self.merge_to_usages(model, usage)
 
     async def add_message(
         self, role: ChatRole, content: str, metadata: dict[str, Any] | None = None
@@ -134,21 +130,24 @@ class Context(BaseModel, Generic[TLLM]):
 
     async def add_response(
         self,
-        action: "Action",
+        action: "Action | ToolCall",
         content: str,
         metadata: dict[str, Any] | None = None,
     ) -> None:
-        """Add tool."""
-        tool_call = action._tool_call
+        """Add tool response."""
+        if isinstance(action, Action):
+            action = action._tool_call
+
         self.prompts.append(
             {
                 "content": "",
                 "role": ChatRole.ASSISTANT,
-                "tool_calls": [tool_call],
+                "tool_calls": [action],
             }
         )
+
         self.prompts.append(
-            {"content": content, "role": ChatRole.TOOL, "tool_call_id": tool_call["id"]}
+            {"content": content, "role": ChatRole.TOOL, "tool_call_id": action["id"]}
         )
 
     async def notify(self, message: dict[str, Any]) -> None:

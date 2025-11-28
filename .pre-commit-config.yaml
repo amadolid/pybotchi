@@ -35,4 +35,4 @@ repos:
           - --python-version=3.13
           - --follow-imports=silent
           - --ignore-missing-imports
-        additional_dependencies: [types-redis, types-Markdown]
+        additional_dependencies: [types-redis, types-Markdown, mcp, grpcio]

@@ -12,7 +12,15 @@ from typing import Any, Generic, TYPE_CHECKING, TypeAlias, TypeVar
 
 from pydantic import BaseModel, PrivateAttr
 
-from .common import ActionEntry, ActionReturn, Graph, Groups, ToolCall, UsageData
+from .common import (
+    ActionEntry,
+    ActionReturn,
+    Graph,
+    Groups,
+    ToolCall,
+    UNSPECIFIED,
+    UsageData,
+)
 from .utils import apply_placeholders, uuid
 
 if TYPE_CHECKING:
@@ -89,7 +97,7 @@ class Action(BaseModel, Generic[TContext]):
     ##############################################################
 
     _usage: list[UsageData] = PrivateAttr(default_factory=list)
-    _actions: list["Action"] = PrivateAttr(default_factory=list)
+    _actions: list["Action | ActionEntry"] = PrivateAttr(default_factory=list)
 
     # ------------------ life cycle variables ------------------ #
 
@@ -222,13 +230,13 @@ class Action(BaseModel, Generic[TContext]):
         )
         await context.add_usage(
             self,
-            context.llm,
-            message.usage_metadata,  # type: ignore[attr-defined]
+            context.llm.model_name,
+            message.usage_metadata,
             "$tool",
         )
 
         next_actions = [
-            child_actions[call["name"]](**call["args"]) for call in message.tool_calls  # type: ignore[attr-defined]
+            child_actions[call["name"]](**call["args"]) for call in message.tool_calls
         ]
 
         return next_actions, message.text
@@ -347,8 +355,16 @@ class Action(BaseModel, Generic[TContext]):
 
             await context.add_usage(
                 self,
-                context.llm,
-                message.usage_metadata,  # type: ignore[attr-defined]
+                getattr(
+                    context.llm,
+                    "model_name",
+                    getattr(
+                        context.llm,
+                        "deployment_name",
+                        UNSPECIFIED,
+                    ),
+                ),
+                message.usage_metadata,
                 "$fallback",
             )
 
@@ -361,7 +377,7 @@ class Action(BaseModel, Generic[TContext]):
                 }
             )
 
-            if (result := await self.fallback(context, message.text)).is_break:  # type: ignore[arg-type]
+            if (result := await self.fallback(context, message.text)).is_break:
                 return result
 
         return ActionReturn.GO
@@ -401,7 +417,9 @@ class Action(BaseModel, Generic[TContext]):
             "name": self.__class__.__name__,
             "args": self.model_dump(),
             "usages": self._usage,
-            "actions": [a.serialize() for a in self._actions],
+            "actions": [
+                a.serialize() if isinstance(a, Action) else a for a in self._actions
+            ],
         }
 
     ####################################################################################################

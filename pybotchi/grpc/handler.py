@@ -2,13 +2,12 @@
 
 from asyncio import Queue, create_task
 from collections.abc import AsyncGenerator
+from contextlib import suppress
 from typing import Generic
-
-from click import echo
 
 from google.protobuf.json_format import MessageToDict
 
-from grpc import StatusCode  # type:ignore[attr-defined] # mypy issue
+from grpc import StatusCode  # type: ignore[attr-defined] # mypy issue
 from grpc.aio import Metadata, ServicerContext, UsageError
 
 from .action import graph
@@ -48,12 +47,10 @@ class PyBotchiGRPC(PyBotchiGRPCServicer, Generic[TContext]):
         self, context: TContext, group: str, events: AsyncGenerator[Event]
     ) -> None:
         """Consume event."""
-        try:
+        with suppress(UsageError):
             async for event in events:
                 if consumer := getattr(self, f"grpc_event_{event.name}", None):
                     await consumer(context, group, event)
-        except UsageError as e:
-            echo(f"Closing consumer. Reason {e}")
 
     async def grpc_event_execute(
         self, context: TContext, group: str, event: Event
@@ -165,7 +162,11 @@ class PyBotchiGRPC(PyBotchiGRPCServicer, Generic[TContext]):
                 for node in remote_graph.nodes
             ],
             edges=[
-                Edge(source=edge[0], target=edge[1], concurrent=edge[2])
+                Edge(
+                    source=edge[0].replace(self.module, request.alias, 1),
+                    target=edge[1].replace(self.module, request.alias, 1),
+                    concurrent=edge[2],
+                )
                 for edge in remote_graph.edges
             ],
         )

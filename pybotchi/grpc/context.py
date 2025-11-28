@@ -8,7 +8,8 @@ from pydantic import Field, PrivateAttr
 
 from .common import GRPCIntegration
 from .pybotchi_pb2 import Event
-from ..context import Action, ChatRole, Context, TLLM, UsageMetadata
+from ..common import ToolCall
+from ..context import Action, ChatRole, Context, TLLM
 
 
 TContext = TypeVar("TContext", bound="GRPCContext")
@@ -29,18 +30,6 @@ class GRPCContext(Context[TLLM], Generic[TLLM]):
         """Send GRPC event."""
         await self._response_queue.put(Event(name=name, data=data))
 
-    async def merge_to_usages(self, model: str, usage: UsageMetadata) -> None:
-        """Merge usage to usages."""
-        await super().merge_to_usages(model, usage)
-        await self.grpc_send(
-            "update",
-            {
-                "target": "context",
-                "attrs": ["merge_to_usages"],
-                "args": [model, usage],
-            },
-        )
-
     async def add_message(
         self, role: ChatRole, content: str, metadata: dict[str, Any] | None = None
     ) -> None:
@@ -57,18 +46,21 @@ class GRPCContext(Context[TLLM], Generic[TLLM]):
 
     async def add_response(
         self,
-        action: "Action",
+        action: "Action | ToolCall",
         content: str,
         metadata: dict[str, Any] | None = None,
     ) -> None:
         """Add tool."""
+        if isinstance(action, Action):
+            action = action._tool_call
+
         await super().add_response(action, content, metadata)
         await self.grpc_send(
             "update",
             {
                 "target": "context",
                 "attrs": ["add_response"],
-                "args": ["${self}", content, metadata],
+                "args": [action, content, metadata],
             },
         )
 

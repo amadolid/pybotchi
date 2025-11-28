@@ -10,7 +10,7 @@ from pybotchi import (
     Action,
     ActionReturn,
     ChatRole,
-    Context,
+    Context as BaseContext,
     LLM,
     graph,
 )
@@ -28,6 +28,8 @@ LLM.add(
         stream_usage=True,
     )
 )
+
+Context = BaseContext[AzureChatOpenAI]
 
 __all__ = [
     "Action",
