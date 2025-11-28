@@ -64,7 +64,9 @@ async def serve(path: str, host: str, port: int) -> None:
                 _group[que.__name__] = que
         queue.extend(que.__subclasses__())
 
-    add_PyBotchiGRPCServicer_to_server(grpc_handler(groups), server)
+    add_PyBotchiGRPCServicer_to_server(
+        grpc_handler(module_spec.__name__, groups), server
+    )
 
     address = f"{host}:{port}"
     server.add_insecure_port(address)

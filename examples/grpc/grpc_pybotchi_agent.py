@@ -1,6 +1,13 @@
 """User APIs."""
 
-from grpc_prerequisite import Action, ActionReturn, ChatRole, Context
+from grpc_prerequisite import (
+    Action,
+    ActionReturn,
+    ChatRole,
+    Context,
+    GRPCAction,
+    GRPCConnection,
+)
 
 from pydantic import Field
 
@@ -35,6 +42,13 @@ class Translation(Action):
         await context.add_response(self, message.text)
 
         return ActionReturn.GO
+
+
+class JokeWithStoryTelling(GRPCAction):
+    """Tell Joke or Story."""
+
+    __groups__ = {"grpc": {"group-1"}}
+    __grpc_connections__ = [GRPCConnection("testing2", "localhost:50051", "group-2")]
 
 
 class Joke(Action):

@@ -461,7 +461,7 @@ def all_agents() -> Generator[type["Action"]]:
 
 async def graph(
     action: type[Action], allowed_actions: dict[str, bool] | None = None
-) -> str:
+) -> Graph:
     """Retrieve Graph."""
     await traverse(
         graph := Graph(nodes={f"{action.__module__}.{action.__qualname__}"}),
@@ -469,7 +469,7 @@ async def graph(
         allowed_actions,
     )
 
-    return graph.flowchart()
+    return graph
 
 
 async def traverse(

@@ -11,8 +11,18 @@ from google.protobuf.json_format import MessageToDict
 from grpc import StatusCode  # type:ignore[attr-defined] # mypy issue
 from grpc.aio import Metadata, ServicerContext, UsageError
 
+from .action import graph
 from .context import GRPCContext, TContext
-from .pybotchi_pb2 import ActionListRequest, ActionListResponse, Event, JSONSchema
+from .pybotchi_pb2 import (
+    ActionListRequest,
+    ActionListResponse,
+    ActionSchema,
+    Edge,
+    Event,
+    JSONSchema,
+    TraverseRequest,
+    TraverseResponse,
+)
 from .pybotchi_pb2_grpc import PyBotchiGRPCServicer
 from ..action import Action
 
@@ -22,8 +32,9 @@ class PyBotchiGRPC(PyBotchiGRPCServicer, Generic[TContext]):
 
     __context_class__: type[TContext] = GRPCContext  # type: ignore[assignment]
 
-    def __init__(self, groups: dict[str, dict[str, type[Action]]]) -> None:
+    def __init__(self, module: str, groups: dict[str, dict[str, type[Action]]]) -> None:
         """Initialize Handler."""
+        self.module = module
         self.groups = groups
         self.__has_validate_metadata__ = (
             self.__class__.validate_metadata is not PyBotchiGRPC.validate_metadata
@@ -69,11 +80,11 @@ class PyBotchiGRPC(PyBotchiGRPCServicer, Generic[TContext]):
         if event.name != "init" or not event.data:
             await context.abort(StatusCode.FAILED_PRECONDITION)
 
-        event_dict = MessageToDict(event)
+        data = MessageToDict(event)["data"]
         agent_context = self.__context_class__(
-            **event_dict["data"]["context"],
+            **data["context"],
         )
-        create_task(self.consume(agent_context, event.data["group"], events))
+        create_task(self.consume(agent_context, data["group"], events))
         return agent_context._response_queue
 
     ##############################################################################################
@@ -120,10 +131,41 @@ class PyBotchiGRPC(PyBotchiGRPCServicer, Generic[TContext]):
         return ActionListResponse(
             actions=(
                 [
-                    JSONSchema(**action.model_json_schema())
+                    ActionSchema(
+                        concurrent=action.__concurrent__,
+                        schema=JSONSchema(**action.model_json_schema()),
+                    )
                     for action in actions.values()
                 ]
                 if (actions := self.groups.get(request.group))
                 else []
             )
+        )
+
+    async def traverse(
+        self, request: TraverseRequest, context: ServicerContext
+    ) -> TraverseResponse:
+        """Consume `action_list` method."""
+        if self.__has_validate_metadata__ and self.validate_metadata(
+            context.invocation_metadata()
+        ):
+            await context.abort(StatusCode.FAILED_PRECONDITION)
+
+        remote_graph = await graph(
+            self.groups[request.group][request.name],
+            dict(request.allowed_actions),
+            MessageToDict(request.integrations),
+            request.bypass,
+            request.alias,
+        )
+
+        return TraverseResponse(
+            nodes=[
+                node.replace(self.module, request.alias, 1)
+                for node in remote_graph.nodes
+            ],
+            edges=[
+                Edge(source=edge[0], target=edge[1], concurrent=edge[2])
+                for edge in remote_graph.edges
+            ],
         )

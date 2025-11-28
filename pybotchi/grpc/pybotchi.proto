@@ -7,6 +7,7 @@ package pybotchi.grpc;
 service PyBotchiGRPC {
   rpc connect (stream Event) returns (stream Event) {}
   rpc action_list (ActionListRequest) returns (ActionListResponse) {}
+  rpc traverse (TraverseRequest) returns (TraverseResponse) {}
 }
 
 message Event {
@@ -19,7 +20,12 @@ message ActionListRequest {
 }
 
 message ActionListResponse {
-  repeated JSONSchema actions = 1;
+  repeated ActionSchema actions = 1;
+}
+
+message ActionSchema {
+  bool concurrent = 1;
+  JSONSchema schema = 2;
 }
 
 message JSONSchema {
@@ -57,4 +63,24 @@ message JSONSchema {
   repeated JSONSchema any_of = 24;
   repeated JSONSchema one_of = 25;
   JSONSchema not = 26;
+}
+
+message TraverseRequest {
+  string alias = 1;
+  string group = 2;
+  string name = 3;
+  map<string , bool> allowed_actions = 4;
+  google.protobuf.Struct integrations = 5;
+  bool bypass = 6;
+}
+
+message TraverseResponse {
+  repeated string nodes = 1;
+  repeated Edge edges = 2;
+}
+
+message Edge {
+  string source = 1;
+  string target = 2;
+  bool concurrent = 3;
 }

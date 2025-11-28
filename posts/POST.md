@@ -238,7 +238,9 @@ async def test() -> None:
     )
     await context.start(GeneralChat)
     print(context.prompts[-1]["content"])
-    print(await graph(GeneralChat))
+
+    general_chat_graph = await graph(GeneralChat)
+    print(general_chat_graph.flowchart())
 
 
 run(test())

@@ -482,7 +482,7 @@ async def graph(
     allowed_actions: dict[str, bool] | None = None,
     integrations: dict[str, MCPIntegration] | None = None,
     bypass: bool = False,
-) -> str:
+) -> Graph:
     """Retrieve Graph."""
     if integrations is None:
         integrations = {}
@@ -495,7 +495,7 @@ async def graph(
         bypass,
     )
 
-    return graph.flowchart()
+    return graph
 
 
 async def traverse(

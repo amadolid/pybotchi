@@ -41,7 +41,7 @@ class GeneralChat(GRPCAction):
 
 async def test() -> None:
     """Chat."""
-    integrations: dict[str, GRPCIntegration] = {"testing": {}}
+    integrations: dict[str, GRPCIntegration] = {"testing": {}, "testing2": {}}
     context = GRPCContext(
         prompts=[
             {
@@ -64,7 +64,11 @@ Ensure that all relevant tools are effectively utilized and properly sequenced t
     action, result = await context.start(GeneralChat)
     print(dumps(context.prompts, indent=4))
     print(dumps(action.serialize(), indent=4))
-    print(await graph(GeneralChat, {"IgnoredAction": False}, integrations))
+
+    general_chat_graph = await graph(
+        GeneralChat, {"IgnoredAction": False}, integrations
+    )
+    print(general_chat_graph.flowchart())
 
 
 run(test())

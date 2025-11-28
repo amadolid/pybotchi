@@ -10,7 +10,6 @@ from typing import Any, Generic
 
 from datamodel_code_generator import DataModelType, PythonVersion
 from datamodel_code_generator.model import get_data_model_types
-from datamodel_code_generator.parser.base import title_to_class_name
 from datamodel_code_generator.parser.jsonschema import (
     JsonSchemaParser,
 )
@@ -24,11 +23,17 @@ from orjson import dumps
 
 from .common import GRPCConfig, GRPCConnection, GRPCIntegration
 from .context import TContext
-from .pybotchi_pb2 import ActionListRequest, ActionListResponse, Event, JSONSchema
+from .pybotchi_pb2 import (
+    ActionListRequest,
+    ActionListResponse,
+    ActionSchema,
+    Event,
+    TraverseRequest,
+    TraverseResponse,
+)
 from .pybotchi_pb2_grpc import PyBotchiGRPCStub
 from ..action import Action, ChildActions
 from ..common import ActionReturn, Graph
-from ..utils import is_camel_case
 
 DMT = get_data_model_types(
     DataModelType.PydanticV2BaseModel,
@@ -54,14 +59,13 @@ class GRPCClient:
         self.allowed_actions = allowed_actions
         self.exclude_unset = exclude_unset
 
-    def build_action(self, schema: JSONSchema) -> tuple[str, type["GRPCRemoteAction"]]:
+    def build_action(
+        self, action_schema: ActionSchema
+    ) -> tuple[str, type["GRPCRemoteAction"]]:
         """Build GRPCToolAction."""
         globals: dict[str, Any] = {}
-        class_name = (
-            f"{schema.title[0].upper()}{schema.title[1:]}"
-            if is_camel_case(schema.title)
-            else title_to_class_name(schema.title)
-        )
+        schema = action_schema.schema
+        class_name = schema.title
         exec(
             JsonSchemaParser(
                 dumps(MessageToDict(schema)).decode(),
@@ -85,6 +89,7 @@ class GRPCClient:
                 GRPCRemoteAction,
             ),
             {
+                "__concurrent__": action_schema.concurrent,
                 "__grpc_action_name__": schema.title,
                 "__grpc_client__": self,
                 "__grpc_exclude_unset__": getattr(
@@ -106,8 +111,8 @@ class GRPCClient:
         response: ActionListResponse = await self.stub.action_list(
             ActionListRequest(group=self.config["group"])
         )
-        for action in response.actions:
-            name, action = self.build_action(action)
+        for action_schema in response.actions:
+            name, action = self.build_action(action_schema)
             if not self.allowed_actions or name in self.allowed_actions:
                 if _tool := grpc_actions.get(name):
                     action = type(
@@ -457,20 +462,22 @@ async def graph(
     allowed_actions: dict[str, bool] | None = None,
     integrations: dict[str, GRPCIntegration] | None = None,
     bypass: bool = False,
-) -> str:
+    alias: str | None = None,
+) -> Graph:
     """Retrieve Graph."""
     if integrations is None:
         integrations = {}
 
     await traverse(
-        graph := Graph(nodes={f"{action.__module__}.{action.__qualname__}"}),
+        graph := Graph(nodes={f"{alias or action.__module__}.{action.__qualname__}"}),
         action,
         allowed_actions,
         integrations,
         bypass,
+        alias,
     )
 
-    return graph.flowchart()
+    return graph
 
 
 async def traverse(
@@ -479,9 +486,10 @@ async def traverse(
     allowed_actions: dict[str, bool] | None,
     integrations: dict[str, GRPCIntegration],
     bypass: bool = False,
+    alias: str | None = None,
 ) -> None:
     """Retrieve Graph."""
-    parent = f"{action.__module__}.{action.__qualname__}"
+    parent = f"{alias or action.__module__}.{action.__qualname__}"
 
     if allowed_actions:
         child_actions = OrderedDict(
@@ -492,18 +500,37 @@ async def traverse(
     else:
         child_actions = action.__child_actions__.copy()
 
-    if issubclass(action, GRPCAction):
-        async with multi_grpc_clients(
-            integrations, action.__grpc_connections__, bypass
-        ) as clients:
+    async with AsyncExitStack() as stack:
+        if issubclass(action, GRPCAction):
+            clients = await stack.enter_async_context(
+                multi_grpc_clients(integrations, action.__grpc_connections__, bypass)
+            )
             [
                 await client.patch_actions(child_actions, action.__grpc_tool_actions__)
                 for client in clients.values()
             ]
 
-    for child_action in child_actions.values():
-        node = f"{child_action.__module__}.{child_action.__qualname__}"
-        graph.edges.add((parent, node, child_action.__concurrent__))
-        if node not in graph.nodes:
-            graph.nodes.add(node)
-            await traverse(graph, child_action, allowed_actions, integrations, bypass)
+        for child_action in child_actions.values():
+            node = f"{child_action.__module__}.{child_action.__qualname__}"
+            graph.edges.add((parent, node, child_action.__concurrent__))
+            if node not in graph.nodes:
+                graph.nodes.add(node)
+                if issubclass(child_action, GRPCRemoteAction):
+                    response: TraverseResponse = (
+                        await child_action.__grpc_client__.stub.traverse(
+                            TraverseRequest(
+                                alias=child_action.__module__,
+                                group=child_action.__grpc_client__.config["group"],
+                                name=child_action.__grpc_action_name__,
+                                integrations=integrations,
+                            )
+                        )
+                    )
+                    for node in response.nodes:
+                        graph.nodes.add(node)
+                    for edge in response.edges:
+                        graph.edges.add((edge.source, edge.target, edge.concurrent))
+                else:
+                    await traverse(
+                        graph, child_action, allowed_actions, integrations, bypass
+                    )

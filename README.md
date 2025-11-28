@@ -102,7 +102,8 @@ _Ang pag-multiply ng 4 sa 4 ay nangangahulugang ipinadadagdag mo ang bilang na 4
 from pybotchi import graph
 
 async def print_mermaid_graph():
-    print(await graph(MultiAgent))
+    multi_agent_graph = await graph(MultiAgent)
+    print(multi_agent_graph.flowchart())
 ```
 
 **Result:**
