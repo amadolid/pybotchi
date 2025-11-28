@@ -1,0 +1,86 @@
+syntax = "proto3";
+
+import "google/protobuf/struct.proto";
+
+package pybotchi.grpc;
+
+service PyBotchiGRPC {
+  rpc connect (stream Event) returns (stream Event) {}
+  rpc action_list (ActionListRequest) returns (ActionListResponse) {}
+  rpc traverse (TraverseRequest) returns (TraverseResponse) {}
+}
+
+message Event {
+  string name = 1;
+  google.protobuf.Struct data = 2;
+}
+
+message ActionListRequest {
+  string group = 1;
+}
+
+message ActionListResponse {
+  repeated ActionSchema actions = 1;
+}
+
+message ActionSchema {
+  bool concurrent = 1;
+  JSONSchema schema = 2;
+}
+
+message JSONSchema {
+  string schema = 1;
+  string id = 2;
+  string title = 3;
+  string description = 4;
+
+  string type = 5;
+
+  map<string, JSONSchema> properties = 6;
+  repeated string required = 7;
+  bool additional_properties = 8;
+
+  JSONSchema items = 9;
+  int32 min_items = 10;
+  int32 max_items = 11;
+
+  int32 min_length = 12;
+  int32 max_length = 13;
+  string pattern = 14;
+  string format = 15;
+
+  double minimum = 16;
+  double maximum = 17;
+  double multiple_of = 18;
+
+  repeated string enum = 19;
+
+  string default_value = 20;
+
+  map<string, JSONSchema> definitions = 21;
+  string ref = 22;
+  repeated JSONSchema all_of = 23;
+  repeated JSONSchema any_of = 24;
+  repeated JSONSchema one_of = 25;
+  JSONSchema not = 26;
+}
+
+message TraverseRequest {
+  string alias = 1;
+  string group = 2;
+  string name = 3;
+  map<string , bool> allowed_actions = 4;
+  google.protobuf.Struct integrations = 5;
+  bool bypass = 6;
+}
+
+message TraverseResponse {
+  repeated string nodes = 1;
+  repeated Edge edges = 2;
+}
+
+message Edge {
+  string source = 1;
+  string target = 2;
+  bool concurrent = 3;
+}

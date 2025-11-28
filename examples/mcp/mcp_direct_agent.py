@@ -1,11 +1,11 @@
-"""User APIs."""
+"""Direct MCP Agent Server."""
 
 from collections.abc import AsyncGenerator
 from contextlib import AsyncExitStack, asynccontextmanager
 
 from fastapi import FastAPI
 
-from prerequisite import Action, ActionReturn, ChatRole, Context, mount_mcp_groups
+from mcp_prerequisite import Action, ActionReturn, ChatRole, Context, mount_mcp_groups
 
 from pydantic import Field
 
@@ -51,7 +51,9 @@ class NestedAgent(Action):
         async def pre(self, context: Context) -> ActionReturn:
             """Execute pre process."""
             message = await context.llm.ainvoke(context.prompts)
-            context.add_usage(self, context.llm, message.usage_metadata)
+            await context.add_usage(
+                self, context.llm.model_name, message.usage_metadata
+            )
             await context.add_response(self, message.text)
             return ActionReturn.GO
 

@@ -58,10 +58,10 @@ class MCPClient:
         exclude_unset: bool,
     ) -> None:
         """Build MCP Client."""
+        self.client = client
         self.name = name
         self.config = config
         self.allowed_tools = allowed_tools
-        self.client = client
         self.exclude_unset = exclude_unset
 
     def build_tool(self, tool: Tool) -> tuple[str, type["MCPToolAction"]]:
@@ -128,7 +128,7 @@ class MCPClient:
 
 
 class MCPAction(Action[TContext], Generic[TContext]):
-    """MCP Tool Action."""
+    """MCP Action."""
 
     __mcp_servers__: dict[str, FastMCP] = {}
 
@@ -482,7 +482,7 @@ async def graph(
     allowed_actions: dict[str, bool] | None = None,
     integrations: dict[str, MCPIntegration] | None = None,
     bypass: bool = False,
-) -> str:
+) -> Graph:
     """Retrieve Graph."""
     if integrations is None:
         integrations = {}
@@ -495,7 +495,7 @@ async def graph(
         bypass,
     )
 
-    return graph.flowchart()
+    return graph
 
 
 async def traverse(

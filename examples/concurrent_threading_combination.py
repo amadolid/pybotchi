@@ -18,7 +18,9 @@ class GeneralChat(Action):
             """Execute other function."""
             print("Executing Joke...")
             message = await context.llm.ainvoke("generate very short joke")
-            context.add_usage(self, context.llm, message.usage_metadata)
+            await context.add_usage(
+                self, context.llm.model_name, message.usage_metadata
+            )
 
             await context.add_response(self, message.text)
             print("Done executing Joke...")
@@ -37,7 +39,9 @@ class GeneralChat(Action):
             """Execute pre process."""
             print("Executing StoryTelling...")
             message = await context.llm.ainvoke("generate a very short story")
-            context.add_usage(self, context.llm, message.usage_metadata)
+            await context.add_usage(
+                self, context.llm.model_name, message.usage_metadata
+            )
 
             await context.add_response(self, message.text)
             print("Done executing StoryTelling...")
@@ -51,7 +55,9 @@ class GeneralChat(Action):
         """Execute pre process."""
         print("Executing post...")
         message = await context.llm.ainvoke(context.prompts)
-        context.add_usage(self, context.llm, message.usage_metadata, "combine")
+        await context.add_usage(
+            self, context.llm.model_name, message.usage_metadata, "combine"
+        )
 
         await context.add_message(ChatRole.ASSISTANT, message.text)
         print("Done executing post...")
