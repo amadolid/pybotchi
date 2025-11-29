@@ -147,7 +147,7 @@ class MCPAction(Action[TContext], Generic[TContext]):
         cls.__has_pre_mcp__ = cls.pre_mcp is not MCPAction.pre_mcp
 
     @classmethod
-    def __init_child_actions__(cls, **kwargs: Any) -> None:
+    def __init_child_actions__(cls) -> None:
         """Initialize defined child actions."""
         cls.__mcp_tool_actions__ = OrderedDict()
         cls.__child_actions__ = OrderedDict()

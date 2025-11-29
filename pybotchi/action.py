@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from asyncio import TaskGroup
-from collections import OrderedDict
+from collections import OrderedDict, deque
 from collections.abc import Generator
 from inspect import getmembers
 from itertools import islice
@@ -122,10 +122,10 @@ class Action(BaseModel, Generic[TContext]):
         )
         cls.__groups__ = src.get("__groups__")
         cls.__to_commit__ = src.get("__to_commit__", True)
-        cls.__init_child_actions__(**kwargs)
+        cls.__init_child_actions__()
 
     @classmethod
-    def __init_child_actions__(cls, **kwargs: Any) -> None:
+    def __init_child_actions__(cls) -> None:
         """Initialize defined child actions."""
         cls.__child_actions__ = OrderedDict()
         for _, attr in getmembers(cls):
@@ -459,6 +459,30 @@ class Action(BaseModel, Generic[TContext]):
         """Add child action."""
         for ccls in cls.__child_actions__.values():
             ccls.add_child(action, name, override, extended)
+
+    @classmethod
+    def remove_child(cls, name: str) -> None:
+        """Remove child action."""
+        cls.__child_actions__.pop(name, None)
+
+        if (
+            (attr := getattr(cls, name, None))
+            and isinstance(attr, type)
+            and issubclass(attr, Action)
+        ):
+            delattr(cls, name)
+
+        queue = deque[type[Action]](cls.__subclasses__())
+        while queue:
+            que = queue.popleft()
+            que.__init_child_actions__()
+            queue.extend(que.__subclasses__())
+
+    @classmethod
+    def remove_grand_child(cls, name: str) -> None:
+        """Remove grand child action."""
+        for ccls in cls.__child_actions__.values():
+            ccls.remove_child(name)
 
 
 ##########################################################################

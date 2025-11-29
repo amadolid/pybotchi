@@ -142,7 +142,7 @@ class GRPCAction(Action[TContext], Generic[TContext]):
         cls.__has_pre_grpc__ = cls.pre_grpc is not GRPCAction.pre_grpc
 
     @classmethod
-    def __init_child_actions__(cls, **kwargs: Any) -> None:
+    def __init_child_actions__(cls) -> None:
         """Initialize defined child actions."""
         cls.__grpc_tool_actions__ = OrderedDict()
         cls.__child_actions__ = OrderedDict()
