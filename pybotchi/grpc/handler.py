@@ -25,6 +25,7 @@ from .pybotchi_pb2 import (
 )
 from .pybotchi_pb2_grpc import PyBotchiGRPCServicer
 from ..action import Action
+from ..utils import uuid
 
 
 class PyBotchiGRPC(PyBotchiGRPCServicer, Generic[TContext]):
@@ -125,8 +126,12 @@ class PyBotchiGRPC(PyBotchiGRPCServicer, Generic[TContext]):
             await context.abort(StatusCode.FAILED_PRECONDITION)
 
         data = MessageToDict(event)["data"]
+        data_context = data["context"]
+        if "source_id" not in data_context:
+            data_context["source_id"] = str(uuid())
+
         agent_context = self.__context_class__(
-            **data["context"],
+            **data_context,
         )
         queue = agent_context._response_queue = Queue[Event]()
         create_task(self.consume(agent_context, data["group"], events))
