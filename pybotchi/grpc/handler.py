@@ -1,8 +1,9 @@
 """PyBotchi Handler."""
 
 from asyncio import Queue, create_task
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Awaitable
 from contextlib import suppress
+from itertools import islice
 from typing import Generic
 
 from google.protobuf.json_format import MessageToDict
@@ -30,6 +31,7 @@ class PyBotchiGRPC(PyBotchiGRPCServicer, Generic[TContext]):
     """PyBotchiGRPC Handler."""
 
     __context_class__: type[TContext] = GRPCContext  # type: ignore[assignment]
+    __allow_exec__: bool = False
 
     def __init__(self, module: str, groups: dict[str, dict[str, type[Action]]]) -> None:
         """Initialize Handler."""
@@ -60,7 +62,8 @@ class PyBotchiGRPC(PyBotchiGRPCServicer, Generic[TContext]):
         action, action_return = await context.start(
             self.groups[group][data["name"]], **data.get("args", {})
         )
-        await context.grpc_send(
+        await context.grpc_send_up(
+            context.context_id,
             "close",
             {
                 "action": action.serialize(),
@@ -68,6 +71,50 @@ class PyBotchiGRPC(PyBotchiGRPCServicer, Generic[TContext]):
                 "context": context.grpc_dump(),
             },
         )
+
+    async def grpc_event_update(
+        self, context: TContext, group: str, event: Event
+    ) -> None:
+        """Consume grpc `execute` event."""
+        if not (data := MessageToDict(event)["data"]):
+            raise ValueError("Not valid event!")
+
+        if (raw_exec := data.get("exec")) and self.__allow_exec__:
+            exec(raw_exec, None, {"self": self, "context": context, "event": event})
+        elif target := locals().get(data["target"]):
+            attrs = data["attrs"]
+            if set := data.get("set"):
+                last_attr = attrs[-1]
+                for attr in islice(attrs, 0, len(attrs) - 1):
+                    target = getattr(target, attr)
+                if set:
+                    setattr(target, last_attr, *data["args"])
+                elif hasattr(target, last_attr):
+                    delattr(target, last_attr)
+            else:
+                for attr in attrs:
+                    target = getattr(target, attr)
+
+                ref = {"${self}": self, "${context}": context, "${event}": event}
+                args = (
+                    [
+                        ref.get(arg, arg) if isinstance(arg, str) else arg
+                        for arg in _args
+                    ]
+                    if (_args := data.get("args"))
+                    else []
+                )
+                kwargs = (
+                    {
+                        key: ref.get(value, value) if isinstance(value, str) else value
+                        for key, value in _kwargs.items()
+                    }
+                    if (_kwargs := data.get("kwargs"))
+                    else {}
+                )
+                ret = target(*args, **kwargs)
+                if isinstance(ret, Awaitable):
+                    await ret
 
     async def accept(
         self, events: AsyncGenerator[Event], context: ServicerContext
@@ -81,8 +128,9 @@ class PyBotchiGRPC(PyBotchiGRPCServicer, Generic[TContext]):
         agent_context = self.__context_class__(
             **data["context"],
         )
+        queue = agent_context._response_queue = Queue[Event]()
         create_task(self.consume(agent_context, data["group"], events))
-        return agent_context._response_queue
+        return queue
 
     ##############################################################################################
     #                                      EXECUTION METHODS                                     #

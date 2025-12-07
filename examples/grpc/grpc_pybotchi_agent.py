@@ -4,9 +4,9 @@ from grpc_prerequisite import (
     Action,
     ActionReturn,
     ChatRole,
-    Context,
     GRPCAction,
     GRPCConnection,
+    GRPCContext,
 )
 
 from pydantic import Field
@@ -19,7 +19,7 @@ class MathProblem(Action):
 
     answer: str = Field(description="Your answer to the math problem")
 
-    async def pre(self, context: Context) -> ActionReturn:
+    async def pre(self, context: GRPCContext) -> ActionReturn:
         """Execute pre process."""
         await context.add_message(
             ChatRole.ASSISTANT,
@@ -35,7 +35,7 @@ class Translation(Action):
 
     __groups__ = {"grpc": {"group-1"}}
 
-    async def pre(self, context: Context) -> ActionReturn:
+    async def pre(self, context: GRPCContext) -> ActionReturn:
         """Execute pre process."""
         message = await context.llm.ainvoke(context.prompts)
         await context.add_usage(self, context.llm.model_name, message.usage_metadata)
@@ -50,7 +50,7 @@ class JokeWithStoryTelling(GRPCAction):
     __groups__ = {"grpc": {"group-1"}}
     __grpc_connections__ = [GRPCConnection("testing2", "localhost:50051", "group-2")]
 
-    async def post(self, context: Context) -> ActionReturn:
+    async def post(self, context: GRPCContext) -> ActionReturn:
         """Execute pre process."""
         print("Executing post...")
         message = await context.llm.ainvoke(context.prompts)
@@ -69,7 +69,7 @@ class Joke(Action):
     __concurrent__ = True
     __groups__ = {"grpc": {"group-2"}}
 
-    async def pre(self, context: Context) -> ActionReturn:
+    async def pre(self, context: GRPCContext) -> ActionReturn:
         """Execute pre process."""
         print("Executing Joke...")
         message = await context.llm.ainvoke("generate very short joke")
@@ -89,7 +89,7 @@ class StoryTelling(Action):
     __concurrent__ = True
     __groups__ = {"grpc": {"group-2"}}
 
-    async def pre(self, context: Context) -> ActionReturn:
+    async def pre(self, context: GRPCContext) -> ActionReturn:
         """Execute pre process."""
         print("Executing StoryTelling...")
         message = await context.llm.ainvoke("generate a very short story")

@@ -72,10 +72,10 @@ async def serve(path: str, host: str, port: int) -> None:
     server.add_insecure_port(address)
     await server.start()
 
-    echo("#----------------------------------------------#")
     echo(f"# Agent Path: {path}")
     echo(f"# Agent Handler: {grpc_handler.__name__}")
     echo(f"# gRPC server running on {address}")
+    echo("#-------------------------------------------------------#")
     await server.wait_for_termination()
 
 
@@ -99,10 +99,10 @@ def main(path: str, host: str, port: int, workers: int) -> None:
     """Greet someone."""
     workers = min(workers, cpu_count())
 
-    echo("#----------------------------------------------#")
+    echo("#-------------------------------------------------------#")
     echo(f"# Agent Path: {path}")
     echo(f"# Starting {workers} worker(s) on {host}:{port}")
-    echo("#----------------------------------------------#")
+    echo("#-------------------------------------------------------#")
 
     for _ in range(workers):
         p = Process(target=start, args=(path, host, port))

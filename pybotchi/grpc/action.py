@@ -343,32 +343,40 @@ class GRPCRemoteAction(Action[TContext], Generic[TContext]):
         metadata: dict[str, Any] | None = None,
     ) -> AsyncGenerator[Event, None]:
         """Trigger grpc connect."""
-        self.__grpc_queue__ = Queue()
-
         if metadata := self.__grpc_client__.config.get("metadata"):
             invocation_metadata: dict[str, Any] | None = metadata.get("connect")
         else:
             invocation_metadata = None
 
-        await self.grpc_send(
-            "init",
-            {
-                "group": self.__grpc_client__.config["group"],
-                "context": context.grpc_dump(),
-            },
-        )
-        await self.grpc_send(
-            "execute",
-            {
-                "name": self.__grpc_action_name__,
-                "args": payload,
-            },
-        )
+        self.__grpc_queue__ = Queue()
 
-        async for event in self.__grpc_client__.stub.connect(
-            self.grpc_queue(context), metadata=invocation_metadata
-        ):
-            yield event
+        context_dump = context.grpc_sharing_dump()
+        context_id = context_dump["context_id"]
+        context._request_queues[context_id] = self.__grpc_queue__
+
+        try:
+            await self.grpc_send(
+                "init",
+                {
+                    "group": self.__grpc_client__.config["group"],
+                    "context": context_dump,
+                },
+            )
+
+            await self.grpc_send(
+                "execute",
+                {
+                    "name": self.__grpc_action_name__,
+                    "args": payload,
+                },
+            )
+
+            async for event in self.__grpc_client__.stub.connect(
+                self.grpc_queue(context), metadata=invocation_metadata
+            ):
+                yield event
+        finally:
+            context._request_queues.pop(context_id, None)
 
     async def pre(self, context: TContext) -> ActionReturn:
         """Execute pre process."""

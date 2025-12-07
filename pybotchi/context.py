@@ -1,10 +1,11 @@
 """Pybotchi Context."""
 
 from asyncio import get_event_loop, new_event_loop
-from collections.abc import Coroutine
+from collections.abc import Coroutine, Iterable
 from concurrent.futures import Executor
 from copy import deepcopy
 from functools import cached_property
+from itertools import islice
 from typing import Any, Generic, Self
 
 from langchain_core.language_models.chat_models import BaseChatModel
@@ -149,6 +150,95 @@ class Context(BaseModel, Generic[TLLM]):
         self.prompts.append(
             {"content": content, "role": ChatRole.TOOL, "tool_call_id": action["id"]}
         )
+
+    async def set_metadata(
+        self,
+        *paths: Any,
+        value: Any,
+        update: bool = False,
+    ) -> None:
+        """Override metadata value."""
+        if paths:
+            try:
+                parent_target = self.metadata
+                for path in islice(paths, 0, len(paths) - 1):
+                    parent_target = parent_target[path]
+
+                if update:
+                    target = parent_target[paths[-1]]
+                    match (target):
+                        case dict() | set():
+                            target.update(value)
+                        case list():
+                            if isinstance(value, Iterable):
+                                target.extend(value)
+                            else:
+                                target.append(value)
+                        case tuple():
+                            match (value):
+                                case tuple():
+                                    parent_target[paths[-1]] = target + value
+                                case Iterable():
+                                    parent_target[paths[-1]] = (*target, *value)
+                                case _:
+                                    parent_target[paths[-1]] = (*target, value)
+                        case _:
+                            parent_target[paths[-1]] = value
+                else:
+                    parent_target[paths[-1]] = value
+            except Exception as e:
+                raise ValueError(
+                    f'Error occured when setting value to path `{" -> ".join(paths)}`!'
+                ) from e
+        elif not isinstance(value, dict) or any(
+            not isinstance(key, str) for key in value.keys()
+        ):
+            raise ValueError(
+                f"New metadata must be a serializable dict[str, Any], got {type(value).__name__}"
+            )
+
+        self.metadata = value
+
+    async def update_metadata(self, *paths: Any, value: Any) -> None:
+        """Override metadata value."""
+        if paths:
+            try:
+                parent_target = self.metadata
+                for path in islice(paths, 0, len(paths) - 1):
+                    parent_target = parent_target[path]
+
+                target = parent_target[paths[-1]]
+
+                match (target):
+                    case dict() | set():
+                        target.update(value)
+                    case list():
+                        if isinstance(value, Iterable):
+                            target.extend(value)
+                        else:
+                            target.append(value)
+                    case tuple():
+                        match (target):
+                            case tuple():
+                                parent_target[paths[-1]] = target + value
+                            case Iterable():
+                                parent_target[paths[-1]] = (*target, *value)
+                            case _:
+                                parent_target[paths[-1]] = (*target, value)
+                    case _:
+                        parent_target[paths[-1]] = value
+            except Exception as e:
+                raise ValueError(
+                    f'Error occured when setting value to path `{" -> ".join(paths)}`!'
+                ) from e
+        elif not isinstance(value, dict) or any(
+            not isinstance(key, str) for key in value.keys()
+        ):
+            raise ValueError(
+                f"New metadata must be a serializable dict[str, Any], got {type(value).__name__}"
+            )
+
+        self.metadata = value
 
     async def notify(self, message: dict[str, Any]) -> None:
         """Notify Client."""
