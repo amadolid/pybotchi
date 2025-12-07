@@ -2,8 +2,9 @@
 
 from asyncio import Queue, create_task
 from collections.abc import AsyncGenerator, Awaitable
-from contextlib import suppress
 from itertools import islice
+from sys import exc_info
+from traceback import format_exception
 from typing import Generic
 
 from google.protobuf.json_format import MessageToDict
@@ -13,6 +14,7 @@ from grpc.aio import Metadata, ServicerContext, UsageError
 
 from .action import graph
 from .context import GRPCContext, TContext
+from .exception import GRPCRemoteError
 from .pybotchi_pb2 import (
     ActionListRequest,
     ActionListResponse,
@@ -50,10 +52,35 @@ class PyBotchiGRPC(PyBotchiGRPCServicer, Generic[TContext]):
         self, context: TContext, group: str, events: AsyncGenerator[Event]
     ) -> None:
         """Consume event."""
-        with suppress(UsageError):
+        try:
             async for event in events:
                 if consumer := getattr(self, f"grpc_event_{event.name}", None):
                     await consumer(context, group, event)
+        except UsageError:
+            pass
+        except GRPCRemoteError as e:
+            await context.grpc_send_up(
+                context.context_id,
+                "error",
+                {
+                    "type": e.type,
+                    "message": e.message,
+                    "tracebacks": e.tracebacks,
+                },
+            )
+            raise e
+        except Exception as e:
+            exc_type, exc_value, exc_tb = exc_info()
+            await context.grpc_send_up(
+                context.context_id,
+                "error",
+                {
+                    "type": exc_type.__name__ if exc_type else "Exception",
+                    "message": str(exc_value) if exc_value else str(e),
+                    "tracebacks": format_exception(exc_type, exc_value, exc_tb),
+                },
+            )
+            raise e
 
     async def grpc_event_execute(
         self, context: TContext, group: str, event: Event
@@ -150,7 +177,7 @@ class PyBotchiGRPC(PyBotchiGRPCServicer, Generic[TContext]):
             que = await queue.get()
             yield que
 
-            if que.name == "close":
+            if que.name == "close" or que.name == "error":
                 break
 
     ##############################################################################################

@@ -57,12 +57,10 @@ async def test() -> None:
             {
                 "role": ChatRole.SYSTEM,
                 "content": """
-You're an AI the can solve math problem and translate any request.
-
 Your primary focus is to prioritize tool usage and efficiently handle multiple tool calls, including invoking the same tool multiple times if necessary.
 Ensure that all relevant tools are effectively utilized and properly sequenced to accurately and comprehensively address the user's inquiry.
 
-Always include RequestValidator in your selection as first tool.
+Always include RequestValidator in your selection as first tool if present.
 """.strip(),
             },
             {

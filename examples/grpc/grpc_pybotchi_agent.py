@@ -64,7 +64,7 @@ class JokeWithStoryTelling(GRPCAction):
 
 
 class Joke(Action):
-    """This Assistant is used when user's inquiry is related to generating a joke."""
+    """Generate a joke."""
 
     __concurrent__ = True
     __groups__ = {"grpc": {"group-2"}}
@@ -84,7 +84,7 @@ class Joke(Action):
 
 
 class StoryTelling(Action):
-    """This Assistant is used when user's inquiry is related to generating stories."""
+    """Tell a story."""
 
     __concurrent__ = True
     __groups__ = {"grpc": {"group-2"}}

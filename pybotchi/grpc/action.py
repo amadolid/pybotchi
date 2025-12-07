@@ -23,6 +23,7 @@ from orjson import dumps
 
 from .common import GRPCConfig, GRPCConnection, GRPCIntegration
 from .context import TContext
+from .exception import GRPCRemoteError
 from .pybotchi_pb2 import (
     ActionListRequest,
     ActionListResponse,
@@ -272,6 +273,15 @@ class GRPCRemoteAction(Action[TContext], Generic[TContext]):
             self._actions.append(child)
 
         await self.__grpc_queue__.put(event)
+
+    async def grpc_event_error(self, context: TContext, event: Event) -> None:
+        """Consume error event."""
+        if not (data := MessageToDict(event)["data"]):
+            raise ValueError("Not valid event!")
+
+        raise GRPCRemoteError(
+            self.__class__.__name__, self.__grpc_action_name__, **data
+        )
 
     async def grpc_event_update(self, context: TContext, event: Event) -> None:
         """Consume close event."""
