@@ -55,13 +55,17 @@ async def serve(path: str, host: str, port: int) -> None:
     queue = Action.__subclasses__()
     while queue:
         que = queue.pop()
-        if que.__groups__ and (mcp_groups := que.__groups__.get("grpc")):
-            for group in mcp_groups:
+        if isinstance(_groups := que.__groups__, dict):
+            _groups = _groups.get("grpc")
+
+        if _groups:
+            for group in _groups:
                 group = group.lower()
                 if (_group := groups.get(group)) is None:
                     groups[group] = _group = {}
 
                 _group[que.__name__] = que
+
         queue.extend(que.__subclasses__())
 
     add_PyBotchiGRPCServicer_to_server(

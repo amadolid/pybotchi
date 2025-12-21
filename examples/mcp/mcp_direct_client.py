@@ -8,42 +8,112 @@ from mcp.client.streamable_http import streamablehttp_client
 
 async def main() -> None:
     """Test."""
-    async with streamablehttp_client("http://localhost:8000/test/mcp") as (
+    print("#######################################################################")
+    print("#                             MCP Group 1                             #")
+    print("#######################################################################")
+    async with streamablehttp_client("http://localhost:8000/group-1/mcp") as (
         read,
         write,
         _,
     ):
         async with ClientSession(read, write) as session:
             await session.initialize()
-            print((await session.list_tools()).model_dump_json(indent=1))
             print(
-                (
-                    await session.call_tool(
-                        name="NestedAgent", arguments={"query": "hello"}
-                    )
-                ).model_dump_json(indent=1)
+                "Tools:\n",
+                "\n".join(
+                    f"{tool.name}: {tool.description}"
+                    for tool in (await session.list_tools()).tools
+                ),
+                "\n----------------------------",
+                sep="",
             )
             print(
-                (await session.call_tool(name="SingleAction")).model_dump_json(indent=1)
+                "MathProblem:",
+                (
+                    await session.call_tool(
+                        name="MathProblem", arguments={"equation": "10 x 10"}
+                    )
+                )
+                .content[0]
+                .text,  # type: ignore[union-attr]
+            )
+            print(
+                "Translation:",
+                (
+                    await session.call_tool(
+                        name="Translation",
+                        arguments={"message": "Kamusta?", "language": "English"},
+                    )
+                )
+                .content[0]
+                .text,  # type: ignore[union-attr]
+            )
+            print(
+                "JokeWithStoryTelling:",
+                (
+                    await session.call_tool(
+                        name="JokeWithStoryTelling",
+                        arguments={
+                            "query": "Tell me a joke and incorporate it on a very short story"
+                        },
+                    )
+                )
+                .content[0]
+                .text,  # type: ignore[union-attr]
             )
 
-    async with streamablehttp_client("http://localhost:8000/test2/mcp") as (
+    print("#######################################################################")
+    print("#              MCP Group 2 (No MathProblem & Translation)             #")
+    print("#######################################################################")
+    async with streamablehttp_client("http://localhost:8000/group-2/mcp") as (
         read,
         write,
         _,
     ):
         async with ClientSession(read, write) as session:
             await session.initialize()
-            print((await session.list_tools()).model_dump_json(indent=1))
             print(
-                (
-                    await session.call_tool(
-                        name="NestedAgent", arguments={"query": "hello"}
-                    )
-                ).model_dump_json(indent=1)
+                "Tools:\n",
+                "\n".join(
+                    f"{tool.name}: {tool.description}"
+                    for tool in (await session.list_tools()).tools
+                ),
+                "\n----------------------------",
+                sep="",
             )
             print(
-                (await session.call_tool(name="SingleAction")).model_dump_json(indent=1)
+                "MathProblem:",
+                (
+                    await session.call_tool(
+                        name="MathProblem", arguments={"equation": "10 x 10"}
+                    )
+                )
+                .content[0]
+                .text,  # type: ignore[union-attr]
+            )
+            print(
+                "Translation:",
+                (
+                    await session.call_tool(
+                        name="Translation",
+                        arguments={"message": "Kamusta?", "language": "English"},
+                    )
+                )
+                .content[0]
+                .text,  # type: ignore[union-attr]
+            )
+            print(
+                "JokeWithStoryTelling:",
+                (
+                    await session.call_tool(
+                        name="JokeWithStoryTelling",
+                        arguments={
+                            "query": "Tell me a joke and incorporate it on a very short story"
+                        },
+                    )
+                )
+                .content[0]
+                .text,  # type: ignore[union-attr]
             )
 
 

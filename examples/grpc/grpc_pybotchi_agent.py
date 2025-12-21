@@ -17,16 +17,20 @@ class MathProblem(Action):
 
     __groups__ = {"grpc": {"group-1"}}
 
-    answer: str = Field(description="Your answer to the math problem")
+    equation: str = Field(
+        description="The mathematical equation to solve (e.g., '2x + 5')"
+    )
 
     async def pre(self, context: GRPCContext) -> ActionReturn:
         """Execute pre process."""
+        message = await context.llm.ainvoke(f"Solve `{self.equation}`")
+        await context.add_usage(self, context.llm.model_name, message.usage_metadata)
         await context.add_message(
             ChatRole.ASSISTANT,
             "Adding additional message",
             metadata={"additional": True},
         )
-        await context.add_response(self, self.answer)
+        await context.add_response(self, message.text)
         return ActionReturn.GO
 
 
@@ -35,10 +39,21 @@ class Translation(Action):
 
     __groups__ = {"grpc": {"group-1"}}
 
+    message: str = Field(description="The text content to be translated.")
+    language: str = Field(description="The ISO code or name of the target language.")
+
     async def pre(self, context: GRPCContext) -> ActionReturn:
         """Execute pre process."""
-        message = await context.llm.ainvoke(context.prompts)
+        message = await context.llm.ainvoke(
+            f"Translate `{self.message}` to {self.language}"
+        )
         await context.add_usage(self, context.llm.model_name, message.usage_metadata)
+
+        await context.add_message(
+            ChatRole.ASSISTANT,
+            "Adding additional message",
+            metadata={"additional": True},
+        )
         await context.add_response(self, message.text)
 
         return ActionReturn.GO

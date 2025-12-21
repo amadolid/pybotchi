@@ -6,15 +6,16 @@ from dotenv import load_dotenv
 
 from langchain_openai import AzureChatOpenAI
 
-from pybotchi import Action, ActionReturn, ChatRole, Context, LLM
+from pybotchi import Action, ActionReturn, ChatRole, Context as BaseContext, LLM
 from pybotchi.mcp import (
     MCPAction,
     MCPConnection,
-    MCPContext,
+    MCPContext as BaseMCPContext,
     MCPIntegration,
     MCPToolAction,
     graph,
     mount_mcp_groups,
+    run_mcp,
 )
 
 load_dotenv()
@@ -31,6 +32,9 @@ LLM.add(
     )
 )
 
+Context = BaseContext[AzureChatOpenAI]
+MCPContext = BaseMCPContext[AzureChatOpenAI]
+
 __all__ = [
     "Action",
     "ActionReturn",
@@ -43,4 +47,5 @@ __all__ = [
     "MCPToolAction",
     "graph",
     "mount_mcp_groups",
+    "run_mcp",
 ]

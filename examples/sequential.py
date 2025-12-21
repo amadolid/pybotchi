@@ -8,36 +8,46 @@ from prerequisite import Action, ActionReturn, ChatRole, Context, graph
 from pydantic import Field
 
 
-class AnswerMathProlemAction(Action):
-    """Answer math problem."""
+class MathProblemAction(Action):
+    """Solve the math problem."""
 
-    answer: str = Field(description="The answer to the math problem")
+    equation: str = Field(
+        description="The mathematical equation to solve (e.g., '2x + 5')"
+    )
 
     async def pre(self, context: Context) -> ActionReturn:
         """Execute pre process."""
-        await context.add_response(self, self.answer)
+        message = await context.llm.ainvoke(f"Solve `{self.equation}`")
+        await context.add_usage(self, context.llm.model_name, message.usage_metadata)
+        await context.add_response(self, message.text)
         return ActionReturn.GO
 
 
-class TranslateAction(Action):
-    """Translate query to requested language."""
+class TranslationAction(Action):
+    """Translate to specific language."""
 
-    translation: str = Field(description="The translation of the query")
+    message: str = Field(description="The text content to be translated.")
+    language: str = Field(description="The ISO code or name of the target language.")
 
     async def pre(self, context: Context) -> ActionReturn:
         """Execute pre process."""
-        await context.add_response(self, self.translation)
+        message = await context.llm.ainvoke(
+            f"Translate `{self.message}` to {self.language}"
+        )
+        await context.add_usage(self, context.llm.model_name, message.usage_metadata)
+        await context.add_response(self, message.text)
+
         return ActionReturn.GO
 
 
 class GeneralChatCombination(Action):
     """Casual Generic Chat."""
 
-    class AnswerMathProlem(AnswerMathProlemAction):
-        """Solve math problem."""
+    class MathProblem(MathProblemAction):
+        """Solve the math problem."""
 
-    class Translate(TranslateAction):
-        """Translate query to requested language."""
+    class Translation(TranslationAction):
+        """Translate to specific language."""
 
 
 class GeneralChatIteration(GeneralChatCombination):
@@ -56,16 +66,11 @@ async def combination() -> None:
         prompts=[
             {
                 "role": ChatRole.SYSTEM,
-                "content": """
-You're an AI the can solve math problem and translate any request.
-
-Your primary focus is to prioritize tool usage and efficiently handle multiple tool calls, including invoking the same tool multiple times if necessary.
-Ensure that all relevant tools are effectively utilized and properly sequenced to accurately and comprehensively address the user's inquiry.
-""".strip(),
+                "content": "",
             },
             {
                 "role": ChatRole.USER,
-                "content": "4 x 4 and explain your answer in filipino",
+                "content": "4 x 4 and what is `Kamusta` in English?",
             },
         ],
     )
@@ -87,19 +92,11 @@ async def iteration() -> None:
         prompts=[
             {
                 "role": ChatRole.SYSTEM,
-                "content": """
-You're an AI the can solve math problem and translate any request.
-
-You follow this steps to comprehensively answer user query.
-
-Your plan is to solve the math problem first by calling `MathProblem` tool.
-If the math problem is already solved.
-You need to translate user's query to specified language by calling `Translation` tool.
-""".strip(),
+                "content": "",
             },
             {
                 "role": ChatRole.USER,
-                "content": "4 x 4 and explain your answer in filipino",
+                "content": "4 x 4 and what is `Kamusta` in English?",
             },
         ],
     )

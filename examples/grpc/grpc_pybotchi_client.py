@@ -42,7 +42,7 @@ class GeneralChat(GRPCAction):
 
         async def pre(self, context: GRPCContext) -> ActionReturn:
             """Execute pre execution."""
-            await context.add_response(self, "testing222")
+            await context.add_response(self, "Validated!")
             return ActionReturn.GO
 
     class IgnoredAction(Action):
@@ -56,16 +56,11 @@ async def test() -> None:
         prompts=[
             {
                 "role": ChatRole.SYSTEM,
-                "content": """
-Your primary focus is to prioritize tool usage and efficiently handle multiple tool calls, including invoking the same tool multiple times if necessary.
-Ensure that all relevant tools are effectively utilized and properly sequenced to accurately and comprehensively address the user's inquiry.
-
-Always include RequestValidator in your selection as first tool if present.
-""".strip(),
+                "content": "",
             },
             {
                 "role": ChatRole.USER,
-                "content": "4 x 4 and explain your answer in filipino",
+                "content": "What is 4 x 4 and what is the english of `Kamusta?`",
                 # "content": "Tell me a joke and incorporate it on a very short story",
             },
         ],

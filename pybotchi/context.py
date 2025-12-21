@@ -1,12 +1,12 @@
 """Pybotchi Context."""
 
-from asyncio import get_event_loop, new_event_loop
-from collections.abc import Coroutine, Iterable
+from asyncio import Future, get_event_loop, new_event_loop
+from collections.abc import Callable, Coroutine, Iterable
 from concurrent.futures import Executor
 from copy import deepcopy
-from functools import cached_property
+from functools import cached_property, partial
 from itertools import islice
-from typing import Any, Generic, Self
+from typing import Any, Generic, ParamSpec, Self
 
 from langchain_core.language_models.chat_models import BaseChatModel
 
@@ -20,6 +20,7 @@ from .llm import LLM
 
 TContext = TypeVar("TContext", bound="Context", default="Context")
 TLLM = TypeVar("TLLM", default=BaseChatModel)
+P = ParamSpec("P")
 
 
 class Context(BaseModel, Generic[TLLM]):
@@ -254,12 +255,24 @@ class Context(BaseModel, Generic[TLLM]):
         finally:
             loop.close()
 
-    async def run_in_thread(
-        self, task: Coroutine[Any, Any, T], executor: Executor | None = None
-    ) -> T:
-        """Run concurrent on different thread."""
-        return await get_event_loop().run_in_executor(
-            executor, self.run_new_event_loop, task
+    def run_task_in_thread(
+        self,
+        task: Coroutine[Any, Any, T],
+        executor: Executor | None = None,
+    ) -> Future[T]:
+        """Run task on different thread."""
+        return get_event_loop().run_in_executor(executor, self.run_new_event_loop, task)
+
+    def run_func_in_thread(
+        self,
+        task: Callable[P, T],
+        executor: Executor | None = None,
+        *args: P.args,
+        **kwargs: P.kwargs,
+    ) -> Future[T]:
+        """Run func on different thread."""
+        return get_event_loop().run_in_executor(
+            executor, partial(task, *args, **kwargs)
         )
 
     async def detach_context(self: TContext) -> TContext:

@@ -87,7 +87,7 @@ class Action(BaseModel, Generic[TContext]):
 
     __agent__: bool = False
     __display_name__: str
-    __groups__: Groups | None
+    __groups__: Groups | set[str] | None
     __to_commit__: bool = True
 
     # ---------------------------------------------------------- #

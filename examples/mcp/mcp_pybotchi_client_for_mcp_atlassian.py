@@ -19,6 +19,7 @@ from mcp_prerequisite import (
 class GeneralChat(MCPAction):
     """Casual Generic Chat."""
 
+    # https://github.com/sooperset/mcp-atlassian
     __mcp_connections__ = [MCPConnection("jira", "SSE", "http://localhost:9000/sse")]
     __max_child_iteration__ = 5
     # __detached__ = True

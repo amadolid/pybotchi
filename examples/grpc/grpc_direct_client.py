@@ -40,11 +40,7 @@ async def connect() -> None:
                             {
                                 "role": "system",
                                 "content": "",
-                            },
-                            {
-                                "role": "user",
-                                "content": "translate `How are you` in filipino",
-                            },
+                            }
                         ]
                     },
                 },
@@ -55,13 +51,14 @@ async def connect() -> None:
                 name="execute",
                 data={
                     "name": "Translation",
+                    "args": {"message": "Kamusta?", "language": "English"},
                 },
             )
         )
 
         async for event in stub.connect(stream(queue)):
             if event.name == "close":
-                print(dumps(MessageToDict(event), indent=2))
+                print(dumps(MessageToDict(event.data)["context"]["prompts"], indent=2))
 
 
 if __name__ == "__main__":
