@@ -445,15 +445,15 @@ async def multi_grpc_clients(
                 integration = {}
 
             overrided_config = conn.get_config(integration.get("config"))
-            _allowed_tools = integration.get("allowed_tools") or set[str]()
-            if conn.allowed_tools:
-                allowed_tools = set(
-                    {tool for tool in _allowed_tools if tool in conn.allowed_tools}
-                    if _allowed_tools
-                    else conn.allowed_tools
+            _allowed_actions = integration.get("allowed_actions") or list[str]()
+            if conn.allowed_actions:
+                allowed_actions = (
+                    {tool for tool in _allowed_actions if tool in conn.allowed_actions}
+                    if _allowed_actions
+                    else conn.allowed_actions
                 )
             else:
-                allowed_tools = _allowed_tools
+                allowed_actions = set(_allowed_actions)
             channel = await stack.enter_async_context(
                 insecure_channel(
                     target=overrided_config["url"],
@@ -470,7 +470,7 @@ async def multi_grpc_clients(
                 PyBotchiGRPCStub(channel),
                 conn.name,
                 overrided_config,
-                allowed_tools,
+                allowed_actions,
                 integration.get(
                     "exclude_unset",
                     conn.exclude_unset,

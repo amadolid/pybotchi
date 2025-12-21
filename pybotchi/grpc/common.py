@@ -29,7 +29,7 @@ class GRPCIntegration(TypedDict, total=False):
     """GRPC Integration."""
 
     config: GRPCConfig
-    allowed_tools: set[str]
+    allowed_actions: list[str]
     exclude_unset: bool
 
 
@@ -46,7 +46,7 @@ class GRPCConnection:
         interceptors: Sequence[ClientInterceptor] | None = None,
         metadata: dict[str, Any] | None = None,
         allow_exec: bool = False,
-        allowed_tools: set[str] | None = None,
+        allowed_actions: set[str] | None = None,
         exclude_unset: bool = True,
         require_integration: bool = True,
     ) -> None:
@@ -59,7 +59,9 @@ class GRPCConnection:
         self.interceptors = interceptors
         self.metadata = metadata
         self.allow_exec = allow_exec
-        self.allowed_tools = set[str]() if allowed_tools is None else allowed_tools
+        self.allowed_actions = (
+            set[str]() if allowed_actions is None else allowed_actions
+        )
         self.exclude_unset = exclude_unset
         self.require_integration = require_integration
 

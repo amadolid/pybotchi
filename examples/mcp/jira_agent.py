@@ -72,7 +72,7 @@ async def test() -> None:
             #     "url": "http://localhost:9000/mcp",
             # },
             # ----------------------------------------- #
-            "allowed_tools": {"JiraSearch", "JiraGetIssue"},
+            "allowed_tools": ["JiraSearch", "JiraGetIssue"],
         }
     }
     context = MCPContext(

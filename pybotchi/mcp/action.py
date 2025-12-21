@@ -374,15 +374,15 @@ async def multi_mcp_clients(
                 client_builder: Callable = sse_client
             else:
                 client_builder = streamablehttp_client
-            _allowed_tools = integration.get("allowed_tools") or set[str]()
+            _allowed_tools = integration.get("allowed_tools") or list[str]()
             if conn.allowed_tools:
-                allowed_tools = set(
+                allowed_tools = (
                     {tool for tool in _allowed_tools if tool in conn.allowed_tools}
                     if _allowed_tools
                     else conn.allowed_tools
                 )
             else:
-                allowed_tools = _allowed_tools
+                allowed_tools = set(_allowed_tools)
             streams = await stack.enter_async_context(
                 client_builder(**overrided_config)
             )

@@ -33,7 +33,7 @@ class MCPIntegration(TypedDict, total=False):
 
     mode: MCPMode | Literal["SSE", "SHTTP"]
     config: MCPConfig
-    allowed_tools: set[str]
+    allowed_tools: list[str]
     exclude_unset: bool
 
 
