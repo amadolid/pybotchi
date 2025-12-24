@@ -24,7 +24,7 @@ class GeneralChat(MCPAction):
     async def pre_mcp(self, context: MCPContext) -> ActionReturn:
         """Execute pre mcp execution."""
         print("Trigger anything here before mcp client connection")
-        print("Build context.integrations['jira']['config']")
+        print("Build context.integrations['testing']['config']")
         print("Refresh tokens")
         print("etc ...")
         return ActionReturn.GO

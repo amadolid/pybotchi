@@ -6,7 +6,7 @@ from fastapi import FastAPI, WebSocket
 
 from prerequisite import Action, ActionReturn, ChatRole, Context
 
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 from uvicorn import run
 
@@ -16,10 +16,7 @@ class InteractiveContext(Context):
 
     websocket: WebSocket
 
-    class Config:
-        """Model Config."""
-
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     async def notify(self, message: dict[str, Any]) -> None:
         """Notify Client."""
@@ -29,8 +26,8 @@ class InteractiveContext(Context):
         """Wait for client input."""
         await self.websocket.send_json(message)
         # reply_json = await self.websocket.receive_json()
-        reply_message = await self.websocket.receive_text()
-        return reply_message
+        reply_message = await self.websocket.receive_json()
+        return reply_message["message"]
 
 
 class GeneralChat(Action):
@@ -81,6 +78,8 @@ async def testing(websocket: WebSocket) -> None:
         ],
         websocket=websocket,
     )
+    await context.notify({"message": "Ask me mathematical equation"})
+
     while True:
         context.prompts.append(
             {
@@ -88,14 +87,13 @@ async def testing(websocket: WebSocket) -> None:
                 "content": await websocket.receive_text(),
             }
         )
-
-        action, result = await context.start(GeneralChat)
+        await context.start(GeneralChat)
 
 
 if __name__ == "__main__":
     run(
         app,
-        host="127.0.0.1",
+        host="0.0.0.0",
         port=8000,
         log_level="info",
     )

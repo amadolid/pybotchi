@@ -1,6 +1,5 @@
 """Pybotchi MCP Classes."""
 
-from collections import OrderedDict
 from collections.abc import AsyncGenerator, Awaitable
 from contextlib import AsyncExitStack, asynccontextmanager, suppress
 from inspect import getdoc, getmembers
@@ -149,14 +148,14 @@ class MCPAction(Action[TContext], Generic[TContext]):
     @classmethod
     def __init_child_actions__(cls) -> None:
         """Initialize defined child actions."""
-        cls.__mcp_tool_actions__ = OrderedDict()
-        cls.__child_actions__ = OrderedDict()
-        for _, attr in getmembers(cls):
-            if isinstance(attr, type):
-                if getattr(attr, "__mcp_tool__", False):
-                    cls.__mcp_tool_actions__[attr.__name__] = attr
-                elif issubclass(attr, Action):
-                    cls.__child_actions__[attr.__name__] = attr
+        cls.__mcp_tool_actions__ = {}
+        cls.__child_actions__ = {}
+        for name, child in getmembers(cls):
+            if isinstance(child, type):
+                if getattr(child, "__mcp_tool__", False):
+                    cls.__mcp_tool_actions__[name] = child
+                elif issubclass(child, Action):
+                    cls.__child_actions__[name] = child
 
     async def pre_mcp(self, context: TContext) -> ActionReturn:
         """Execute pre mcp process."""
@@ -532,11 +531,11 @@ async def traverse(
     current = f"{action.__module__}.{action.__qualname__}"
 
     if allowed_actions:
-        child_actions = OrderedDict(
-            item
-            for item in action.__child_actions__.items()
-            if allowed_actions.get(item[0], item[1].__enabled__)
-        )
+        child_actions = {
+            name: child
+            for name, child in action.__child_actions__.items()
+            if allowed_actions.get(name, child.__enabled__)
+        }
     else:
         child_actions = action.__child_actions__.copy()
 

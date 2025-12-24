@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from asyncio import TaskGroup
-from collections import OrderedDict, deque
+from collections import deque
 from collections.abc import Generator
 from inspect import getmembers
 from itertools import islice
@@ -53,7 +53,7 @@ TAction = TypeVar("TAction", bound="Action")
 TContext = TypeVar("TContext", bound="Context")
 T = TypeVar("T")
 
-ChildActions: TypeAlias = OrderedDict[str, type["Action"]]
+ChildActions: TypeAlias = dict[str, type["Action"]]
 
 
 class Action(BaseModel, Generic[TContext]):
@@ -127,10 +127,11 @@ class Action(BaseModel, Generic[TContext]):
     @classmethod
     def __init_child_actions__(cls) -> None:
         """Initialize defined child actions."""
-        cls.__child_actions__ = OrderedDict()
-        for _, attr in getmembers(cls):
-            if isinstance(attr, type) and issubclass(attr, Action):
-                cls.__child_actions__[attr.__name__] = attr
+        cls.__child_actions__ = {
+            name: child
+            for name, child in getmembers(cls)
+            if isinstance(child, type) and issubclass(child, Action)
+        }
 
     @property
     def _tool_call(self) -> ToolCall:
@@ -184,11 +185,11 @@ class Action(BaseModel, Generic[TContext]):
 
     async def get_child_actions(self, context: TContext) -> ChildActions:
         """Retrieve child Actions."""
-        return OrderedDict(
-            item
-            for item in self.__child_actions__.items()
-            if context.allowed_actions.get(item[0], item[1].__enabled__)
-        )
+        return {
+            name: child
+            for name, child in self.__child_actions__.items()
+            if context.allowed_actions.get(name, child.__enabled__)
+        }
 
     async def child_selection(
         self,
@@ -522,11 +523,11 @@ async def traverse(
     current = f"{action.__module__}.{action.__qualname__}"
 
     if allowed_actions:
-        child_actions = OrderedDict(
-            item
-            for item in action.__child_actions__.items()
-            if allowed_actions.get(item[0], item[1].__enabled__)
-        )
+        child_actions = {
+            name: child
+            for name, child in action.__child_actions__.items()
+            if allowed_actions.get(name, child.__enabled__)
+        }
     else:
         child_actions = action.__child_actions__.copy()
 

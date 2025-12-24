@@ -3,7 +3,7 @@
 from asyncio import run
 from json import dumps
 
-from prerequisite import Action, ActionReturn, ChatRole, Context
+from prerequisite import Action, ActionReturn, ChatRole, Context, graph
 
 
 class GeneralChat(Action):
@@ -74,6 +74,9 @@ async def test() -> None:
 
     print(dumps(context.prompts, indent=4))
     print(dumps(action.serialize(), indent=4))
+
+    general_chat_graph = await graph(GeneralChat)
+    print(general_chat_graph.flowchart())
 
 
 run(test())
