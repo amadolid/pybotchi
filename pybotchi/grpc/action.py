@@ -15,12 +15,12 @@ from datamodel_code_generator.parser.jsonschema import (
 
 from google.protobuf.json_format import MessageToDict
 
-from grpc import Compression  # type: ignore[attr-defined] # mypy issue
-from grpc.aio import insecure_channel
+from grpc import Compression, ssl_channel_credentials  # type: ignore[attr-defined] # mypy issue
+from grpc.aio import insecure_channel, secure_channel
 
 from orjson import dumps
 
-from .common import GRPCConfig, GRPCConnection, GRPCIntegration
+from .common import GRPCConfigLoaded, GRPCConnection, GRPCIntegration
 from .context import TContext
 from .exception import GRPCRemoteError
 from .pybotchi_pb2 import (
@@ -48,8 +48,8 @@ class GRPCClient:
         self,
         stub: PyBotchiGRPCStub,
         name: str,
-        config: GRPCConfig,
-        allowed_actions: set[str],
+        config: GRPCConfigLoaded,
+        allowed_actions: dict[str, bool],
         exclude_unset: bool,
     ) -> None:
         """Build GRPC Client."""
@@ -89,12 +89,13 @@ class GRPCClient:
                 GRPCRemoteAction,
             ),
             {
-                "__concurrent__": action_schema.concurrent,
-                "__grpc_action_name__": schema.title,
                 "__grpc_client__": self,
+                "__grpc_group__": action_schema.group,
+                "__grpc_action_name__": schema.title,
                 "__grpc_exclude_unset__": getattr(
                     base_class, "__grpc_exclude_unset__", self.exclude_unset
                 ),
+                "__concurrent__": action_schema.concurrent,
                 "__module__": f"grpc.{agent_id}",
             },
         )
@@ -109,17 +110,23 @@ class GRPCClient:
     ) -> ChildActions:
         """Retrieve Tools."""
         response: ActionListResponse = await self.stub.action_list(
-            ActionListRequest(group=self.config["group"])
+            ActionListRequest(
+                groups=self.config["groups"], allowed_actions=self.allowed_actions
+            )
         )
         for action_schema in response.actions:
             name, action = self.build_action(response.agent_id, action_schema)
-            if not self.allowed_actions or name in self.allowed_actions:
-                if _tool := grpc_actions.get(name):
-                    action = type(
-                        name,
-                        (_tool, action),
-                        {"__module__": f"{action.__module__}.patched"},
-                    )
+            if _tool := grpc_actions.get(name):
+                action = type(
+                    name,
+                    (_tool, action),
+                    {"__module__": f"{action.__module__}.patched"},
+                )
+                if not self.allowed_actions or self.allowed_actions.get(
+                    name, action.__enabled__
+                ):
+                    actions[name] = action
+            else:
                 actions[name] = action
         return actions
 
@@ -255,6 +262,7 @@ class GRPCRemoteAction(Action[TContext], Generic[TContext]):
     __grpc_action__ = True
 
     __grpc_client__: GRPCClient
+    __grpc_group__: str
     __grpc_action_name__: str
     __grpc_exclude_unset__: bool
     __grpc_queue__: Queue[Event]
@@ -367,7 +375,7 @@ class GRPCRemoteAction(Action[TContext], Generic[TContext]):
             await self.grpc_send(
                 "init",
                 {
-                    "group": self.__grpc_client__.config["group"],
+                    "groups": self.__grpc_client__.config["groups"],
                     "context": context_dump,
                 },
             )
@@ -443,28 +451,45 @@ async def multi_grpc_clients(
             if integration is None:
                 integration = {}
 
-            overrided_config = conn.get_config(integration.get("config"))
-            _allowed_actions = integration.get("allowed_actions") or list[str]()
-            if conn.allowed_actions:
-                allowed_actions = (
-                    {tool for tool in _allowed_actions if tool in conn.allowed_actions}
-                    if _allowed_actions
-                    else conn.allowed_actions
+            overrided_config = await conn.get_config(integration.get("config"))
+            if _allowed_actions := integration.get("allowed_actions"):
+                allowed_actions = conn.allowed_actions | _allowed_actions
+            elif _allowed_actions is not None:
+                allowed_actions = {}
+            else:
+                allowed_actions = conn.allowed_actions
+
+            if overrided_config.get("secure"):
+                channel = await stack.enter_async_context(
+                    secure_channel(
+                        target=overrided_config["url"],
+                        credentials=ssl_channel_credentials(
+                            root_certificates=overrided_config["root_certificates"],
+                            private_key=overrided_config["private_key"],
+                            certificate_chain=overrided_config["certificate_chain"],
+                        ),
+                        options=overrided_config["options"],
+                        compression=(
+                            Compression[comp]
+                            if (comp := overrided_config["compression"])
+                            else None
+                        ),
+                        interceptors=conn.interceptors,
+                    )
                 )
             else:
-                allowed_actions = set(_allowed_actions)
-            channel = await stack.enter_async_context(
-                insecure_channel(
-                    target=overrided_config["url"],
-                    options=overrided_config["options"],
-                    compression=(
-                        Compression[comp]
-                        if (comp := overrided_config["compression"])
-                        else None
-                    ),
-                    interceptors=conn.interceptors,
+                channel = await stack.enter_async_context(
+                    insecure_channel(
+                        target=overrided_config["url"],
+                        options=overrided_config["options"],
+                        compression=(
+                            Compression[comp]
+                            if (comp := overrided_config["compression"])
+                            else None
+                        ),
+                        interceptors=conn.interceptors,
+                    )
                 )
-            )
             clients[conn.name] = GRPCClient(
                 PyBotchiGRPCStub(channel),
                 conn.name,
@@ -564,7 +589,7 @@ async def traverse(
                             TraverseRequest(
                                 nodes=list(graph.nodes),
                                 alias=child_action.__module__,
-                                group=child_action.__grpc_client__.config["group"],
+                                groups=child_action.__grpc_client__.config["groups"],
                                 name=child_action.__grpc_action_name__,
                                 integrations=integrations,
                             )

@@ -20,10 +20,25 @@ class Event(_message.Message):
     ) -> None: ...
 
 class ActionListRequest(_message.Message):
-    __slots__ = ("group",)
-    GROUP_FIELD_NUMBER: _ClassVar[int]
-    group: str
-    def __init__(self, group: _Optional[str] = ...) -> None: ...
+    __slots__ = ("groups", "allowed_actions")
+
+    class AllowedActionsEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: bool
+        def __init__(self, key: _Optional[str] = ..., value: bool = ...) -> None: ...
+
+    GROUPS_FIELD_NUMBER: _ClassVar[int]
+    ALLOWED_ACTIONS_FIELD_NUMBER: _ClassVar[int]
+    groups: _containers.RepeatedScalarFieldContainer[str]
+    allowed_actions: _containers.ScalarMap[str, bool]
+    def __init__(
+        self,
+        groups: _Optional[_Iterable[str]] = ...,
+        allowed_actions: _Optional[_Mapping[str, bool]] = ...,
+    ) -> None: ...
 
 class ActionListResponse(_message.Message):
     __slots__ = ("agent_id", "actions")
@@ -38,14 +53,17 @@ class ActionListResponse(_message.Message):
     ) -> None: ...
 
 class ActionSchema(_message.Message):
-    __slots__ = ("concurrent", "schema")
+    __slots__ = ("concurrent", "group", "schema")
     CONCURRENT_FIELD_NUMBER: _ClassVar[int]
+    GROUP_FIELD_NUMBER: _ClassVar[int]
     SCHEMA_FIELD_NUMBER: _ClassVar[int]
     concurrent: bool
+    group: str
     schema: JSONSchema
     def __init__(
         self,
         concurrent: bool = ...,
+        group: _Optional[str] = ...,
         schema: _Optional[_Union[JSONSchema, _Mapping]] = ...,
     ) -> None: ...
 
@@ -187,7 +205,7 @@ class TraverseRequest(_message.Message):
     __slots__ = (
         "nodes",
         "alias",
-        "group",
+        "groups",
         "name",
         "allowed_actions",
         "integrations",
@@ -204,14 +222,14 @@ class TraverseRequest(_message.Message):
 
     NODES_FIELD_NUMBER: _ClassVar[int]
     ALIAS_FIELD_NUMBER: _ClassVar[int]
-    GROUP_FIELD_NUMBER: _ClassVar[int]
+    GROUPS_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     ALLOWED_ACTIONS_FIELD_NUMBER: _ClassVar[int]
     INTEGRATIONS_FIELD_NUMBER: _ClassVar[int]
     BYPASS_FIELD_NUMBER: _ClassVar[int]
     nodes: _containers.RepeatedScalarFieldContainer[str]
     alias: str
-    group: str
+    groups: _containers.RepeatedScalarFieldContainer[str]
     name: str
     allowed_actions: _containers.ScalarMap[str, bool]
     integrations: _struct_pb2.Struct
@@ -220,7 +238,7 @@ class TraverseRequest(_message.Message):
         self,
         nodes: _Optional[_Iterable[str]] = ...,
         alias: _Optional[str] = ...,
-        group: _Optional[str] = ...,
+        groups: _Optional[_Iterable[str]] = ...,
         name: _Optional[str] = ...,
         allowed_actions: _Optional[_Mapping[str, bool]] = ...,
         integrations: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...,

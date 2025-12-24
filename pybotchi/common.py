@@ -5,7 +5,7 @@ from enum import StrEnum
 from functools import cached_property
 from typing import Annotated, Any, ClassVar, Literal, NotRequired, Required, TypedDict
 
-from pydantic import BaseModel, Field, SkipValidation
+from pydantic import BaseModel, ConfigDict, Field, SkipValidation
 
 
 class ChatRole(StrEnum):
@@ -144,10 +144,7 @@ class ActionReturn(BaseModel):
     BREAK: ClassVar["Break"]
     END: ClassVar["End"]
 
-    class Config:
-        """Model Config."""
-
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     @staticmethod
     def end(value: Any) -> "End":

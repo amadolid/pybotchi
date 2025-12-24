@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pybotchi"
-version = "3.0.1"
+version = "3.0.2"
 description = "A deterministic, intent-based AI agent builder."
 authors = ["Alexie (Boyong) Madolid <madolid.alexie@gmail.com>"]
 readme = "README.md"
@@ -22,10 +22,11 @@ datamodel-code-generator = { version = ">=0.31.2", optional = true }
 # MCP optional
 mcp = { version = ">=1.15.0", optional = true }
 
-# Server optional
+# GRPC optional
 click = { version = ">=8.3.1", optional = true }
 grpcio = { version = ">=1.76.0", optional = true }
 grpcio-tools = { version = ">=1.76.0", optional = true }
+aiofiles = { version = ">=25.1.0", optional = true }
 
 [tool.poetry.group.dev.dependencies]
 mypy = "1.16.1"
@@ -42,6 +43,7 @@ flake8-annotations = "3.1.1"
 flake8_simplify = "0.22.0"
 pep8-naming = "0.15.1"
 types-protobuf = "6.32.1.20251105"
+types-aiofiles = "25.1.0.20251011"
 
 # for examples
 langchain-openai = ">=0.3.15"
@@ -50,7 +52,13 @@ uvicorn = { version = ">=0.38.0", extras = ["standard"] }
 
 [tool.poetry.extras]
 mcp = ["mcp", "datamodel-code-generator"]
-grpc = ["click", "grpcio", "grpcio-tools", "datamodel-code-generator"]
+grpc = [
+    "click",
+    "grpcio",
+    "grpcio-tools",
+    "datamodel-code-generator",
+    "aiofiles",
+]
 
 [build-system]
 requires = ["poetry-core"]

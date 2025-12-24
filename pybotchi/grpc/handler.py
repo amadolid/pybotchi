@@ -1,4 +1,4 @@
-"""PyBotchi Handler."""
+"""PyBotchi GRPC Handler."""
 
 from asyncio import Queue, create_task
 from collections.abc import AsyncGenerator, Awaitable
@@ -53,13 +53,13 @@ class PyBotchiGRPC(PyBotchiGRPCServicer, Generic[TContext]):
         pass
 
     async def consume(
-        self, context: TContext, group: str, events: AsyncGenerator[Event]
+        self, context: TContext, groups: list[str], events: AsyncGenerator[Event]
     ) -> None:
         """Consume event."""
         try:
             async for event in events:
                 if consumer := getattr(self, f"grpc_event_{event.name}", None):
-                    await consumer(context, group, event)
+                    await consumer(context, groups, event)
         except UsageError:
             pass
         except GRPCRemoteError as e:
@@ -87,12 +87,13 @@ class PyBotchiGRPC(PyBotchiGRPCServicer, Generic[TContext]):
             raise e
 
     async def grpc_event_execute(
-        self, context: TContext, group: str, event: Event
+        self, context: TContext, groups: list[str], event: Event
     ) -> None:
         """Consume grpc `execute` event."""
         data = MessageToDict(event)["data"]
         action, action_return = await context.start(
-            self.groups[group][data["name"]], **data.get("args", {})
+            next(a for group in groups if (a := self.groups[group].get(data["name"]))),
+            **data.get("args", {}),
         )
         await context.grpc_send_up(
             context.context_id,
@@ -105,7 +106,7 @@ class PyBotchiGRPC(PyBotchiGRPCServicer, Generic[TContext]):
         )
 
     async def grpc_event_update(
-        self, context: TContext, group: str, event: Event
+        self, context: TContext, groups: list[str], event: Event
     ) -> None:
         """Consume grpc `execute` event."""
         if not (data := MessageToDict(event)["data"]):
@@ -165,7 +166,7 @@ class PyBotchiGRPC(PyBotchiGRPCServicer, Generic[TContext]):
             **data_context,
         )
         queue = agent_context._response_queue = Queue[Event]()
-        create_task(self.consume(agent_context, data["group"], events))
+        create_task(self.consume(agent_context, data["groups"], events))
         return queue
 
     ##############################################################################################
@@ -209,18 +210,29 @@ class PyBotchiGRPC(PyBotchiGRPCServicer, Generic[TContext]):
         ):
             await context.abort(StatusCode.FAILED_PRECONDITION)
 
+        actions: dict[type[Action], str] = {}
+        for group in request.groups:
+            if not (action_group := self.groups.get(group)):
+                continue
+
+            for action in action_group.values():
+                if (
+                    not request.allowed_actions
+                    or request.allowed_actions.get(action.__name__, action.__enabled__)
+                ) and action not in actions:
+                    actions[action] = group
+
         return ActionListResponse(
             agent_id=self.id,
             actions=(
                 [
                     ActionSchema(
                         concurrent=action.__concurrent__,
+                        group=group,
                         schema=JSONSchema(**action.model_json_schema()),
                     )
-                    for action in actions.values()
+                    for action, group in actions.items()
                 ]
-                if (actions := self.groups.get(request.group))
-                else []
             ),
         )
 
@@ -238,7 +250,11 @@ class PyBotchiGRPC(PyBotchiGRPCServicer, Generic[TContext]):
 
         await traverse(
             graph := Graph(nodes=nodes),
-            self.groups[request.group][request.name],
+            next(
+                a
+                for group in request.groups
+                if (a := self.groups[group].get(request.name))
+            ),
             dict(request.allowed_actions),
             MessageToDict(request.integrations),
             request.bypass,

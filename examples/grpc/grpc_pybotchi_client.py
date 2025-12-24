@@ -19,7 +19,9 @@ from grpc_prerequisite import (
 class GeneralChat(GRPCAction):
     """Casual Generic Chat."""
 
-    __grpc_connections__ = [GRPCConnection("testing", "localhost:50051", "group-1")]
+    __grpc_connections__ = [
+        GRPCConnection("testing", False, "localhost:50051", ["group-1"])
+    ]
 
     async def pre_grpc(self, context: GRPCContext) -> ActionReturn:
         """Execute pre grpc execution."""

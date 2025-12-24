@@ -16,7 +16,8 @@ message Event {
 }
 
 message ActionListRequest {
-  string group = 1;
+  repeated string groups = 1;
+  map<string , bool> allowed_actions = 2;
 }
 
 message ActionListResponse {
@@ -26,7 +27,8 @@ message ActionListResponse {
 
 message ActionSchema {
   bool concurrent = 1;
-  JSONSchema schema = 2;
+  string group = 2;
+  JSONSchema schema = 3;
 }
 
 message JSONSchema {
@@ -69,7 +71,7 @@ message JSONSchema {
 message TraverseRequest {
   repeated string nodes = 1;
   string alias = 2;
-  string group = 3;
+  repeated string groups = 3;
   string name = 4;
   map<string , bool> allowed_actions = 5;
   google.protobuf.Struct integrations = 6;

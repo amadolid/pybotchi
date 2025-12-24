@@ -13,6 +13,7 @@ from types import FrameType
 
 from click import argument, command, echo, option
 
+from grpc import ssl_server_credentials
 from grpc.aio import server as grpc_server
 
 from grpc_tools import protoc
@@ -24,7 +25,16 @@ from pybotchi.utils import uuid
 PROCESSES: list[Process] = []
 
 
-async def serve(id: str, path: str, host: str, port: str) -> None:
+async def serve(
+    id: str,
+    path: str,
+    host: str,
+    port: str,
+    root_certificates: bytes | None,
+    private_key: bytes | None,
+    certificate_chain: bytes | None,
+    require_client_auth: bool,
+) -> None:
     """Serve GRPC."""
     from .pybotchi_pb2_grpc import add_PyBotchiGRPCServicer_to_server
     from .handler import PyBotchiGRPC
@@ -75,7 +85,17 @@ async def serve(id: str, path: str, host: str, port: str) -> None:
     )
 
     address = f"{host}:{port}"
-    server.add_insecure_port(address)
+    if private_key and certificate_chain:
+        server.add_secure_port(
+            address,
+            ssl_server_credentials(
+                [(private_key, certificate_chain)],
+                root_certificates,
+                require_client_auth,
+            ),
+        )
+    else:
+        server.add_insecure_port(address)
     await server.start()
 
     echo(f"# Agent Path: {path}")
@@ -91,9 +111,29 @@ def terminate(sig: int, frame: FrameType | None) -> None:
         p.terminate()
 
 
-def start(id: str, path: str, host: str, port: str) -> None:
+def start(
+    id: str,
+    path: str,
+    host: str,
+    port: str,
+    root_certificates: bytes | None,
+    private_key: bytes | None,
+    certificate_chain: bytes | None,
+    require_client_auth: bool,
+) -> None:
     """Start the server."""
-    run(serve(id, path, host, port))
+    run(
+        serve(
+            id,
+            path,
+            host,
+            port,
+            root_certificates,
+            private_key,
+            certificate_chain,
+            require_client_auth,
+        )
+    )
 
 
 @command()
@@ -102,8 +142,20 @@ def start(id: str, path: str, host: str, port: str) -> None:
 @option("--host", "-h", default=None, help="Host to bind")
 @option("--port", "-p", default=None, help="Port to bind")
 @option("--workers", "-w", default=None, help="Number of worker processes")
+@option("--root-certificates", "-r", default=None, help="Root certificates path")
+@option("--private-key", "-k", default=None, help="Private key path")
+@option("--certificate-chain", "-c", default=None, help="Certificate chain path")
+@option("--require-client-auth", "-a", default=False, help="Require client auth")
 def main(
-    path: str, id: str | None, host: str | None, port: str | None, workers: str | None
+    path: str,
+    id: str | None,
+    host: str | None,
+    port: str | None,
+    workers: str | None,
+    root_certificates: str | None,
+    private_key: str | None,
+    certificate_chain: str | None,
+    require_client_auth: bool,
 ) -> None:
     """Greet someone."""
     id = id or getenv("AGENT_ID") or f"agent_{uuid().hex}"
@@ -119,11 +171,46 @@ def main(
     echo("#-------------------------------------------------------#")
     echo(f"# Agent ID: {id}")
     echo(f"# Agent Path: {path}")
+
+    if root_certificates:
+        echo(f"# Root Certificates: {root_certificates}")
+        with open(root_certificates, "rb") as f:
+            _root_certificates = f.read()
+    else:
+        _root_certificates = None
+
+    if private_key:
+        echo(f"# Private Key: {private_key}")
+        with open(private_key, "rb") as f:
+            _private_key = f.read()
+    else:
+        _private_key = None
+
+    if certificate_chain:
+        echo(f"# Certificate Chain: {certificate_chain}")
+        with open(certificate_chain, "rb") as f:
+            _certificate_chain = f.read()
+    else:
+        _certificate_chain = None
+
+    echo(f"# Agent Path: {path}")
     echo(f"# Starting {workers} worker(s) on {host}:{port}")
     echo("#-------------------------------------------------------#")
 
     for _ in range(worker_count):
-        p = Process(target=start, args=(id, path, host, port))
+        p = Process(
+            target=start,
+            args=(
+                id,
+                path,
+                host,
+                port,
+                _root_certificates,
+                _private_key,
+                _certificate_chain,
+                require_client_auth,
+            ),
+        )
         p.start()
         PROCESSES.append(p)
 

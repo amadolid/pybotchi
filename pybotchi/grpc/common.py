@@ -5,6 +5,8 @@ from typing import Any, Sequence, TypedDict
 
 from grpc.aio import ClientInterceptor
 
+from .utils import read_cert
+
 
 class GRPCCompression(StrEnum):
     """GRPC Compression."""
@@ -17,8 +19,27 @@ class GRPCCompression(StrEnum):
 class GRPCConfig(TypedDict, total=False):
     """GRPC Config."""
 
+    secure: bool
     url: str
-    group: str
+    groups: list[str]
+    root_certificates: str | bytes | None
+    private_key: str | bytes | None
+    certificate_chain: str | bytes | None
+    options: list[tuple[str, Any]] | None
+    compression: GRPCCompression | None
+    metadata: dict[str, Any] | None
+    allow_exec: bool
+
+
+class GRPCConfigLoaded(TypedDict):
+    """GRPC Config."""
+
+    secure: bool
+    url: str
+    groups: list[str]
+    root_certificates: bytes | None
+    private_key: bytes | None
+    certificate_chain: bytes | None
     options: list[tuple[str, Any]] | None
     compression: GRPCCompression | None
     metadata: dict[str, Any] | None
@@ -29,7 +50,7 @@ class GRPCIntegration(TypedDict, total=False):
     """GRPC Integration."""
 
     config: GRPCConfig
-    allowed_actions: list[str]
+    allowed_actions: dict[str, bool]
     exclude_unset: bool
 
 
@@ -39,46 +60,72 @@ class GRPCConnection:
     def __init__(
         self,
         name: str,
+        secure: bool = False,
         url: str = "",
-        group: str = "",
+        groups: list[str] | None = None,
+        root_certificates: str | bytes | None = None,
+        private_key: str | bytes | None = None,
+        certificate_chain: str | bytes | None = None,
         options: list[tuple[str, Any]] | None = None,
         compression: GRPCCompression | None = None,
         interceptors: Sequence[ClientInterceptor] | None = None,
         metadata: dict[str, Any] | None = None,
         allow_exec: bool = False,
-        allowed_actions: set[str] | None = None,
+        allowed_actions: dict[str, bool] | None = None,
         exclude_unset: bool = True,
         require_integration: bool = True,
     ) -> None:
         """Build GRPC Connection."""
         self.name = name
+        self.secure = secure
         self.url = url
-        self.group = group
+        self.groups = [] if groups is None else groups
+        self.root_certificates = root_certificates
+        self.private_key = private_key
+        self.certificate_chain = certificate_chain
         self.options = options
         self.compression = compression
         self.interceptors = interceptors
         self.metadata = metadata
         self.allow_exec = allow_exec
-        self.allowed_actions = (
-            set[str]() if allowed_actions is None else allowed_actions
-        )
+        self.allowed_actions = {} if allowed_actions is None else allowed_actions
         self.exclude_unset = exclude_unset
         self.require_integration = require_integration
 
-    def get_config(self, override: GRPCConfig | None) -> GRPCConfig:
+    async def get_config(self, override: GRPCConfig | None) -> GRPCConfigLoaded:
         """Generate config."""
         if override is None:
             return {
+                "secure": self.secure,
                 "url": self.url,
-                "group": self.group,
+                "groups": self.groups,
+                "root_certificates": (
+                    await read_cert(self.root_certificates)
+                    if isinstance(self.root_certificates, str)
+                    else self.root_certificates
+                ),
+                "private_key": (
+                    await read_cert(self.private_key)
+                    if isinstance(self.private_key, str)
+                    else self.private_key
+                ),
+                "certificate_chain": (
+                    await read_cert(self.certificate_chain)
+                    if isinstance(self.certificate_chain, str)
+                    else self.certificate_chain
+                ),
                 "options": self.options,
                 "compression": self.compression,
                 "metadata": self.metadata,
                 "allow_exec": self.allow_exec,
             }
 
+        secure = override.get("secure", self.secure)
         url = override.get("url", self.url)
-        group = override.get("group", self.group)
+        root_certificates = override.get("root_certificates", self.root_certificates)
+        private_key = override.get("private_key", self.private_key)
+        certificate_chain = override.get("certificate_chain", self.certificate_chain)
+        groups = override.get("groups", self.groups)
         options = override.get("options", self.options)
         compression = override.get("compression", self.compression)
         allow_exec = override.get("allow_exec", self.allow_exec)
@@ -92,9 +139,31 @@ class GRPCConnection:
         else:
             metadata = self.metadata
 
+        root_certificates = (
+            await read_cert(self.root_certificates)
+            if isinstance(self.root_certificates, str)
+            else self.root_certificates
+        )
+
+        private_key = (
+            await read_cert(self.private_key)
+            if isinstance(self.private_key, str)
+            else self.private_key
+        )
+
+        certificate_chain = (
+            await read_cert(self.certificate_chain)
+            if isinstance(self.certificate_chain, str)
+            else self.certificate_chain
+        )
+
         return {
+            "secure": secure,
             "url": url,
-            "group": group,
+            "groups": groups,
+            "root_certificates": root_certificates,
+            "private_key": private_key,
+            "certificate_chain": certificate_chain,
             "options": options,
             "compression": compression,
             "metadata": metadata,
