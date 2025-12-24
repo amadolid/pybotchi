@@ -14,9 +14,11 @@ from datamodel_code_generator.parser.jsonschema import (
     JsonSchemaParser,
 )
 
+from httpx import AsyncClient
+
 from mcp import ClientSession, Tool
 from mcp.client.sse import sse_client
-from mcp.client.streamable_http import streamablehttp_client
+from mcp.client.streamable_http import streamable_http_client
 from mcp.server.fastmcp import FastMCP
 from mcp.shared.session import ProgressFnT
 from mcp.types import (
@@ -53,7 +55,7 @@ class MCPClient:
         session: ClientSession,
         name: str,
         config: MCPConfig,
-        allowed_tools: set[str],
+        allowed_tools: dict[str, bool],
         exclude_unset: bool,
     ) -> None:
         """Build MCP Client."""
@@ -115,13 +117,16 @@ class MCPClient:
         response = await self.session.list_tools()
         for tool in response.tools:
             name, action = self.build_tool(tool)
-            if not self.allowed_tools or name in self.allowed_tools:
-                if _tool := mcp_actions.get(name):
-                    action = type(
-                        name,
-                        (_tool, action),
-                        {"__module__": f"mcp.{self.name}.patched"},
-                    )
+            if _tool := mcp_actions.get(name):
+                action = type(
+                    name,
+                    (_tool, action),
+                    {"__module__": f"mcp.{self.name}.patched"},
+                )
+
+            if not self.allowed_tools or self.allowed_tools.get(
+                name, action.__enabled__
+            ):
                 actions[name] = action
         return actions
 
@@ -368,23 +373,41 @@ async def multi_mcp_clients(
                 integration = {}
 
             overrided_config = conn.get_config(integration.get("config"))
+            if _allowed_tools := integration.get("allowed_tools"):
+                allowed_tools = conn.allowed_tools | _allowed_tools
+            elif _allowed_tools is not None:
+                allowed_tools = {}
+            else:
+                allowed_tools = conn.allowed_tools
+
             if integration.get("mode", conn.mode) == MCPMode.SSE:
                 overrided_config.pop("terminate_on_close", None)
-                client_builder: Callable = sse_client
-            else:
-                client_builder = streamablehttp_client
-            _allowed_tools = integration.get("allowed_tools") or list[str]()
-            if conn.allowed_tools:
-                allowed_tools = (
-                    {tool for tool in _allowed_tools if tool in conn.allowed_tools}
-                    if _allowed_tools
-                    else conn.allowed_tools
+                streams = await stack.enter_async_context(
+                    sse_client(
+                        url=overrided_config["url"],
+                        headers=overrided_config["headers"],
+                        timeout=overrided_config["timeout"],
+                        sse_read_timeout=overrided_config["sse_read_timeout"],
+                        httpx_client_factory=overrided_config["httpx_client_factory"],
+                        auth=overrided_config["auth"],
+                        on_session_created=conn.on_session_created,
+                    )
                 )
             else:
-                allowed_tools = set(_allowed_tools)
-            streams = await stack.enter_async_context(
-                client_builder(**overrided_config)
-            )
+                async_client = await stack.enter_async_context(
+                    AsyncClient(
+                        **overrided_config["async_client_args"], follow_redirects=True
+                    )
+                )
+
+                streams = await stack.enter_async_context(
+                    streamable_http_client(
+                        url=overrided_config["url"],
+                        http_client=async_client,
+                        terminate_on_close=overrided_config["terminate_on_close"],
+                    )
+                )
+
             session = await stack.enter_async_context(
                 ClientSession(*islice(streams, 0, 2))
             )
