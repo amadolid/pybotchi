@@ -242,19 +242,16 @@ class PyBotchiGRPC(PyBotchiGRPCServicer, Generic[TContext]):
             dict(request.allowed_actions),
             MessageToDict(request.integrations),
             request.bypass,
+            self.module,
             request.alias,
         )
 
         return TraverseGraph(
-            nodes=[
-                node.replace(self.module, request.alias, 1)
-                for node in graph.nodes
-                if node not in old_nodes
-            ],
+            nodes=[node for node in graph.nodes if node not in old_nodes],
             edges=[
                 Edge(
-                    source=edge[0].replace(self.module, request.alias, 1),
-                    target=edge[1].replace(self.module, request.alias, 1),
+                    source=edge[0],
+                    target=edge[1],
                     concurrent=edge[2],
                     name=edge[3],
                 )

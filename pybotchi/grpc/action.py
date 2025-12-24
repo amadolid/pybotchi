@@ -489,20 +489,18 @@ async def graph(
     allowed_actions: dict[str, bool] | None = None,
     integrations: dict[str, GRPCIntegration] | None = None,
     bypass: bool = False,
-    alias: str | None = None,
 ) -> Graph:
     """Retrieve Graph."""
     if integrations is None:
         integrations = {}
 
-    origin = f"{alias or action.__module__}.{action.__qualname__}"
+    origin = f"{action.__module__}.{action.__qualname__}"
     await traverse(
         graph := Graph(origin=origin, nodes={origin}),
         action,
         allowed_actions,
         integrations,
         bypass,
-        alias,
     )
 
     return graph
@@ -514,6 +512,7 @@ async def traverse(
     allowed_actions: dict[str, bool] | None,
     integrations: dict[str, GRPCIntegration],
     bypass: bool = False,
+    module: str | None = None,
     alias: str | None = None,
 ) -> None:
     """Retrieve Graph."""
@@ -539,7 +538,11 @@ async def traverse(
             ]
 
         for child_action in child_actions.values():
-            child = f"{child_action.__module__}.{child_action.__qualname__}"
+            child = (
+                f"{alias or child_action.__module__}.{child_action.__qualname__}"
+                if child_action.__module__ == module
+                else f"{child_action.__module__}.{child_action.__qualname__}"
+            )
             graph.edges.add(
                 (
                     current,
@@ -573,5 +576,11 @@ async def traverse(
                         graph.edges.add((e.source, e.target, e.concurrent, e.name))
                 else:
                     await traverse(
-                        graph, child_action, allowed_actions, integrations, bypass
+                        graph,
+                        child_action,
+                        allowed_actions,
+                        integrations,
+                        bypass,
+                        module,
+                        alias,
                     )
