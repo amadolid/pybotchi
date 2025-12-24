@@ -5,6 +5,7 @@ from importlib.resources import files
 from importlib.util import module_from_spec, spec_from_file_location
 from inspect import getmembers, isclass
 from multiprocessing import Process, cpu_count
+from os import getenv
 from pathlib import Path
 from signal import SIGINT, SIGTERM, signal
 from sys import path as sys_path
@@ -17,12 +18,13 @@ from grpc.aio import server as grpc_server
 from grpc_tools import protoc
 
 from pybotchi import Action
+from pybotchi.utils import uuid
 
 
 PROCESSES: list[Process] = []
 
 
-async def serve(path: str, host: str, port: int) -> None:
+async def serve(id: str, path: str, host: str, port: str) -> None:
     """Serve GRPC."""
     from .pybotchi_pb2_grpc import add_PyBotchiGRPCServicer_to_server
     from .handler import PyBotchiGRPC
@@ -69,7 +71,7 @@ async def serve(path: str, host: str, port: int) -> None:
         queue.extend(que.__subclasses__())
 
     add_PyBotchiGRPCServicer_to_server(
-        grpc_handler(module_spec.__name__, groups), server
+        grpc_handler(id, module_spec.__name__, groups), server
     )
 
     address = f"{host}:{port}"
@@ -89,27 +91,39 @@ def terminate(sig: int, frame: FrameType | None) -> None:
         p.terminate()
 
 
-def start(path: str, host: str, port: int) -> None:
+def start(id: str, path: str, host: str, port: str) -> None:
     """Start the server."""
-    run(serve(path, host, port))
+    run(serve(id, path, host, port))
 
 
 @command()
 @argument("path")
-@option("--host", "-h", default="0.0.0.0", help="Host to bind")
-@option("--port", "-p", default=50051, help="Port to bind")
-@option("--workers", "-w", default=1, help="Number of worker processes")
-def main(path: str, host: str, port: int, workers: int) -> None:
+@option("--id", "-i", default=None, help="Agent ID")
+@option("--host", "-h", default=None, help="Host to bind")
+@option("--port", "-p", default=None, help="Port to bind")
+@option("--workers", "-w", default=None, help="Number of worker processes")
+def main(
+    path: str, id: str | None, host: str | None, port: str | None, workers: str | None
+) -> None:
     """Greet someone."""
-    workers = min(workers, cpu_count())
+    id = id or getenv("AGENT_ID") or f"agent_{uuid().hex}"
+    host = host or getenv("AGENT_HOST") or "0.0.0.0"
+    port = port or getenv("AGENT_PORT") or "50051"
+    worker_count = min(int(workers or getenv("AGENT_WORKERS") or "1"), cpu_count())
+
+    if not id.isidentifier():
+        raise ValueError(
+            f"'{id}' is not a valid Python identifier (must start with a letter/underscore and contain only alphanumeric characters/underscores)."
+        )
 
     echo("#-------------------------------------------------------#")
+    echo(f"# Agent ID: {id}")
     echo(f"# Agent Path: {path}")
     echo(f"# Starting {workers} worker(s) on {host}:{port}")
     echo("#-------------------------------------------------------#")
 
-    for _ in range(workers):
-        p = Process(target=start, args=(path, host, port))
+    for _ in range(worker_count):
+        p = Process(target=start, args=(id, path, host, port))
         p.start()
         PROCESSES.append(p)
 

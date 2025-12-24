@@ -51,14 +51,14 @@ class MCPClient:
 
     def __init__(
         self,
-        client: ClientSession,
+        session: ClientSession,
         name: str,
         config: MCPConfig,
         allowed_tools: set[str],
         exclude_unset: bool,
     ) -> None:
         """Build MCP Client."""
-        self.client = client
+        self.session = session
         self.name = name
         self.config = config
         self.allowed_tools = allowed_tools
@@ -96,7 +96,7 @@ class MCPClient:
             ),
             {
                 "__mcp_tool_name__": tool.name,
-                "__mcp_client__": self.client,
+                "__mcp_client__": self,
                 "__mcp_exclude_unset__": getattr(
                     base_class, "__mcp_exclude_unset__", self.exclude_unset
                 ),
@@ -113,7 +113,7 @@ class MCPClient:
         self, actions: ChildActions, mcp_actions: ChildActions
     ) -> ChildActions:
         """Retrieve Tools."""
-        response = await self.client.list_tools()
+        response = await self.session.list_tools()
         for tool in response.tools:
             name, action = self.build_tool(tool)
             if not self.allowed_tools or name in self.allowed_tools:
@@ -254,12 +254,12 @@ class MCPAction(Action[TContext], Generic[TContext]):
         setattr(cls, name, action)
 
 
-class MCPToolAction(Action):
+class MCPToolAction(Action[TContext], Generic[TContext]):
     """MCP Tool Action."""
 
     __mcp_tool__ = True
 
-    __mcp_client__: ClientSession
+    __mcp_client__: MCPClient
     __mcp_tool_name__: str
     __mcp_exclude_unset__: bool
 
@@ -329,7 +329,7 @@ class MCPToolAction(Action):
                 "data": tool_args,
             }
         )
-        result = await self.__mcp_client__.call_tool(
+        result = await self.__mcp_client__.session.call_tool(
             self.__mcp_tool_name__,
             tool_args,
             progress_callback=self.build_progress_callback(context),
@@ -386,12 +386,12 @@ async def multi_mcp_clients(
             streams = await stack.enter_async_context(
                 client_builder(**overrided_config)
             )
-            client = await stack.enter_async_context(
+            session = await stack.enter_async_context(
                 ClientSession(*islice(streams, 0, 2))
             )
-            await client.initialize()
+            await session.initialize()
             clients[conn.name] = MCPClient(
-                client,
+                session,
                 conn.name,
                 overrided_config,
                 allowed_tools,
@@ -508,9 +508,9 @@ async def graph(
     """Retrieve Graph."""
     if integrations is None:
         integrations = {}
-
+    origin = f"{action.__module__}.{action.__qualname__}"
     await traverse(
-        graph := Graph(nodes={f"{action.__module__}.{action.__qualname__}"}),
+        graph := Graph(origin=origin, nodes={(origin, action.__name__)}),
         action,
         allowed_actions,
         integrations,
@@ -528,7 +528,7 @@ async def traverse(
     bypass: bool = False,
 ) -> None:
     """Retrieve Graph."""
-    parent = f"{action.__module__}.{action.__qualname__}"
+    current = f"{action.__module__}.{action.__qualname__}"
 
     if allowed_actions:
         child_actions = OrderedDict(
@@ -549,8 +549,21 @@ async def traverse(
             ]
 
     for child_action in child_actions.values():
-        node = f"{child_action.__module__}.{child_action.__qualname__}"
-        graph.edges.add((parent, node, child_action.__concurrent__))
+        child = f"{child_action.__module__}.{child_action.__qualname__}"
+        graph.edges.add(
+            (
+                current,
+                child,
+                child_action.__concurrent__,
+                (
+                    child_action.__mcp_client__.name
+                    if issubclass(child_action, MCPToolAction)
+                    else ""
+                ),
+            )
+        )
+
+        node = (child, child_action.__name__)
         if node not in graph.nodes:
             graph.nodes.add(node)
             await traverse(graph, child_action, allowed_actions, integrations, bypass)

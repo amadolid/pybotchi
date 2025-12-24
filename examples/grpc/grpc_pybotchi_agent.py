@@ -94,8 +94,13 @@ class Joke(Action):
         print("Done executing Joke...")
         return ActionReturn.GO
 
-    class Nested(Action):
+    # Example deeper recursion
+    class Nested(GRPCAction):
         """Additional Child Action."""
+
+        __grpc_connections__ = [
+            GRPCConnection("testing2", "localhost:50051", "group-1")
+        ]
 
 
 class StoryTelling(Action):

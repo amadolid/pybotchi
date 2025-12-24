@@ -505,8 +505,9 @@ async def graph(
     action: type[Action], allowed_actions: dict[str, bool] | None = None
 ) -> Graph:
     """Retrieve Graph."""
+    origin = f"{action.__module__}.{action.__qualname__}"
     await traverse(
-        graph := Graph(nodes={f"{action.__module__}.{action.__qualname__}"}),
+        graph := Graph(origin=origin, nodes={(origin, action.__name__)}),
         action,
         allowed_actions,
     )
@@ -518,7 +519,7 @@ async def traverse(
     graph: Graph, action: type[Action], allowed_actions: dict[str, bool] | None
 ) -> None:
     """Retrieve Graph."""
-    parent = f"{action.__module__}.{action.__qualname__}"
+    current = f"{action.__module__}.{action.__qualname__}"
 
     if allowed_actions:
         child_actions = OrderedDict(
@@ -530,8 +531,10 @@ async def traverse(
         child_actions = action.__child_actions__.copy()
 
     for child_action in child_actions.values():
-        node = f"{child_action.__module__}.{child_action.__qualname__}"
-        graph.edges.add((parent, node, child_action.__concurrent__))
+        child = f"{child_action.__module__}.{child_action.__qualname__}"
+        graph.edges.add((current, child, child_action.__concurrent__, ""))
+
+        node = (child, child_action.__name__)
         if node not in graph.nodes:
             graph.nodes.add(node)
             await traverse(graph, child_action, allowed_actions)

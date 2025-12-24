@@ -1,5 +1,6 @@
 """Pybotchi Constants."""
 
+from collections import Counter
 from enum import StrEnum
 from functools import cached_property
 from typing import Annotated, Any, ClassVar, Literal, NotRequired, Required, TypedDict
@@ -90,18 +91,47 @@ class ToolCall(TypedDict, total=False):
 class Graph(BaseModel):
     """Action Result Class."""
 
-    nodes: set[str] = Field(default_factory=set)
-    edges: set[tuple[str, str, bool]] = Field(default_factory=set)
+    origin: str | None = None
+    nodes: set[tuple[str, str]] = Field(default_factory=set)
+    edges: set[tuple[str, str, bool, str]] = Field(default_factory=set)
 
     def flowchart(self) -> str:
         """Draw Mermaid flowchart."""
         content = ""
-        for node in self.nodes:
-            content += f"{node}[{node}]\n"
-        for source, target, concurrent in self.edges:
-            content += f'{source} -->{"|Concurrent|" if concurrent else ""} {target}\n'
 
-        return f"flowchart TD\n{content}"
+        con = 0
+        counter = Counter(edge[0] for edge in self.edges)
+        for node, alias in self.nodes:
+            alias = f"{{{alias}}}" if counter[node] > 1 else f"[{alias}]"
+            content += f"{node}{alias}\n"
+        for source, target, concurrent, alias in self.edges:
+            base = target.split(".", 1)[0].upper()
+
+            if concurrent:
+                connection = (
+                    f"ed{con}@--**{base}** : {alias}<br>*[concurrent]*-->"
+                    if alias
+                    else f"ed{con}@--*[concurrent]*-->"
+                )
+                con += 1
+            else:
+                connection = f"--**{base}** : {alias}-->" if alias else "-->"
+            content += f"{source} {connection} {target}\n"
+
+        constraints = (
+            (
+                "classDef animate stroke-dasharray: 10,stroke-dashoffset: 500,animation: dash 10s linear infinite;\n"
+                f"class {",".join(f"ed{i}"for i in range(con))} animate"
+            )
+            if con
+            else ""
+        )
+
+        origin = (
+            f"style {self.origin} fill:#4CAF50,color:#000000\n" if self.origin else ""
+        )
+
+        return f"flowchart TD\n{content}{origin}{constraints}"
 
 
 class ActionReturn(BaseModel):

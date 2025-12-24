@@ -26,11 +26,15 @@ class ActionListRequest(_message.Message):
     def __init__(self, group: _Optional[str] = ...) -> None: ...
 
 class ActionListResponse(_message.Message):
-    __slots__ = ("actions",)
+    __slots__ = ("agent_id", "actions")
+    AGENT_ID_FIELD_NUMBER: _ClassVar[int]
     ACTIONS_FIELD_NUMBER: _ClassVar[int]
+    agent_id: str
     actions: _containers.RepeatedCompositeFieldContainer[ActionSchema]
     def __init__(
-        self, actions: _Optional[_Iterable[_Union[ActionSchema, _Mapping]]] = ...
+        self,
+        agent_id: _Optional[str] = ...,
+        actions: _Optional[_Iterable[_Union[ActionSchema, _Mapping]]] = ...,
     ) -> None: ...
 
 class ActionSchema(_message.Message):
@@ -180,7 +184,15 @@ class JSONSchema(_message.Message):
     ) -> None: ...
 
 class TraverseRequest(_message.Message):
-    __slots__ = ("alias", "group", "name", "allowed_actions", "integrations", "bypass")
+    __slots__ = (
+        "nodes",
+        "alias",
+        "group",
+        "name",
+        "allowed_actions",
+        "integrations",
+        "bypass",
+    )
 
     class AllowedActionsEntry(_message.Message):
         __slots__ = ("key", "value")
@@ -190,12 +202,14 @@ class TraverseRequest(_message.Message):
         value: bool
         def __init__(self, key: _Optional[str] = ..., value: bool = ...) -> None: ...
 
+    NODES_FIELD_NUMBER: _ClassVar[int]
     ALIAS_FIELD_NUMBER: _ClassVar[int]
     GROUP_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     ALLOWED_ACTIONS_FIELD_NUMBER: _ClassVar[int]
     INTEGRATIONS_FIELD_NUMBER: _ClassVar[int]
     BYPASS_FIELD_NUMBER: _ClassVar[int]
+    nodes: _containers.RepeatedCompositeFieldContainer[Node]
     alias: str
     group: str
     name: str
@@ -204,6 +218,7 @@ class TraverseRequest(_message.Message):
     bypass: bool
     def __init__(
         self,
+        nodes: _Optional[_Iterable[_Union[Node, _Mapping]]] = ...,
         alias: _Optional[str] = ...,
         group: _Optional[str] = ...,
         name: _Optional[str] = ...,
@@ -212,29 +227,45 @@ class TraverseRequest(_message.Message):
         bypass: bool = ...,
     ) -> None: ...
 
-class TraverseResponse(_message.Message):
-    __slots__ = ("nodes", "edges")
+class TraverseGraph(_message.Message):
+    __slots__ = ("origin", "nodes", "edges")
+    ORIGIN_FIELD_NUMBER: _ClassVar[int]
     NODES_FIELD_NUMBER: _ClassVar[int]
     EDGES_FIELD_NUMBER: _ClassVar[int]
-    nodes: _containers.RepeatedScalarFieldContainer[str]
+    origin: str
+    nodes: _containers.RepeatedCompositeFieldContainer[Node]
     edges: _containers.RepeatedCompositeFieldContainer[Edge]
     def __init__(
         self,
-        nodes: _Optional[_Iterable[str]] = ...,
+        origin: _Optional[str] = ...,
+        nodes: _Optional[_Iterable[_Union[Node, _Mapping]]] = ...,
         edges: _Optional[_Iterable[_Union[Edge, _Mapping]]] = ...,
     ) -> None: ...
 
+class Node(_message.Message):
+    __slots__ = ("id", "name")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    name: str
+    def __init__(
+        self, id: _Optional[str] = ..., name: _Optional[str] = ...
+    ) -> None: ...
+
 class Edge(_message.Message):
-    __slots__ = ("source", "target", "concurrent")
+    __slots__ = ("source", "target", "concurrent", "name")
     SOURCE_FIELD_NUMBER: _ClassVar[int]
     TARGET_FIELD_NUMBER: _ClassVar[int]
     CONCURRENT_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
     source: str
     target: str
     concurrent: bool
+    name: str
     def __init__(
         self,
         source: _Optional[str] = ...,
         target: _Optional[str] = ...,
         concurrent: bool = ...,
+        name: _Optional[str] = ...,
     ) -> None: ...

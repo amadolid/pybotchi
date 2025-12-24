@@ -29,8 +29,9 @@ from .pybotchi_pb2 import (
     ActionListResponse,
     ActionSchema,
     Event,
+    Node,
+    TraverseGraph,
     TraverseRequest,
-    TraverseResponse,
 )
 from .pybotchi_pb2_grpc import PyBotchiGRPCStub
 from ..action import Action, ChildActions
@@ -61,7 +62,7 @@ class GRPCClient:
         self.exclude_unset = exclude_unset
 
     def build_action(
-        self, action_schema: ActionSchema
+        self, agent_id: str, action_schema: ActionSchema
     ) -> tuple[str, type["GRPCRemoteAction"]]:
         """Build GRPCToolAction."""
         globals: dict[str, Any] = {}
@@ -96,7 +97,7 @@ class GRPCClient:
                 "__grpc_exclude_unset__": getattr(
                     base_class, "__grpc_exclude_unset__", self.exclude_unset
                 ),
-                "__module__": f"grpc.{self.name}",
+                "__module__": f"grpc.{agent_id}",
             },
         )
 
@@ -113,13 +114,13 @@ class GRPCClient:
             ActionListRequest(group=self.config["group"])
         )
         for action_schema in response.actions:
-            name, action = self.build_action(action_schema)
+            name, action = self.build_action(response.agent_id, action_schema)
             if not self.allowed_actions or name in self.allowed_actions:
                 if _tool := grpc_actions.get(name):
                     action = type(
                         name,
                         (_tool, action),
-                        {"__module__": f"grpc.{self.name}.patched"},
+                        {"__module__": f"{action.__module__}.patched"},
                     )
                 actions[name] = action
         return actions
@@ -496,8 +497,10 @@ async def graph(
     if integrations is None:
         integrations = {}
 
+    origin = f"{alias or action.__module__}.{action.__qualname__}"
+
     await traverse(
-        graph := Graph(nodes={f"{alias or action.__module__}.{action.__qualname__}"}),
+        graph := Graph(origin=origin, nodes={(origin, action.__name__)}),
         action,
         allowed_actions,
         integrations,
@@ -517,7 +520,7 @@ async def traverse(
     alias: str | None = None,
 ) -> None:
     """Retrieve Graph."""
-    parent = f"{alias or action.__module__}.{action.__qualname__}"
+    current = f"{alias or action.__module__}.{action.__qualname__}"
 
     if allowed_actions:
         child_actions = OrderedDict(
@@ -539,14 +542,31 @@ async def traverse(
             ]
 
         for child_action in child_actions.values():
-            node = f"{child_action.__module__}.{child_action.__qualname__}"
-            graph.edges.add((parent, node, child_action.__concurrent__))
+            child = f"{child_action.__module__}.{child_action.__qualname__}"
+            graph.edges.add(
+                (
+                    current,
+                    child,
+                    child_action.__concurrent__,
+                    (
+                        child_action.__grpc_client__.name
+                        if issubclass(child_action, GRPCRemoteAction)
+                        else ""
+                    ),
+                )
+            )
+
+            node = (child, child_action.__name__)
             if node not in graph.nodes:
                 graph.nodes.add(node)
                 if issubclass(child_action, GRPCRemoteAction):
-                    response: TraverseResponse = (
+                    response: TraverseGraph = (
                         await child_action.__grpc_client__.stub.traverse(
                             TraverseRequest(
+                                nodes=[
+                                    Node(id=node[0], name=node[1])
+                                    for node in graph.nodes
+                                ],
                                 alias=child_action.__module__,
                                 group=child_action.__grpc_client__.config["group"],
                                 name=child_action.__grpc_action_name__,
@@ -554,10 +574,10 @@ async def traverse(
                             )
                         )
                     )
-                    for node in response.nodes:
-                        graph.nodes.add(node)
-                    for edge in response.edges:
-                        graph.edges.add((edge.source, edge.target, edge.concurrent))
+                    for n in response.nodes:
+                        graph.nodes.add((n.id, n.name))
+                    for e in response.edges:
+                        graph.edges.add((e.source, e.target, e.concurrent, e.name))
                 else:
                     await traverse(
                         graph, child_action, allowed_actions, integrations, bypass

@@ -52,7 +52,7 @@ class PyBotchiGRPCStub(object):
         self.traverse = channel.unary_unary(
             "/pybotchi.grpc.PyBotchiGRPC/traverse",
             request_serializer=pybotchi__pb2.TraverseRequest.SerializeToString,
-            response_deserializer=pybotchi__pb2.TraverseResponse.FromString,
+            response_deserializer=pybotchi__pb2.TraverseGraph.FromString,
             _registered_method=True,
         )
 
@@ -94,7 +94,7 @@ def add_PyBotchiGRPCServicer_to_server(servicer, server):
         "traverse": grpc.unary_unary_rpc_method_handler(
             servicer.traverse,
             request_deserializer=pybotchi__pb2.TraverseRequest.FromString,
-            response_serializer=pybotchi__pb2.TraverseResponse.SerializeToString,
+            response_serializer=pybotchi__pb2.TraverseGraph.SerializeToString,
         ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -188,7 +188,7 @@ class PyBotchiGRPC(object):
             target,
             "/pybotchi.grpc.PyBotchiGRPC/traverse",
             pybotchi__pb2.TraverseRequest.SerializeToString,
-            pybotchi__pb2.TraverseResponse.FromString,
+            pybotchi__pb2.TraverseGraph.FromString,
             options,
             channel_credentials,
             insecure,
