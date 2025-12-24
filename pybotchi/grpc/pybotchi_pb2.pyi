@@ -209,7 +209,7 @@ class TraverseRequest(_message.Message):
     ALLOWED_ACTIONS_FIELD_NUMBER: _ClassVar[int]
     INTEGRATIONS_FIELD_NUMBER: _ClassVar[int]
     BYPASS_FIELD_NUMBER: _ClassVar[int]
-    nodes: _containers.RepeatedCompositeFieldContainer[Node]
+    nodes: _containers.RepeatedScalarFieldContainer[str]
     alias: str
     group: str
     name: str
@@ -218,7 +218,7 @@ class TraverseRequest(_message.Message):
     bypass: bool
     def __init__(
         self,
-        nodes: _Optional[_Iterable[_Union[Node, _Mapping]]] = ...,
+        nodes: _Optional[_Iterable[str]] = ...,
         alias: _Optional[str] = ...,
         group: _Optional[str] = ...,
         name: _Optional[str] = ...,
@@ -233,23 +233,13 @@ class TraverseGraph(_message.Message):
     NODES_FIELD_NUMBER: _ClassVar[int]
     EDGES_FIELD_NUMBER: _ClassVar[int]
     origin: str
-    nodes: _containers.RepeatedCompositeFieldContainer[Node]
+    nodes: _containers.RepeatedScalarFieldContainer[str]
     edges: _containers.RepeatedCompositeFieldContainer[Edge]
     def __init__(
         self,
         origin: _Optional[str] = ...,
-        nodes: _Optional[_Iterable[_Union[Node, _Mapping]]] = ...,
+        nodes: _Optional[_Iterable[str]] = ...,
         edges: _Optional[_Iterable[_Union[Edge, _Mapping]]] = ...,
-    ) -> None: ...
-
-class Node(_message.Message):
-    __slots__ = ("id", "name")
-    ID_FIELD_NUMBER: _ClassVar[int]
-    NAME_FIELD_NUMBER: _ClassVar[int]
-    id: str
-    name: str
-    def __init__(
-        self, id: _Optional[str] = ..., name: _Optional[str] = ...
     ) -> None: ...
 
 class Edge(_message.Message):

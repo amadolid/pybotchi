@@ -67,7 +67,7 @@ message JSONSchema {
 }
 
 message TraverseRequest {
-  repeated Node nodes = 1;
+  repeated string nodes = 1;
   string alias = 2;
   string group = 3;
   string name = 4;
@@ -78,14 +78,10 @@ message TraverseRequest {
 
 message TraverseGraph {
   string origin = 1;
-  repeated Node nodes = 2;
+  repeated string nodes = 2;
   repeated Edge edges = 3;
 }
 
-message Node {
-  string id = 1;
-  string name = 2;
-}
 message Edge {
   string source = 1;
   string target = 2;

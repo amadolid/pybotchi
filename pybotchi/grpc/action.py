@@ -29,7 +29,6 @@ from .pybotchi_pb2 import (
     ActionListResponse,
     ActionSchema,
     Event,
-    Node,
     TraverseGraph,
     TraverseRequest,
 )
@@ -498,9 +497,8 @@ async def graph(
         integrations = {}
 
     origin = f"{alias or action.__module__}.{action.__qualname__}"
-
     await traverse(
-        graph := Graph(origin=origin, nodes={(origin, action.__name__)}),
+        graph := Graph(origin=origin, nodes={origin}),
         action,
         allowed_actions,
         integrations,
@@ -556,17 +554,13 @@ async def traverse(
                 )
             )
 
-            node = (child, child_action.__name__)
-            if node not in graph.nodes:
-                graph.nodes.add(node)
+            if child not in graph.nodes:
+                graph.nodes.add(child)
                 if issubclass(child_action, GRPCRemoteAction):
                     response: TraverseGraph = (
                         await child_action.__grpc_client__.stub.traverse(
                             TraverseRequest(
-                                nodes=[
-                                    Node(id=node[0], name=node[1])
-                                    for node in graph.nodes
-                                ],
+                                nodes=list(graph.nodes),
                                 alias=child_action.__module__,
                                 group=child_action.__grpc_client__.config["group"],
                                 name=child_action.__grpc_action_name__,
@@ -575,7 +569,7 @@ async def traverse(
                         )
                     )
                     for n in response.nodes:
-                        graph.nodes.add((n.id, n.name))
+                        graph.nodes.add(n)
                     for e in response.edges:
                         graph.edges.add((e.source, e.target, e.concurrent, e.name))
                 else:

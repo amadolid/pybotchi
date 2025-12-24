@@ -92,7 +92,7 @@ class Graph(BaseModel):
     """Action Result Class."""
 
     origin: str | None = None
-    nodes: set[tuple[str, str]] = Field(default_factory=set)
+    nodes: set[str] = Field(default_factory=set)
     edges: set[tuple[str, str, bool, str]] = Field(default_factory=set)
 
     def flowchart(self) -> str:
@@ -101,7 +101,8 @@ class Graph(BaseModel):
 
         con = 0
         counter = Counter(edge[0] for edge in self.edges)
-        for node, alias in self.nodes:
+        for node in self.nodes:
+            alias = node.rsplit(".", 1)[-1]
             alias = f"{{{alias}}}" if counter[node] > 1 else f"[{alias}]"
             content += f"{node}{alias}\n"
         for source, target, concurrent, alias in self.edges:

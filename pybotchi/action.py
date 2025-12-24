@@ -507,7 +507,7 @@ async def graph(
     """Retrieve Graph."""
     origin = f"{action.__module__}.{action.__qualname__}"
     await traverse(
-        graph := Graph(origin=origin, nodes={(origin, action.__name__)}),
+        graph := Graph(origin=origin, nodes={origin}),
         action,
         allowed_actions,
     )
@@ -534,7 +534,6 @@ async def traverse(
         child = f"{child_action.__module__}.{child_action.__qualname__}"
         graph.edges.add((current, child, child_action.__concurrent__, ""))
 
-        node = (child, child_action.__name__)
-        if node not in graph.nodes:
-            graph.nodes.add(node)
+        if child not in graph.nodes:
+            graph.nodes.add(child)
             await traverse(graph, child_action, allowed_actions)

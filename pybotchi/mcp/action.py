@@ -508,9 +508,10 @@ async def graph(
     """Retrieve Graph."""
     if integrations is None:
         integrations = {}
+
     origin = f"{action.__module__}.{action.__qualname__}"
     await traverse(
-        graph := Graph(origin=origin, nodes={(origin, action.__name__)}),
+        graph := Graph(origin=origin, nodes={origin}),
         action,
         allowed_actions,
         integrations,
@@ -563,7 +564,6 @@ async def traverse(
             )
         )
 
-        node = (child, child_action.__name__)
-        if node not in graph.nodes:
-            graph.nodes.add(node)
+        if child not in graph.nodes:
+            graph.nodes.add(child)
             await traverse(graph, child_action, allowed_actions, integrations, bypass)

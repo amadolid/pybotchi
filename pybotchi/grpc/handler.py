@@ -22,7 +22,6 @@ from .pybotchi_pb2 import (
     Edge,
     Event,
     JSONSchema,
-    Node,
     TraverseGraph,
     TraverseRequest,
 )
@@ -234,27 +233,21 @@ class PyBotchiGRPC(PyBotchiGRPCServicer, Generic[TContext]):
         ):
             await context.abort(StatusCode.FAILED_PRECONDITION)
 
-        action = self.groups[request.group][request.name]
-
-        bypass = request.bypass
-        alias = request.alias
-
-        nodes = {(node.id, node.name) for node in request.nodes}
-
+        nodes = set(request.nodes)
         old_nodes = nodes.copy()
 
         await traverse(
             graph := Graph(nodes=nodes),
-            action,
+            self.groups[request.group][request.name],
             dict(request.allowed_actions),
             MessageToDict(request.integrations),
-            bypass,
-            alias,
+            request.bypass,
+            request.alias,
         )
 
         return TraverseGraph(
             nodes=[
-                Node(id=node[0].replace(self.module, request.alias, 1), name=node[1])
+                node.replace(self.module, request.alias, 1)
                 for node in graph.nodes
                 if node not in old_nodes
             ],
