@@ -24,9 +24,9 @@ async def connect() -> None:
     async with insecure_channel("localhost:50051") as channel:
         stub = PyBotchiGRPCStub(channel)
 
-        action_list = await stub.action_list(ActionListRequest(group="group-1"))
+        action_list = await stub.action_list(ActionListRequest(groups=["group-1"]))
         print(action_list.actions)
-        action_list = await stub.action_list(ActionListRequest(group="group-2"))
+        action_list = await stub.action_list(ActionListRequest(groups=["group-2"]))
         print(action_list.actions)
 
         queue = Queue[Event]()
@@ -34,7 +34,7 @@ async def connect() -> None:
             Event(
                 name="init",
                 data={
-                    "group": "group-1",
+                    "groups": ["group-1"],
                     "context": {
                         "prompts": [
                             {

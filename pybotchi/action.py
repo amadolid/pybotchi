@@ -21,7 +21,7 @@ from .common import (
     UNSPECIFIED,
     UsageData,
 )
-from .utils import apply_placeholders, uuid
+from .utils import apply_placeholders, unwrap_exceptions, uuid
 
 if TYPE_CHECKING:
     from .context import Context
@@ -159,7 +159,12 @@ class Action(BaseModel, Generic[TContext]):
         """Execute fallback process."""
         return ActionReturn.GO
 
-    async def on_error(self, context: TContext, exception: Exception) -> ActionReturn:
+    async def on_error(
+        self,
+        context: TContext,
+        exception: Exception,
+        unwrapped_exceptions: Generator[Exception, None, None],
+    ) -> ActionReturn:
         """Execute on error process."""
         return ActionReturn.GO
 
@@ -276,8 +281,14 @@ class Action(BaseModel, Generic[TContext]):
         except Exception as exception:
             if not self.__has_on_error__:
                 self.__to_commit__ = False
-                raise exception
-            elif (result := await self.on_error(context, exception)).is_break:
+                raise next(unwrap_exceptions(exception))
+            elif (
+                result := await self.on_error(
+                    context,
+                    exception,
+                    unwrap_exceptions(exception),
+                )
+            ).is_break:
                 return result
             return ActionReturn.GO
         finally:

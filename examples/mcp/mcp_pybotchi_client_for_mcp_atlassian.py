@@ -20,7 +20,9 @@ class GeneralChat(MCPAction):
     """Casual Generic Chat."""
 
     # https://github.com/sooperset/mcp-atlassian
-    __mcp_connections__ = [MCPConnection("jira", "SSE", "http://localhost:9000/sse")]
+    __mcp_connections__ = [
+        MCPConnection("jira", "SSE", "http://localhost:9000/sse", manual_enable=True)
+    ]
     __max_child_iteration__ = 5
     # __detached__ = True
 
@@ -73,37 +75,7 @@ async def test() -> None:
             #     "url": "http://localhost:9000/mcp",
             # },
             # ----------------------------------------- #
-            "allowed_tools": {
-                "JiraSearchFields": False,
-                "JiraCreateSprint": False,
-                "JiraGetAllProjects": False,
-                "JiraCreateVersion": False,
-                "JiraLinkToEpic": False,
-                "JiraGetWorklog": False,
-                "JiraDeleteIssue": False,
-                "JiraAddComment": False,
-                "JiraUpdateSprint": False,
-                "JiraCreateRemoteIssueLink": False,
-                "JiraGetProjectIssues": False,
-                "JiraBatchCreateIssues": False,
-                "JiraAddWorklog": False,
-                "JiraGetSprintsFromBoard": False,
-                "JiraCreateIssue": False,
-                "JiraGetAgileBoards": False,
-                "JiraRemoveIssueLink": False,
-                "JiraGetTransitions": False,
-                "JiraGetUserProfile": False,
-                "JiraGetLinkTypes": False,
-                "JiraBatchGetChangelogs": False,
-                "JiraGetProjectVersions": False,
-                "JiraTransitionIssue": False,
-                "JiraUpdateIssue": False,
-                "JiraGetSprintIssues": False,
-                "JiraBatchCreateVersions": False,
-                "JiraDownloadAttachments": False,
-                "JiraCreateIssueLink": False,
-                "JiraGetBoardIssues": False,
-            },
+            "allowed_tools": {"JiraSearch": True, "JiraGetIssue": True},
         }
     }
     context = MCPContext(

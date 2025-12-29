@@ -19,9 +19,7 @@ from grpc_prerequisite import (
 class GeneralChat(GRPCAction):
     """Casual Generic Chat."""
 
-    __grpc_connections__ = [
-        GRPCConnection("testing", False, "localhost:50051", ["group-1"])
-    ]
+    __grpc_connections__ = [GRPCConnection("testing", "localhost:50051", ["group-1"])]
 
     async def pre_grpc(self, context: GRPCContext) -> ActionReturn:
         """Execute pre grpc execution."""
@@ -58,7 +56,7 @@ async def test() -> None:
         prompts=[
             {
                 "role": ChatRole.SYSTEM,
-                "content": "",
+                "content": "Address user's query while always including `RequestValidator` as first tool if available",
             },
             {
                 "role": ChatRole.USER,

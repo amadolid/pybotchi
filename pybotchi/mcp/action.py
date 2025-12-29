@@ -39,7 +39,7 @@ from .common import MCPConfig, MCPConnection, MCPIntegration, MCPMode
 from .context import TContext
 from ..action import Action, ChildActions
 from ..common import ActionReturn, ChatRole, Graph
-from ..utils import is_camel_case
+from ..utils import is_camel_case, unwrap_exceptions
 
 DMT = get_data_model_types(
     DataModelType.PydanticV2BaseModel,
@@ -55,6 +55,7 @@ class MCPClient:
         session: ClientSession,
         name: str,
         config: MCPConfig,
+        manual_enable: bool,
         allowed_tools: dict[str, bool],
         exclude_unset: bool,
     ) -> None:
@@ -62,6 +63,7 @@ class MCPClient:
         self.session = session
         self.name = name
         self.config = config
+        self.manual_enable = manual_enable
         self.allowed_tools = allowed_tools
         self.exclude_unset = exclude_unset
 
@@ -125,7 +127,7 @@ class MCPClient:
                 )
 
             if not self.allowed_tools or self.allowed_tools.get(
-                name, action.__enabled__
+                name, False if self.manual_enable else action.__enabled__
             ):
                 actions[name] = action
         return actions
@@ -211,8 +213,14 @@ class MCPAction(Action[TContext], Generic[TContext]):
         except Exception as exception:
             if not self.__has_on_error__:
                 self.__to_commit__ = False
-                raise exception
-            elif (result := await self.on_error(context, exception)).is_break:
+                raise next(unwrap_exceptions(exception))
+            elif (
+                result := await self.on_error(
+                    context,
+                    exception,
+                    unwrap_exceptions(exception),
+                )
+            ).is_break:
                 return result
             return ActionReturn.GO
         finally:
@@ -416,6 +424,7 @@ async def multi_mcp_clients(
                 session,
                 conn.name,
                 overrided_config,
+                conn.manual_enable,
                 allowed_tools,
                 integration.get(
                     "exclude_unset",

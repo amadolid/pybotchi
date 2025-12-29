@@ -34,6 +34,7 @@ from .pybotchi_pb2 import (
 from .pybotchi_pb2_grpc import PyBotchiGRPCStub
 from ..action import Action, ChildActions
 from ..common import ActionReturn, Graph
+from ..utils import unwrap_exceptions
 
 DMT = get_data_model_types(
     DataModelType.PydanticV2BaseModel,
@@ -49,6 +50,7 @@ class GRPCClient:
         stub: PyBotchiGRPCStub,
         name: str,
         config: GRPCConfigLoaded,
+        manual_enable: bool,
         allowed_actions: dict[str, bool],
         exclude_unset: bool,
     ) -> None:
@@ -56,6 +58,7 @@ class GRPCClient:
         self.stub = stub
         self.name = name
         self.config = config
+        self.manual_enable = manual_enable
         self.allowed_actions = allowed_actions
         self.exclude_unset = exclude_unset
 
@@ -111,9 +114,11 @@ class GRPCClient:
         """Retrieve Tools."""
         response: ActionListResponse = await self.stub.action_list(
             ActionListRequest(
-                groups=self.config["groups"], allowed_actions=self.allowed_actions
+                groups=self.config["groups"],
+                allowed_actions=None if self.manual_enable else self.allowed_actions,
             )
         )
+
         for action_schema in response.actions:
             name, action = self.build_action(response.agent_id, action_schema)
             if _tool := grpc_actions.get(name):
@@ -122,12 +127,12 @@ class GRPCClient:
                     (_tool, action),
                     {"__module__": f"{action.__module__}.patched"},
                 )
-                if not self.allowed_actions or self.allowed_actions.get(
-                    name, action.__enabled__
-                ):
-                    actions[name] = action
-            else:
+
+            if not self.allowed_actions or self.allowed_actions.get(
+                name, False if self.manual_enable else action.__enabled__
+            ):
                 actions[name] = action
+
         return actions
 
 
@@ -209,8 +214,14 @@ class GRPCAction(Action[TContext], Generic[TContext]):
         except Exception as exception:
             if not self.__has_on_error__:
                 self.__to_commit__ = False
-                raise exception
-            elif (result := await self.on_error(context, exception)).is_break:
+                raise next(unwrap_exceptions(exception))
+            elif (
+                result := await self.on_error(
+                    context,
+                    exception,
+                    unwrap_exceptions(exception),
+                )
+            ).is_break:
                 return result
             return ActionReturn.GO
         finally:
@@ -220,10 +231,10 @@ class GRPCAction(Action[TContext], Generic[TContext]):
     async def get_child_actions(self, context: TContext) -> ChildActions:
         """Retrieve child Actions."""
         normal_tools = await super().get_child_actions(context)
-        [
+
+        for client in self.__grpc_clients__.values():
             await client.patch_actions(normal_tools, self.__grpc_tool_actions__)
-            for client in self.__grpc_clients__.values()
-        ]
+
         return normal_tools
 
     ####################################################################################################
@@ -494,6 +505,7 @@ async def multi_grpc_clients(
                 PyBotchiGRPCStub(channel),
                 conn.name,
                 overrided_config,
+                conn.manual_enable,
                 allowed_actions,
                 integration.get(
                     "exclude_unset",

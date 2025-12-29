@@ -18,7 +18,7 @@ class MCPMode(StrEnum):
 
 
 ######################################################################
-#          need to limit this to make it more serializable.          #
+#         need to improve this to make it more serializable.         #
 ######################################################################
 class AsyncClientArgs(TypedDict, total=False):
     """Async Client Config."""
@@ -95,6 +95,7 @@ class MCPConnection:
         auth: Auth | None = None,
         on_session_created: Callable[[str], None] | None = None,
         async_client_args: AsyncClientArgs | None = None,
+        manual_enable: bool = False,
         allowed_tools: dict[str, bool] | None = None,
         exclude_unset: bool = True,
         require_integration: bool = True,
@@ -113,6 +114,7 @@ class MCPConnection:
         self.async_client_args: AsyncClientArgs = (
             {} if async_client_args is None else async_client_args
         )
+        self.manual_enable = manual_enable
         self.allowed_tools = {} if allowed_tools is None else allowed_tools
         self.exclude_unset = exclude_unset
         self.require_integration = require_integration

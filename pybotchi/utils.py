@@ -1,5 +1,7 @@
 """Pybotchi Utilities."""
 
+from collections import deque
+from collections.abc import Generator
 from contextlib import suppress
 from importlib import import_module
 from re import compile
@@ -25,6 +27,22 @@ def apply_placeholders(target: str, **placeholders: Any) -> str:
 def is_camel_case(data: str) -> bool:
     """Check if string is in camel case."""
     return CAMEL_CASE.fullmatch(data) is not None
+
+
+def unwrap_exceptions(
+    exception: Exception,
+) -> Generator[Exception, None, None]:
+    """Extract root exceptions."""
+    if isinstance(exception, ExceptionGroup):
+        queue = deque[Exception](exception.exceptions)
+        while queue:
+            que = queue.popleft()
+            if isinstance(que, ExceptionGroup):
+                queue.extend(que.exceptions)
+            else:
+                yield que
+    else:
+        yield exception
 
 
 for module, attr in (("uuid", "uuid7"), ("uuid6", "uuid7"), ("uuid", "uuid4")):

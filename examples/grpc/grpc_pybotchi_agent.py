@@ -63,9 +63,7 @@ class JokeWithStoryTelling(GRPCAction):
     """Tell Joke or Story."""
 
     __groups__ = {"grpc": {"group-1"}}
-    __grpc_connections__ = [
-        GRPCConnection("testing2", False, "localhost:50051", ["group-2"])
-    ]
+    __grpc_connections__ = [GRPCConnection("testing2", "localhost:50051", ["group-2"])]
 
     async def post(self, context: GRPCContext) -> ActionReturn:
         """Execute pre process."""
@@ -101,7 +99,7 @@ class Joke(Action):
         """Additional Child Action."""
 
         __grpc_connections__ = [
-            GRPCConnection("testing2", False, "localhost:50051", ["group-1", "group-2"])
+            GRPCConnection("testing2", "localhost:50051", ["group-1", "group-2"])
         ]
 
 
