@@ -230,10 +230,10 @@ class MCPAction(Action[TContext], Generic[TContext]):
     async def get_child_actions(self, context: TContext) -> ChildActions:
         """Retrieve child Actions."""
         normal_tools = await super().get_child_actions(context)
-        [
+
+        for client in self.__mcp_clients__.values():
             await client.patch_tools(normal_tools, self.__mcp_tool_actions__)
-            for client in self.__mcp_clients__.values()
-        ]
+
         return normal_tools
 
     ####################################################################################################
