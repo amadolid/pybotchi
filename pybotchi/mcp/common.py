@@ -36,11 +36,7 @@ class AsyncClientArgs(TypedDict, total=False):
         | None
     )
     headers: (
-        Mapping[str, str]
-        | Mapping[bytes, bytes]
-        | Sequence[tuple[str, str]]
-        | Sequence[tuple[bytes, bytes]]
-        | None
+        Mapping[str, str] | Mapping[bytes, bytes] | Sequence[tuple[str, str]] | Sequence[tuple[bytes, bytes]] | None
     )
     cookies: dict[str, str] | list[tuple[str, str]] | None
     verify: str | bool
@@ -48,12 +44,7 @@ class AsyncClientArgs(TypedDict, total=False):
     http1: bool
     http2: bool
     proxy: str | None
-    timeout: (
-        float
-        | None
-        | tuple[float | None, float | None, float | None, float | None]
-        | None
-    )
+    timeout: float | None | tuple[float | None, float | None, float | None, float | None] | None
     max_redirects: int
     base_url: str
     trust_env: bool
@@ -115,9 +106,7 @@ class MCPConnection:
         self.httpx_client_factory = httpx_client_factory
         self.auth = auth
         self.on_session_created = on_session_created
-        self.async_client_args: AsyncClientArgs = (
-            {} if async_client_args is None else async_client_args
-        )
+        self.async_client_args: AsyncClientArgs = {} if async_client_args is None else async_client_args
         self.manual_enable = manual_enable
         self.allowed_tools = {} if allowed_tools is None else allowed_tools
         self.tool_action_class = tool_action_class
@@ -142,19 +131,14 @@ class MCPConnection:
 
         headers: dict[str, str] | None
         if _headers := override.get("headers"):
-            if self.headers is None:
-                headers = _headers
-            else:
-                headers = self.headers | _headers
+            headers = _headers if self.headers is None else (self.headers | _headers)
         else:
             headers = self.headers
 
         timeout = override.get("timeout", self.timeout)
         sse_read_timeout = override.get("sse_read_timeout", self.sse_read_timeout)
         terminate_on_close = override.get("terminate_on_close", self.terminate_on_close)
-        httpx_client_factory = override.get(
-            "httpx_client_factory", self.httpx_client_factory
-        )
+        httpx_client_factory = override.get("httpx_client_factory", self.httpx_client_factory)
         auth = override.get("auth", self.auth)
 
         if _async_client_args := override.get("async_client_args"):

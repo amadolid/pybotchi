@@ -53,14 +53,9 @@ class ManipulateFilesContent(Action):
         """Executre pre process."""
         chat = context.llm
         if self.__temperature__ is not None:
-            chat = chat.with_config(
-                configurable={"llm_temperature": self.__temperature__}
-            )
+            chat = chat.with_config(configurable={"llm_temperature": self.__temperature__})
 
-        files = "\n---\n".join(
-            f"```{key}\n{val}\n```"
-            for key, val in (await self.extract(context)).items()
-        )
+        files = "\n---\n".join(f"```{key}\n{val}\n```" for key, val in (await self.extract(context)).items())
 
         response = await chat.ainvoke(
             [
@@ -146,9 +141,7 @@ Files:
 ${files}
 """.strip()
 
-    async def get_files(
-        self, context: Context
-    ) -> AsyncGenerator[tuple[int, str, bytes, str], None]:
+    async def get_files(self, context: Context) -> AsyncGenerator[tuple[int, str, bytes, str], None]:
         """Retrieve files from current context.
 
         You may override this to meet your requirements.
@@ -189,13 +182,9 @@ ${files}
         async for id, file_name, content, content_type in await self.get_files(context):
             match content_type:
                 case "application/pdf":
-                    extracted[f"{id}-{file_name}"] = await self.extract_pdf(
-                        context, id, content
-                    )
+                    extracted[f"{id}-{file_name}"] = await self.extract_pdf(context, id, content)
                 case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-                    extracted[f"{id}-{file_name}"] = await self.extract_docx(
-                        context, id, content
-                    )
+                    extracted[f"{id}-{file_name}"] = await self.extract_docx(context, id, content)
                 case _:
                     pass
         return extracted
@@ -214,21 +203,14 @@ ${files}
                 for order, block in enumerate(blocks):
                     if block["type"] == 1:
                         if block["image"] and (
-                            not ignored_images
-                            or not await self.skip_image(
-                                context, ignored_images, block["image"]
-                            )
+                            not ignored_images or not await self.skip_image(context, ignored_images, block["image"])
                         ):
-                            placeholder = (
-                                f'<img src="{id}-{page_num}-{order}.{block["ext"]}">'
-                            )
+                            placeholder = f'<img src="{id}-{page_num}-{order}.{block["ext"]}">'
                             images[placeholder] = block["image"]
                             text += f"\n{placeholder}\n\n"
                     else:
                         for line in block["lines"]:
-                            text += f'{" ".join(
-                                span["text"] for span in line["spans"]
-                            ).strip()}\n'
+                            text += f"{' '.join(span['text'] for span in line['spans']).strip()}\n"
 
         return await self.append_images_context(context, text, images)
 
@@ -238,14 +220,10 @@ ${files}
             context,
             document := Document(BytesIO(content)),
             document.element,
-            docx_content := DocxContent(
-                id=id, ignored_images=await self.get_ignored_images(context)
-            ),
+            docx_content := DocxContent(id=id, ignored_images=await self.get_ignored_images(context)),
         )
 
-        return await self.append_images_context(
-            context, docx_content.text, docx_content.images
-        )
+        return await self.append_images_context(context, docx_content.text, docx_content.images)
 
     async def traversing_docx_extractor(
         self,
@@ -262,9 +240,7 @@ ${files}
                 children = element.getchildren()
                 if children:
                     for child in children:
-                        await self.traversing_docx_extractor(
-                            context, document, child, docx_content
-                        )
+                        await self.traversing_docx_extractor(context, document, child, docx_content)
             case CT_Tbl():
                 table_content: list[list[str]] = []
                 for row in element.tr_lst:
@@ -272,17 +248,15 @@ ${files}
                     for cell in row.tc_lst:
                         cell_content = docx_content.child()
                         for child in cell.getchildren():
-                            await self.traversing_docx_extractor(
-                                context, document, child, cell_content
-                            )
+                            await self.traversing_docx_extractor(context, document, child, cell_content)
                         row_content.append(cell_content.text)
                         docx_content.merge_images(cell_content.images)
                     table_content.append(row_content)
 
-                border = f'| {" --- |" * len(table_content[0])}'
+                border = f"| {' --- |' * len(table_content[0])}"
                 docx_content.append(f"\n{border}\n")
                 for row_content in table_content:
-                    docx_content.append(f'| {" | ".join(row_content)} |\n')
+                    docx_content.append(f"| {' | '.join(row_content)} |\n")
                 docx_content.append("\n")
             case CT_Blip():
                 if (
@@ -290,9 +264,7 @@ ${files}
                     and isinstance(target := part._target, Part)
                     and (
                         not docx_content.ignored_images
-                        or not self.skip_image(
-                            context, docx_content.ignored_images, target.blob
-                        )
+                        or not self.skip_image(context, docx_content.ignored_images, target.blob)
                     )
                 ):
                     placeholder = f'<img src="{docx_content.id}-{element.embed}-{target.filename}">'
@@ -300,13 +272,9 @@ ${files}
                     docx_content.add_image(placeholder, target.blob)
             case _:
                 for child in element.getchildren():
-                    await self.traversing_docx_extractor(
-                        context, document, child, docx_content
-                    )
+                    await self.traversing_docx_extractor(context, document, child, docx_content)
 
-    async def append_images_context(
-        self, context: Context, content: str, images: dict[str, bytes]
-    ) -> str:
+    async def append_images_context(self, context: Context, content: str, images: dict[str, bytes]) -> str:
         """Append images context."""
         semaphore = Semaphore(self._max_running_image_captioning)
         async with TaskGroup() as tg:
@@ -349,7 +317,7 @@ ${files}
                             {
                                 "type": "image_url",
                                 "image_url": {
-                                    "url": f'data:image/jpeg;base64,{b64encode(content).decode("utf-8")}',
+                                    "url": f"data:image/jpeg;base64,{b64encode(content).decode('utf-8')}",
                                     "detail": "high",
                                 },
                             }
@@ -377,11 +345,7 @@ ${files}
             return any(
                 True
                 for x_img in excluded
-                if (
-                    x_img.shape[0] <= c_img.shape[0]
-                    and x_img.shape[1] <= c_img.shape[1]
-                )
-                and minMaxLoc(matchTemplate(c_img, x_img, TM_CCOEFF_NORMED))[1]
-                >= threshold
+                if (x_img.shape[0] <= c_img.shape[0] and x_img.shape[1] <= c_img.shape[1])
+                and minMaxLoc(matchTemplate(c_img, x_img, TM_CCOEFF_NORMED))[1] >= threshold
             )
         return False

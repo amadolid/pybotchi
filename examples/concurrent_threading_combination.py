@@ -14,21 +14,15 @@ class GeneralChat(Action):
 
         __concurrent__ = True
 
-        def additional_sync_execution(
-            self, arg1: int, arg2: str, kwarg1: int = 1, kwarg2: str = ""
-        ) -> None:
+        def additional_sync_execution(self, arg1: int, arg2: str, kwarg1: int = 1, kwarg2: str = "") -> None:
             """Execute additional sync function."""
-            print(
-                f"Additional function1 - arg1: {arg1} , arg2: {arg2} , kwarg1: {kwarg1} , kwarg2: {kwarg2}"
-            )
+            print(f"Additional function1 - arg1: {arg1} , arg2: {arg2} , kwarg1: {kwarg1} , kwarg2: {kwarg2}")
 
         async def your_function_name(self, context: Context) -> ActionReturn:
             """Execute other function."""
             print("Executing Joke...")
             message = await context.llm.ainvoke("generate very short joke")
-            await context.add_usage(
-                self, context.llm.model_name, message.usage_metadata
-            )
+            await context.add_usage(self, context.llm.model_name, message.usage_metadata)
 
             await context.add_response(self, message.text)
             print("Done executing Joke...")
@@ -37,13 +31,9 @@ class GeneralChat(Action):
         async def pre(self, context: Context) -> ActionReturn:
             """Execute pre process."""
             # Without waiting
-            context.run_func_in_thread(
-                self.additional_sync_execution, None, 1, "a", kwarg1=1, kwarg2="a"
-            )
+            context.run_func_in_thread(self.additional_sync_execution, None, 1, "a", kwarg1=1, kwarg2="a")
             # With wait
-            await context.run_func_in_thread(
-                self.additional_sync_execution, None, 2, "b", kwarg1=2, kwarg2="b"
-            )
+            await context.run_func_in_thread(self.additional_sync_execution, None, 2, "b", kwarg1=2, kwarg2="b")
             return await context.run_task_in_thread(self.your_function_name(context))
 
     class StoryTelling(Action):
@@ -51,21 +41,15 @@ class GeneralChat(Action):
 
         __concurrent__ = True
 
-        def additional_sync_execution(
-            self, arg1: int, arg2: str, kwarg1: int = 0, kwarg2: str = ""
-        ) -> None:
+        def additional_sync_execution(self, arg1: int, arg2: str, kwarg1: int = 0, kwarg2: str = "") -> None:
             """Execute additional sync function."""
-            print(
-                f"Additional function2 - arg1: {arg1} , arg2: {arg2} , kwarg1: {kwarg1} , kwarg2: {kwarg2}"
-            )
+            print(f"Additional function2 - arg1: {arg1} , arg2: {arg2} , kwarg1: {kwarg1} , kwarg2: {kwarg2}")
 
         async def your_function_name(self, context: Context) -> ActionReturn:
             """Execute pre process."""
             print("Executing StoryTelling...")
             message = await context.llm.ainvoke("generate a very short story")
-            await context.add_usage(
-                self, context.llm.model_name, message.usage_metadata
-            )
+            await context.add_usage(self, context.llm.model_name, message.usage_metadata)
 
             await context.add_response(self, message.text)
             print("Done executing StoryTelling...")
@@ -74,22 +58,16 @@ class GeneralChat(Action):
         async def pre(self, context: Context) -> ActionReturn:
             """Execute pre process."""
             # Without waiting
-            context.run_func_in_thread(
-                self.additional_sync_execution, None, 1, "a", kwarg1=1, kwarg2="a"
-            )
+            context.run_func_in_thread(self.additional_sync_execution, None, 1, "a", kwarg1=1, kwarg2="a")
             # With wait
-            await context.run_func_in_thread(
-                self.additional_sync_execution, None, 2, "b", kwarg1=2, kwarg2="b"
-            )
+            await context.run_func_in_thread(self.additional_sync_execution, None, 2, "b", kwarg1=2, kwarg2="b")
             return await context.run_task_in_thread(self.your_function_name(context))
 
     async def post(self, context: Context) -> ActionReturn:
         """Execute pre process."""
         print("Executing post...")
         message = await context.llm.ainvoke(context.prompts)
-        await context.add_usage(
-            self, context.llm.model_name, message.usage_metadata, "combine"
-        )
+        await context.add_usage(self, context.llm.model_name, message.usage_metadata, "combine")
 
         await context.add_message(ChatRole.ASSISTANT, message.text)
         print("Done executing post...")

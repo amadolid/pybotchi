@@ -7,7 +7,7 @@ from inspect import getmembers
 from itertools import islice
 from typing import Any, Generic
 
-from datamodel_code_generator import DataModelType, PythonVersion
+from datamodel_code_generator import DataModelType, Formatter, PythonVersion
 from datamodel_code_generator.model import get_data_model_types
 from datamodel_code_generator.parser.jsonschema import (
     JsonSchemaParser,
@@ -15,7 +15,7 @@ from datamodel_code_generator.parser.jsonschema import (
 
 from google.protobuf.json_format import MessageToDict
 
-from grpc import Compression, ssl_channel_credentials  # type: ignore[attr-defined] # mypy issue
+from grpc import Compression, ssl_channel_credentials
 from grpc.aio import insecure_channel, secure_channel
 
 from orjson import dumps
@@ -64,9 +64,7 @@ class GRPCClient:
         self.remote_action_class = remote_action_class or GRPCRemoteAction
         self.exclude_unset = exclude_unset
 
-    def build_action(
-        self, agent_id: str, action_schema: ActionSchema
-    ) -> tuple[str, type["GRPCRemoteAction"]]:
+    def build_action(self, agent_id: str, action_schema: ActionSchema) -> tuple[str, type["GRPCRemoteAction"]]:
         """Build GRPCToolAction."""
         globals: dict[str, Any] = {}
         schema = action_schema.schema
@@ -81,6 +79,7 @@ class GRPCClient:
                 dump_resolve_reference_action=DMT.dump_resolve_reference_action,
                 class_name=class_name,
                 strict_nullable=True,
+                formatters=[Formatter.RUFF_FORMAT, Formatter.RUFF_CHECK],
             )
             .parse()
             .removeprefix("from __future__ import annotations"),  # type: ignore[union-attr]
@@ -97,9 +96,7 @@ class GRPCClient:
                 "__grpc_client__": self,
                 "__grpc_group__": action_schema.group,
                 "__grpc_action_name__": schema.title,
-                "__grpc_exclude_unset__": getattr(
-                    base_class, "__grpc_exclude_unset__", self.exclude_unset
-                ),
+                "__grpc_exclude_unset__": getattr(base_class, "__grpc_exclude_unset__", self.exclude_unset),
                 "__concurrent__": action_schema.concurrent,
                 "__module__": f"grpc.{agent_id}",
             },
@@ -110,9 +107,7 @@ class GRPCClient:
 
         return class_name, action
 
-    async def patch_actions(
-        self, actions: ChildActions, grpc_actions: ChildActions
-    ) -> ChildActions:
+    async def patch_actions(self, actions: ChildActions, grpc_actions: ChildActions) -> ChildActions:
         """Retrieve Tools."""
         response: ActionListResponse = await self.stub.action_list(
             ActionListRequest(
@@ -171,9 +166,7 @@ class GRPCAction(Action[TContext], Generic[TContext]):
         """Execute pre grpc process."""
         return ActionReturn.GO
 
-    async def execute(
-        self, context: TContext, parent: Action | None = None
-    ) -> ActionReturn:
+    async def execute(self, context: TContext, parent: Action | None = None) -> ActionReturn:
         """Execute main process."""
         self._parent = parent
         parent_context = context
@@ -187,15 +180,10 @@ class GRPCAction(Action[TContext], Generic[TContext]):
             if context.check_self_recursion(self):
                 return ActionReturn.END
 
-            if (
-                self.__has_pre_grpc__
-                and (result := await self.pre_grpc(context)).is_break
-            ):
+            if self.__has_pre_grpc__ and (result := await self.pre_grpc(context)).is_break:
                 return result
 
-            async with multi_grpc_clients(
-                context.integrations, self.__grpc_connections__
-            ) as clients:
+            async with multi_grpc_clients(context.integrations, self.__grpc_connections__) as clients:
                 self.__grpc_clients__ = clients
 
                 if self.__has_pre__ and (result := await self.pre(context)).is_break:
@@ -219,7 +207,7 @@ class GRPCAction(Action[TContext], Generic[TContext]):
         except Exception as exception:
             if not self.__has_on_error__:
                 self.__to_commit__ = False
-                raise next(unwrap_exceptions(exception))
+                raise next(unwrap_exceptions(exception)) from None
             elif (
                 result := await self.on_error(
                     context,
@@ -302,18 +290,14 @@ class GRPCRemoteAction(Action[TContext], Generic[TContext]):
         if not (data := MessageToDict(event)["data"]):
             raise ValueError("Not valid event!")
 
-        raise GRPCRemoteError(
-            self.__class__.__name__, self.__grpc_action_name__, **data
-        )
+        raise GRPCRemoteError(self.__class__.__name__, self.__grpc_action_name__, **data)
 
     async def grpc_event_update(self, context: TContext, event: Event) -> None:
         """Consume close event."""
         if not (data := MessageToDict(event)["data"]):
             raise ValueError("Not valid event!")
 
-        if (raw_exec := data.get("exec")) and self.__grpc_client__.config.get(
-            "allow_exec"
-        ):
+        if (raw_exec := data.get("exec")) and self.__grpc_client__.config.get("allow_exec"):
             exec(raw_exec, None, {"self": self, "context": context, "event": event})
         elif target := locals().get(data["target"]):
             attrs = data["attrs"]
@@ -331,18 +315,12 @@ class GRPCRemoteAction(Action[TContext], Generic[TContext]):
 
                 ref = {"${self}": self, "${context}": context, "${event}": event}
                 args = (
-                    [
-                        ref.get(arg, arg) if isinstance(arg, str) else arg
-                        for arg in _args
-                    ]
+                    [ref.get(arg, arg) if isinstance(arg, str) else arg for arg in _args]
                     if (_args := data.get("args"))
                     else []
                 )
                 kwargs = (
-                    {
-                        key: ref.get(value, value) if isinstance(value, str) else value
-                        for key, value in _kwargs.items()
-                    }
+                    {key: ref.get(value, value) if isinstance(value, str) else value for key, value in _kwargs.items()}
                     if (_kwargs := data.get("kwargs"))
                     else {}
                 )
@@ -360,9 +338,7 @@ class GRPCRemoteAction(Action[TContext], Generic[TContext]):
 
     async def grpc_send(self, name: str, data: dict[str, Any] | None = None) -> None:
         """Send event."""
-        await self.__grpc_queue__.put(
-            Event(name=name, data={} if data is None else data)
-        )
+        await self.__grpc_queue__.put(Event(name=name, data={} if data is None else data))
 
     async def grpc_consume(self, context: TContext, event: Event) -> None:
         """Consume event."""
@@ -485,11 +461,7 @@ async def multi_grpc_clients(
                             certificate_chain=overrided_config["certificate_chain"],
                         ),
                         options=overrided_config["options"],
-                        compression=(
-                            Compression[comp]
-                            if (comp := overrided_config["compression"])
-                            else None
-                        ),
+                        compression=(Compression[comp] if (comp := overrided_config["compression"]) else None),
                         interceptors=conn.interceptors,
                     )
                 )
@@ -498,11 +470,7 @@ async def multi_grpc_clients(
                     insecure_channel(
                         target=overrided_config["url"],
                         options=overrided_config["options"],
-                        compression=(
-                            Compression[comp]
-                            if (comp := overrided_config["compression"])
-                            else None
-                        ),
+                        compression=(Compression[comp] if (comp := overrided_config["compression"]) else None),
                         interceptors=conn.interceptors,
                     )
                 )
@@ -575,10 +543,7 @@ async def traverse(
             clients = await stack.enter_async_context(
                 multi_grpc_clients(integrations, action.__grpc_connections__, bypass)
             )
-            [
-                await client.patch_actions(child_actions, action.__grpc_tool_actions__)
-                for client in clients.values()
-            ]
+            [await client.patch_actions(child_actions, action.__grpc_tool_actions__) for client in clients.values()]
 
         for child_action in child_actions.values():
             child = (
@@ -591,26 +556,20 @@ async def traverse(
                     current,
                     child,
                     child_action.__concurrent__,
-                    (
-                        child_action.__grpc_client__.name
-                        if issubclass(child_action, GRPCRemoteAction)
-                        else ""
-                    ),
+                    (child_action.__grpc_client__.name if issubclass(child_action, GRPCRemoteAction) else ""),
                 )
             )
 
             if child not in graph.nodes:
                 graph.nodes.add(child)
                 if issubclass(child_action, GRPCRemoteAction):
-                    response: TraverseGraph = (
-                        await child_action.__grpc_client__.stub.traverse(
-                            TraverseRequest(
-                                nodes=list(graph.nodes),
-                                alias=child_action.__module__,
-                                groups=child_action.__grpc_client__.config["groups"],
-                                name=child_action.__grpc_action_name__,
-                                integrations=integrations,
-                            )
+                    response: TraverseGraph = await child_action.__grpc_client__.stub.traverse(
+                        TraverseRequest(
+                            nodes=list(graph.nodes),
+                            alias=child_action.__module__,
+                            groups=child_action.__grpc_client__.config["groups"],
+                            name=child_action.__grpc_action_name__,
+                            integrations=integrations,
                         )
                     )
                     for n in response.nodes:

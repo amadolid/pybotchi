@@ -1,5 +1,7 @@
 """Pybotchi GRPC."""
 
+from sys import argv
+
 try:
     from .action import GRPCAction, GRPCRemoteAction, graph
     from .common import GRPCConfig, GRPCConnection, GRPCIntegration
@@ -14,6 +16,9 @@ try:
         "GRPCIntegration",
         "GRPCContext",
     ]
+except TypeError:
+    if not any(arg.endswith("pybotchi-grpc-compile") for arg in argv):
+        raise
 except ModuleNotFoundError as e:
     raise ModuleNotFoundError(
         """GRPC feature not installed. Please install pybotchi with the `grpc` extra dependency.

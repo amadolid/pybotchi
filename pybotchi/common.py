@@ -110,9 +110,7 @@ class Graph(BaseModel):
 
             if concurrent:
                 connection = (
-                    f"ed{con}@--**{base}** : {alias}<br>*[concurrent]*-->"
-                    if alias
-                    else f"ed{con}@--*[concurrent]*-->"
+                    f"ed{con}@--**{base}** : {alias}<br>*[concurrent]*-->" if alias else f"ed{con}@--*[concurrent]*-->"
                 )
                 con += 1
             else:
@@ -122,15 +120,13 @@ class Graph(BaseModel):
         constraints = (
             (
                 "classDef animate stroke-dasharray: 10,stroke-dashoffset: 500,animation: dash 10s linear infinite;\n"
-                f"class {",".join(f"ed{i}"for i in range(con))} animate"
+                f"class {','.join(f'ed{i}' for i in range(con))} animate"
             )
             if con
             else ""
         )
 
-        origin = (
-            f"style {self.origin} fill:#4CAF50,color:#000000\n" if self.origin else ""
-        )
+        origin = f"style {self.origin} fill:#4CAF50,color:#000000\n" if self.origin else ""
 
         return f"flowchart TD\n{content}{origin}{constraints}"
 

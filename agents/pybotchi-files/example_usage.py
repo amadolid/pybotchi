@@ -38,7 +38,7 @@ app = FastAPI()
 async def test(
     query: str,
     files: list[UploadFile],
-    ignored_images: list[UploadFile] = File(default_factory=list),
+    ignored_images: list[UploadFile] = File(default_factory=list),  # noqa: B008
 ) -> str:
     """Test Agent."""
     context = Context(
@@ -125,7 +125,7 @@ ${files}
 async def test2(
     query: str,
     files: list[UploadFile],
-    ignored_images: list[UploadFile] = File(default_factory=list),
+    ignored_images: list[UploadFile] = File(default_factory=list),  # noqa: B008
 ) -> str:
     """Test Agent."""
     context = Context(

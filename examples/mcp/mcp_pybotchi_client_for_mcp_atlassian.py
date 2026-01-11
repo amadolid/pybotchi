@@ -20,9 +20,7 @@ class GeneralChat(MCPAction):
     """Casual Generic Chat."""
 
     # https://github.com/sooperset/mcp-atlassian
-    __mcp_connections__ = [
-        MCPConnection("jira", "SSE", "http://localhost:9000/sse", manual_enable=True)
-    ]
+    __mcp_connections__ = [MCPConnection("jira", "SSE", "http://localhost:9000/sse", manual_enable=True)]
     __max_child_iteration__ = 5
     # __detached__ = True
 
@@ -46,9 +44,7 @@ class GeneralChat(MCPAction):
         async def pre(self, context: MCPContext) -> ActionReturn:
             """Test."""
             message = await context.llm.ainvoke(context.prompts)
-            await context.add_usage(
-                self, context.llm.model_name, message.usage_metadata
-            )
+            await context.add_usage(self, context.llm.model_name, message.usage_metadata)
 
             await context.add_response(self, message.text)
 
@@ -99,9 +95,7 @@ async def test() -> None:
     print(dumps(context.prompts, indent=4))
     print(dumps(action.serialize(), indent=4))
 
-    general_chat_graph = await graph(
-        GeneralChat, {"IgnoredAction": False}, integrations
-    )
+    general_chat_graph = await graph(GeneralChat, {"IgnoredAction": False}, integrations)
     print(general_chat_graph.flowchart())
 
 

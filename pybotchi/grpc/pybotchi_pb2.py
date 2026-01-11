@@ -9,9 +9,13 @@ from google.protobuf import descriptor_pool as _descriptor_pool
 from google.protobuf import runtime_version as _runtime_version
 from google.protobuf import symbol_database as _symbol_database
 from google.protobuf.internal import builder as _builder
-
 _runtime_version.ValidateProtobufRuntimeVersion(
-    _runtime_version.Domain.PUBLIC, 6, 31, 1, "", "pybotchi.proto"
+    _runtime_version.Domain.PUBLIC,
+    6,
+    31,
+    1,
+    '',
+    'pybotchi.proto'
 )
 # @@protoc_insertion_point(imports)
 
@@ -21,47 +25,45 @@ _sym_db = _symbol_database.Default()
 from google.protobuf import struct_pb2 as google_dot_protobuf_dot_struct__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(
-    b'\n\x0epybotchi.proto\x12\rpybotchi.grpc\x1a\x1cgoogle/protobuf/struct.proto"<\n\x05\x45vent\x12\x0c\n\x04name\x18\x01 \x01(\t\x12%\n\x04\x64\x61ta\x18\x02 \x01(\x0b\x32\x17.google.protobuf.Struct"\xa9\x01\n\x11\x41\x63tionListRequest\x12\x0e\n\x06groups\x18\x01 \x03(\t\x12M\n\x0f\x61llowed_actions\x18\x02 \x03(\x0b\x32\x34.pybotchi.grpc.ActionListRequest.AllowedActionsEntry\x1a\x35\n\x13\x41llowedActionsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x08:\x02\x38\x01"T\n\x12\x41\x63tionListResponse\x12\x10\n\x08\x61gent_id\x18\x01 \x01(\t\x12,\n\x07\x61\x63tions\x18\x02 \x03(\x0b\x32\x1b.pybotchi.grpc.ActionSchema"\\\n\x0c\x41\x63tionSchema\x12\x12\n\nconcurrent\x18\x01 \x01(\x08\x12\r\n\x05group\x18\x02 \x01(\t\x12)\n\x06schema\x18\x03 \x01(\x0b\x32\x19.pybotchi.grpc.JSONSchema"\xd3\x06\n\nJSONSchema\x12\x0e\n\x06schema\x18\x01 \x01(\t\x12\n\n\x02id\x18\x02 \x01(\t\x12\r\n\x05title\x18\x03 \x01(\t\x12\x13\n\x0b\x64\x65scription\x18\x04 \x01(\t\x12\x0c\n\x04type\x18\x05 \x01(\t\x12=\n\nproperties\x18\x06 \x03(\x0b\x32).pybotchi.grpc.JSONSchema.PropertiesEntry\x12\x10\n\x08required\x18\x07 \x03(\t\x12\x1d\n\x15\x61\x64\x64itional_properties\x18\x08 \x01(\x08\x12(\n\x05items\x18\t \x01(\x0b\x32\x19.pybotchi.grpc.JSONSchema\x12\x11\n\tmin_items\x18\n \x01(\x05\x12\x11\n\tmax_items\x18\x0b \x01(\x05\x12\x12\n\nmin_length\x18\x0c \x01(\x05\x12\x12\n\nmax_length\x18\r \x01(\x05\x12\x0f\n\x07pattern\x18\x0e \x01(\t\x12\x0e\n\x06\x66ormat\x18\x0f \x01(\t\x12\x0f\n\x07minimum\x18\x10 \x01(\x01\x12\x0f\n\x07maximum\x18\x11 \x01(\x01\x12\x13\n\x0bmultiple_of\x18\x12 \x01(\x01\x12\x0c\n\x04\x65num\x18\x13 \x03(\t\x12\x15\n\rdefault_value\x18\x14 \x01(\t\x12?\n\x0b\x64\x65\x66initions\x18\x15 \x03(\x0b\x32*.pybotchi.grpc.JSONSchema.DefinitionsEntry\x12\x0b\n\x03ref\x18\x16 \x01(\t\x12)\n\x06\x61ll_of\x18\x17 \x03(\x0b\x32\x19.pybotchi.grpc.JSONSchema\x12)\n\x06\x61ny_of\x18\x18 \x03(\x0b\x32\x19.pybotchi.grpc.JSONSchema\x12)\n\x06one_of\x18\x19 \x03(\x0b\x32\x19.pybotchi.grpc.JSONSchema\x12&\n\x03not\x18\x1a \x01(\x0b\x32\x19.pybotchi.grpc.JSONSchema\x1aL\n\x0fPropertiesEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12(\n\x05value\x18\x02 \x01(\x0b\x32\x19.pybotchi.grpc.JSONSchema:\x02\x38\x01\x1aM\n\x10\x44\x65\x66initionsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12(\n\x05value\x18\x02 \x01(\x0b\x32\x19.pybotchi.grpc.JSONSchema:\x02\x38\x01"\x90\x02\n\x0fTraverseRequest\x12\r\n\x05nodes\x18\x01 \x03(\t\x12\r\n\x05\x61lias\x18\x02 \x01(\t\x12\x0e\n\x06groups\x18\x03 \x03(\t\x12\x0c\n\x04name\x18\x04 \x01(\t\x12K\n\x0f\x61llowed_actions\x18\x05 \x03(\x0b\x32\x32.pybotchi.grpc.TraverseRequest.AllowedActionsEntry\x12-\n\x0cintegrations\x18\x06 \x01(\x0b\x32\x17.google.protobuf.Struct\x12\x0e\n\x06\x62ypass\x18\x07 \x01(\x08\x1a\x35\n\x13\x41llowedActionsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x08:\x02\x38\x01"R\n\rTraverseGraph\x12\x0e\n\x06origin\x18\x01 \x01(\t\x12\r\n\x05nodes\x18\x02 \x03(\t\x12"\n\x05\x65\x64ges\x18\x03 \x03(\x0b\x32\x13.pybotchi.grpc.Edge"H\n\x04\x45\x64ge\x12\x0e\n\x06source\x18\x01 \x01(\t\x12\x0e\n\x06target\x18\x02 \x01(\t\x12\x12\n\nconcurrent\x18\x03 \x01(\x08\x12\x0c\n\x04name\x18\x04 \x01(\t2\xed\x01\n\x0cPyBotchiGRPC\x12;\n\x07\x63onnect\x12\x14.pybotchi.grpc.Event\x1a\x14.pybotchi.grpc.Event"\x00(\x01\x30\x01\x12T\n\x0b\x61\x63tion_list\x12 .pybotchi.grpc.ActionListRequest\x1a!.pybotchi.grpc.ActionListResponse"\x00\x12J\n\x08traverse\x12\x1e.pybotchi.grpc.TraverseRequest\x1a\x1c.pybotchi.grpc.TraverseGraph"\x00\x62\x06proto3'
-)
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0epybotchi.proto\x12\rpybotchi.grpc\x1a\x1cgoogle/protobuf/struct.proto\"<\n\x05\x45vent\x12\x0c\n\x04name\x18\x01 \x01(\t\x12%\n\x04\x64\x61ta\x18\x02 \x01(\x0b\x32\x17.google.protobuf.Struct\"\xa9\x01\n\x11\x41\x63tionListRequest\x12\x0e\n\x06groups\x18\x01 \x03(\t\x12M\n\x0f\x61llowed_actions\x18\x02 \x03(\x0b\x32\x34.pybotchi.grpc.ActionListRequest.AllowedActionsEntry\x1a\x35\n\x13\x41llowedActionsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x08:\x02\x38\x01\"T\n\x12\x41\x63tionListResponse\x12\x10\n\x08\x61gent_id\x18\x01 \x01(\t\x12,\n\x07\x61\x63tions\x18\x02 \x03(\x0b\x32\x1b.pybotchi.grpc.ActionSchema\"\\\n\x0c\x41\x63tionSchema\x12\x12\n\nconcurrent\x18\x01 \x01(\x08\x12\r\n\x05group\x18\x02 \x01(\t\x12)\n\x06schema\x18\x03 \x01(\x0b\x32\x19.pybotchi.grpc.JSONSchema\"\xd3\x06\n\nJSONSchema\x12\x0e\n\x06schema\x18\x01 \x01(\t\x12\n\n\x02id\x18\x02 \x01(\t\x12\r\n\x05title\x18\x03 \x01(\t\x12\x13\n\x0b\x64\x65scription\x18\x04 \x01(\t\x12\x0c\n\x04type\x18\x05 \x01(\t\x12=\n\nproperties\x18\x06 \x03(\x0b\x32).pybotchi.grpc.JSONSchema.PropertiesEntry\x12\x10\n\x08required\x18\x07 \x03(\t\x12\x1d\n\x15\x61\x64\x64itional_properties\x18\x08 \x01(\x08\x12(\n\x05items\x18\t \x01(\x0b\x32\x19.pybotchi.grpc.JSONSchema\x12\x11\n\tmin_items\x18\n \x01(\x05\x12\x11\n\tmax_items\x18\x0b \x01(\x05\x12\x12\n\nmin_length\x18\x0c \x01(\x05\x12\x12\n\nmax_length\x18\r \x01(\x05\x12\x0f\n\x07pattern\x18\x0e \x01(\t\x12\x0e\n\x06\x66ormat\x18\x0f \x01(\t\x12\x0f\n\x07minimum\x18\x10 \x01(\x01\x12\x0f\n\x07maximum\x18\x11 \x01(\x01\x12\x13\n\x0bmultiple_of\x18\x12 \x01(\x01\x12\x0c\n\x04\x65num\x18\x13 \x03(\t\x12\x15\n\rdefault_value\x18\x14 \x01(\t\x12?\n\x0b\x64\x65\x66initions\x18\x15 \x03(\x0b\x32*.pybotchi.grpc.JSONSchema.DefinitionsEntry\x12\x0b\n\x03ref\x18\x16 \x01(\t\x12)\n\x06\x61ll_of\x18\x17 \x03(\x0b\x32\x19.pybotchi.grpc.JSONSchema\x12)\n\x06\x61ny_of\x18\x18 \x03(\x0b\x32\x19.pybotchi.grpc.JSONSchema\x12)\n\x06one_of\x18\x19 \x03(\x0b\x32\x19.pybotchi.grpc.JSONSchema\x12&\n\x03not\x18\x1a \x01(\x0b\x32\x19.pybotchi.grpc.JSONSchema\x1aL\n\x0fPropertiesEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12(\n\x05value\x18\x02 \x01(\x0b\x32\x19.pybotchi.grpc.JSONSchema:\x02\x38\x01\x1aM\n\x10\x44\x65\x66initionsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12(\n\x05value\x18\x02 \x01(\x0b\x32\x19.pybotchi.grpc.JSONSchema:\x02\x38\x01\"\x90\x02\n\x0fTraverseRequest\x12\r\n\x05nodes\x18\x01 \x03(\t\x12\r\n\x05\x61lias\x18\x02 \x01(\t\x12\x0e\n\x06groups\x18\x03 \x03(\t\x12\x0c\n\x04name\x18\x04 \x01(\t\x12K\n\x0f\x61llowed_actions\x18\x05 \x03(\x0b\x32\x32.pybotchi.grpc.TraverseRequest.AllowedActionsEntry\x12-\n\x0cintegrations\x18\x06 \x01(\x0b\x32\x17.google.protobuf.Struct\x12\x0e\n\x06\x62ypass\x18\x07 \x01(\x08\x1a\x35\n\x13\x41llowedActionsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x08:\x02\x38\x01\"R\n\rTraverseGraph\x12\x0e\n\x06origin\x18\x01 \x01(\t\x12\r\n\x05nodes\x18\x02 \x03(\t\x12\"\n\x05\x65\x64ges\x18\x03 \x03(\x0b\x32\x13.pybotchi.grpc.Edge\"H\n\x04\x45\x64ge\x12\x0e\n\x06source\x18\x01 \x01(\t\x12\x0e\n\x06target\x18\x02 \x01(\t\x12\x12\n\nconcurrent\x18\x03 \x01(\x08\x12\x0c\n\x04name\x18\x04 \x01(\t2\xed\x01\n\x0cPyBotchiGRPC\x12;\n\x07\x63onnect\x12\x14.pybotchi.grpc.Event\x1a\x14.pybotchi.grpc.Event\"\x00(\x01\x30\x01\x12T\n\x0b\x61\x63tion_list\x12 .pybotchi.grpc.ActionListRequest\x1a!.pybotchi.grpc.ActionListResponse\"\x00\x12J\n\x08traverse\x12\x1e.pybotchi.grpc.TraverseRequest\x1a\x1c.pybotchi.grpc.TraverseGraph\"\x00\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
-_builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, "pybotchi_pb2", _globals)
+_builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'pybotchi_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
-    DESCRIPTOR._loaded_options = None
-    _globals["_ACTIONLISTREQUEST_ALLOWEDACTIONSENTRY"]._loaded_options = None
-    _globals["_ACTIONLISTREQUEST_ALLOWEDACTIONSENTRY"]._serialized_options = b"8\001"
-    _globals["_JSONSCHEMA_PROPERTIESENTRY"]._loaded_options = None
-    _globals["_JSONSCHEMA_PROPERTIESENTRY"]._serialized_options = b"8\001"
-    _globals["_JSONSCHEMA_DEFINITIONSENTRY"]._loaded_options = None
-    _globals["_JSONSCHEMA_DEFINITIONSENTRY"]._serialized_options = b"8\001"
-    _globals["_TRAVERSEREQUEST_ALLOWEDACTIONSENTRY"]._loaded_options = None
-    _globals["_TRAVERSEREQUEST_ALLOWEDACTIONSENTRY"]._serialized_options = b"8\001"
-    _globals["_EVENT"]._serialized_start = 63
-    _globals["_EVENT"]._serialized_end = 123
-    _globals["_ACTIONLISTREQUEST"]._serialized_start = 126
-    _globals["_ACTIONLISTREQUEST"]._serialized_end = 295
-    _globals["_ACTIONLISTREQUEST_ALLOWEDACTIONSENTRY"]._serialized_start = 242
-    _globals["_ACTIONLISTREQUEST_ALLOWEDACTIONSENTRY"]._serialized_end = 295
-    _globals["_ACTIONLISTRESPONSE"]._serialized_start = 297
-    _globals["_ACTIONLISTRESPONSE"]._serialized_end = 381
-    _globals["_ACTIONSCHEMA"]._serialized_start = 383
-    _globals["_ACTIONSCHEMA"]._serialized_end = 475
-    _globals["_JSONSCHEMA"]._serialized_start = 478
-    _globals["_JSONSCHEMA"]._serialized_end = 1329
-    _globals["_JSONSCHEMA_PROPERTIESENTRY"]._serialized_start = 1174
-    _globals["_JSONSCHEMA_PROPERTIESENTRY"]._serialized_end = 1250
-    _globals["_JSONSCHEMA_DEFINITIONSENTRY"]._serialized_start = 1252
-    _globals["_JSONSCHEMA_DEFINITIONSENTRY"]._serialized_end = 1329
-    _globals["_TRAVERSEREQUEST"]._serialized_start = 1332
-    _globals["_TRAVERSEREQUEST"]._serialized_end = 1604
-    _globals["_TRAVERSEREQUEST_ALLOWEDACTIONSENTRY"]._serialized_start = 242
-    _globals["_TRAVERSEREQUEST_ALLOWEDACTIONSENTRY"]._serialized_end = 295
-    _globals["_TRAVERSEGRAPH"]._serialized_start = 1606
-    _globals["_TRAVERSEGRAPH"]._serialized_end = 1688
-    _globals["_EDGE"]._serialized_start = 1690
-    _globals["_EDGE"]._serialized_end = 1762
-    _globals["_PYBOTCHIGRPC"]._serialized_start = 1765
-    _globals["_PYBOTCHIGRPC"]._serialized_end = 2002
+  DESCRIPTOR._loaded_options = None
+  _globals['_ACTIONLISTREQUEST_ALLOWEDACTIONSENTRY']._loaded_options = None
+  _globals['_ACTIONLISTREQUEST_ALLOWEDACTIONSENTRY']._serialized_options = b'8\001'
+  _globals['_JSONSCHEMA_PROPERTIESENTRY']._loaded_options = None
+  _globals['_JSONSCHEMA_PROPERTIESENTRY']._serialized_options = b'8\001'
+  _globals['_JSONSCHEMA_DEFINITIONSENTRY']._loaded_options = None
+  _globals['_JSONSCHEMA_DEFINITIONSENTRY']._serialized_options = b'8\001'
+  _globals['_TRAVERSEREQUEST_ALLOWEDACTIONSENTRY']._loaded_options = None
+  _globals['_TRAVERSEREQUEST_ALLOWEDACTIONSENTRY']._serialized_options = b'8\001'
+  _globals['_EVENT']._serialized_start=63
+  _globals['_EVENT']._serialized_end=123
+  _globals['_ACTIONLISTREQUEST']._serialized_start=126
+  _globals['_ACTIONLISTREQUEST']._serialized_end=295
+  _globals['_ACTIONLISTREQUEST_ALLOWEDACTIONSENTRY']._serialized_start=242
+  _globals['_ACTIONLISTREQUEST_ALLOWEDACTIONSENTRY']._serialized_end=295
+  _globals['_ACTIONLISTRESPONSE']._serialized_start=297
+  _globals['_ACTIONLISTRESPONSE']._serialized_end=381
+  _globals['_ACTIONSCHEMA']._serialized_start=383
+  _globals['_ACTIONSCHEMA']._serialized_end=475
+  _globals['_JSONSCHEMA']._serialized_start=478
+  _globals['_JSONSCHEMA']._serialized_end=1329
+  _globals['_JSONSCHEMA_PROPERTIESENTRY']._serialized_start=1174
+  _globals['_JSONSCHEMA_PROPERTIESENTRY']._serialized_end=1250
+  _globals['_JSONSCHEMA_DEFINITIONSENTRY']._serialized_start=1252
+  _globals['_JSONSCHEMA_DEFINITIONSENTRY']._serialized_end=1329
+  _globals['_TRAVERSEREQUEST']._serialized_start=1332
+  _globals['_TRAVERSEREQUEST']._serialized_end=1604
+  _globals['_TRAVERSEREQUEST_ALLOWEDACTIONSENTRY']._serialized_start=242
+  _globals['_TRAVERSEREQUEST_ALLOWEDACTIONSENTRY']._serialized_end=295
+  _globals['_TRAVERSEGRAPH']._serialized_start=1606
+  _globals['_TRAVERSEGRAPH']._serialized_end=1688
+  _globals['_EDGE']._serialized_start=1690
+  _globals['_EDGE']._serialized_end=1762
+  _globals['_PYBOTCHIGRPC']._serialized_start=1765
+  _globals['_PYBOTCHIGRPC']._serialized_end=2002
 # @@protoc_insertion_point(module_scope)

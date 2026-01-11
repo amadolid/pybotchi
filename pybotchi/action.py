@@ -118,9 +118,7 @@ class Action(BaseModel, Generic[TContext]):
         cls.__has_on_error__ = cls.on_error is not Action.on_error
         cls.__has_post__ = cls.post is not Action.post
         cls.__has_as_tool__ = cls._as_tool is not Action._as_tool
-        cls.__detached__ = src.get(
-            "__detached__", cls.commit_context is not Action.commit_context
-        )
+        cls.__detached__ = src.get("__detached__", cls.commit_context is not Action.commit_context)
         cls.__groups__ = src.get("__groups__")
         cls.__to_commit__ = src.get("__to_commit__", True)
         cls.__init_child_actions__()
@@ -129,9 +127,7 @@ class Action(BaseModel, Generic[TContext]):
     def __init_child_actions__(cls) -> None:
         """Initialize defined child actions."""
         cls.__child_actions__ = {
-            name: child
-            for name, child in getmembers(cls)
-            if isinstance(child, type) and issubclass(child, Action)
+            name: child for name, child in getmembers(cls) if isinstance(child, type) and issubclass(child, Action)
         }
 
     @property
@@ -184,9 +180,7 @@ class Action(BaseModel, Generic[TContext]):
             self.__tool_call_prompt__ or DEFAULT_TOOL_CALL_PROMPT,
             tool_choice=tool_choice,
             default=self.__default_tool__,
-            system=self.__system_prompt__
-            or context.prompts[0]["content"]
-            or "Not defined",
+            system=self.__system_prompt__ or context.prompts[0]["content"] or "Not defined",
         )
 
     async def get_child_actions(self, context: TContext) -> ChildActions:
@@ -208,16 +202,11 @@ class Action(BaseModel, Generic[TContext]):
         if child_actions is None:
             child_actions = await self.get_child_actions(context)
         llm = context.llm.bind_tools(
-            [
-                await child._as_tool(context) if child.__has_as_tool__ else child
-                for child in child_actions.values()
-            ],
+            [await child._as_tool(context) if child.__has_as_tool__ else child for child in child_actions.values()],
             tool_choice=tool_choice,
         )
         if self.__temperature__ is not None:
-            llm = llm.with_config(
-                configurable={"llm_temperature": self.__temperature__}
-            )
+            llm = llm.with_config(configurable={"llm_temperature": self.__temperature__})
 
         max = len(context.prompts)
         if self.__max_tool_prompts__:
@@ -242,15 +231,11 @@ class Action(BaseModel, Generic[TContext]):
             "$tool",
         )
 
-        next_actions = [
-            child_actions[call["name"]](**call["args"]) for call in message.tool_calls
-        ]
+        next_actions = [child_actions[call["name"]](**call["args"]) for call in message.tool_calls]
 
         return next_actions, message.text
 
-    async def execute(
-        self, context: TContext, parent: Action | None = None
-    ) -> ActionReturn:
+    async def execute(self, context: TContext, parent: Action | None = None) -> ActionReturn:
         """Execute main process."""
         self._parent = parent
         parent_context = context
@@ -285,7 +270,7 @@ class Action(BaseModel, Generic[TContext]):
         except Exception as exception:
             if not self.__has_on_error__:
                 self.__to_commit__ = False
-                raise next(unwrap_exceptions(exception))
+                raise next(unwrap_exceptions(exception)) from None
             elif (
                 result := await self.on_error(
                     context,
@@ -327,18 +312,13 @@ class Action(BaseModel, Generic[TContext]):
                     "event": "tool",
                     "type": "selection",
                     "status": "completed",
-                    "data": [
-                        {"action": n.__display_name__, "args": n.model_dump()}
-                        for n in next_actions
-                    ],
+                    "data": [{"action": n.__display_name__, "args": n.model_dump()} for n in next_actions],
                 }
             )
 
             if next_actions:
                 if self.__first_tool_only__ or len(next_actions) == 1:
-                    if (
-                        result := await next_actions[0].execute(context, self)
-                    ).is_break:
+                    if (result := await next_actions[0].execute(context, self)).is_break:
                         return result
                 elif (
                     result := await (
@@ -348,16 +328,11 @@ class Action(BaseModel, Generic[TContext]):
                     )(context, next_actions)
                 ).is_break:
                     return result
-            elif (
-                self.__has_fallback__
-                and (result := await self.fallback(context, content)).is_break
-            ):
+            elif self.__has_fallback__ and (result := await self.fallback(context, content)).is_break:
                 return result
         elif self.__has_fallback__:
             llm = (
-                context.llm.with_config(
-                    configurable={"llm_temperature": self.__temperature__}
-                )
+                context.llm.with_config(configurable={"llm_temperature": self.__temperature__})
                 if self.__temperature__ is not None
                 else context.llm
             )
@@ -402,25 +377,19 @@ class Action(BaseModel, Generic[TContext]):
 
         return ActionReturn.GO
 
-    async def execute_child_concurrently(
-        self, context: TContext, action: Action
-    ) -> None:
+    async def execute_child_concurrently(self, context: TContext, action: Action) -> None:
         """Execute child concurrently."""
         if (result := await action.execute(context, self)).is_break:
             raise ConcurrentBreakPoint(result)
 
-    async def concurrent_children_execution(
-        self, context: TContext, next_actions: list[Action]
-    ) -> ActionReturn:
+    async def concurrent_children_execution(self, context: TContext, next_actions: list[Action]) -> ActionReturn:
         """Run children execution with concurrent."""
         break_point = None
         try:
             async with TaskGroup() as tg:
                 for next_action in next_actions:
                     if next_action.__concurrent__:
-                        tg.create_task(
-                            self.execute_child_concurrently(context, next_action)
-                        )
+                        tg.create_task(self.execute_child_concurrently(context, next_action))
                     elif (result := await next_action.execute(context, self)).is_break:
                         return result
         except* ConcurrentBreakPoint as eg:
@@ -435,9 +404,7 @@ class Action(BaseModel, Generic[TContext]):
 
         return break_point or ActionReturn.GO
 
-    async def sequential_children_execution(
-        self, context: TContext, next_actions: list[Action]
-    ) -> ActionReturn:
+    async def sequential_children_execution(self, context: TContext, next_actions: list[Action]) -> ActionReturn:
         """Run children execution sequentially."""
         for next_action in next_actions:
             if (result := await next_action.execute(context, self)).is_break:
@@ -451,9 +418,7 @@ class Action(BaseModel, Generic[TContext]):
             "name": self.__class__.__name__,
             "args": self.model_dump(),
             "usages": self._usage,
-            "actions": [
-                a.serialize() if isinstance(a, Action) else a for a in self._actions
-            ],
+            "actions": [a.serialize() if isinstance(a, Action) else a for a in self._actions],
         }
 
     ####################################################################################################
@@ -499,11 +464,7 @@ class Action(BaseModel, Generic[TContext]):
         """Remove child action."""
         cls.__child_actions__.pop(name, None)
 
-        if (
-            (attr := getattr(cls, name, None))
-            and isinstance(attr, type)
-            and issubclass(attr, Action)
-        ):
+        if (attr := getattr(cls, name, None)) and isinstance(attr, type) and issubclass(attr, Action):
             delattr(cls, name)
 
         queue = deque[type[Action]](cls.__subclasses__())
@@ -535,9 +496,7 @@ def all_agents() -> Generator[type["Action"]]:
             queue.append(scls)
 
 
-async def graph(
-    action: type[Action], allowed_actions: dict[str, bool] | None = None
-) -> Graph:
+async def graph(action: type[Action], allowed_actions: dict[str, bool] | None = None) -> Graph:
     """Retrieve Graph."""
     origin = f"{action.__module__}.{action.__qualname__}"
     await traverse(
@@ -549,9 +508,7 @@ async def graph(
     return graph
 
 
-async def traverse(
-    graph: Graph, action: type[Action], allowed_actions: dict[str, bool] | None
-) -> None:
+async def traverse(graph: Graph, action: type[Action], allowed_actions: dict[str, bool] | None) -> None:
     """Retrieve Graph."""
     current = f"{action.__module__}.{action.__qualname__}"
 

@@ -1,2 +1,10 @@
 target-version = "py312"
 line-length = 120
+exclude = ["pybotchi_pb2*"]
+
+[lint]
+select = ["E", "W", "F", "D", "C4", "B", "ANN", "N", "SIM"]
+ignore = ["E501", "ANN401"]
+
+[lint.pydocstyle]
+convention = "google"

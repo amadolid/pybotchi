@@ -13,15 +13,10 @@ class Event(_message.Message):
     DATA_FIELD_NUMBER: _ClassVar[int]
     name: str
     data: _struct_pb2.Struct
-    def __init__(
-        self,
-        name: _Optional[str] = ...,
-        data: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...,
-    ) -> None: ...
+    def __init__(self, name: _Optional[str] = ..., data: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...
 
 class ActionListRequest(_message.Message):
     __slots__ = ("groups", "allowed_actions")
-
     class AllowedActionsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -29,16 +24,11 @@ class ActionListRequest(_message.Message):
         key: str
         value: bool
         def __init__(self, key: _Optional[str] = ..., value: bool = ...) -> None: ...
-
     GROUPS_FIELD_NUMBER: _ClassVar[int]
     ALLOWED_ACTIONS_FIELD_NUMBER: _ClassVar[int]
     groups: _containers.RepeatedScalarFieldContainer[str]
     allowed_actions: _containers.ScalarMap[str, bool]
-    def __init__(
-        self,
-        groups: _Optional[_Iterable[str]] = ...,
-        allowed_actions: _Optional[_Mapping[str, bool]] = ...,
-    ) -> None: ...
+    def __init__(self, groups: _Optional[_Iterable[str]] = ..., allowed_actions: _Optional[_Mapping[str, bool]] = ...) -> None: ...
 
 class ActionListResponse(_message.Message):
     __slots__ = ("agent_id", "actions")
@@ -46,11 +36,7 @@ class ActionListResponse(_message.Message):
     ACTIONS_FIELD_NUMBER: _ClassVar[int]
     agent_id: str
     actions: _containers.RepeatedCompositeFieldContainer[ActionSchema]
-    def __init__(
-        self,
-        agent_id: _Optional[str] = ...,
-        actions: _Optional[_Iterable[_Union[ActionSchema, _Mapping]]] = ...,
-    ) -> None: ...
+    def __init__(self, agent_id: _Optional[str] = ..., actions: _Optional[_Iterable[_Union[ActionSchema, _Mapping]]] = ...) -> None: ...
 
 class ActionSchema(_message.Message):
     __slots__ = ("concurrent", "group", "schema")
@@ -60,66 +46,24 @@ class ActionSchema(_message.Message):
     concurrent: bool
     group: str
     schema: JSONSchema
-    def __init__(
-        self,
-        concurrent: bool = ...,
-        group: _Optional[str] = ...,
-        schema: _Optional[_Union[JSONSchema, _Mapping]] = ...,
-    ) -> None: ...
+    def __init__(self, concurrent: bool = ..., group: _Optional[str] = ..., schema: _Optional[_Union[JSONSchema, _Mapping]] = ...) -> None: ...
 
 class JSONSchema(_message.Message):
-    __slots__ = (
-        "schema",
-        "id",
-        "title",
-        "description",
-        "type",
-        "properties",
-        "required",
-        "additional_properties",
-        "items",
-        "min_items",
-        "max_items",
-        "min_length",
-        "max_length",
-        "pattern",
-        "format",
-        "minimum",
-        "maximum",
-        "multiple_of",
-        "enum",
-        "default_value",
-        "definitions",
-        "ref",
-        "all_of",
-        "any_of",
-        "one_of",
-    )
-
+    __slots__ = ("schema", "id", "title", "description", "type", "properties", "required", "additional_properties", "items", "min_items", "max_items", "min_length", "max_length", "pattern", "format", "minimum", "maximum", "multiple_of", "enum", "default_value", "definitions", "ref", "all_of", "any_of", "one_of")
     class PropertiesEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
         VALUE_FIELD_NUMBER: _ClassVar[int]
         key: str
         value: JSONSchema
-        def __init__(
-            self,
-            key: _Optional[str] = ...,
-            value: _Optional[_Union[JSONSchema, _Mapping]] = ...,
-        ) -> None: ...
-
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[JSONSchema, _Mapping]] = ...) -> None: ...
     class DefinitionsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
         VALUE_FIELD_NUMBER: _ClassVar[int]
         key: str
         value: JSONSchema
-        def __init__(
-            self,
-            key: _Optional[str] = ...,
-            value: _Optional[_Union[JSONSchema, _Mapping]] = ...,
-        ) -> None: ...
-
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[JSONSchema, _Mapping]] = ...) -> None: ...
     SCHEMA_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
@@ -171,47 +115,10 @@ class JSONSchema(_message.Message):
     all_of: _containers.RepeatedCompositeFieldContainer[JSONSchema]
     any_of: _containers.RepeatedCompositeFieldContainer[JSONSchema]
     one_of: _containers.RepeatedCompositeFieldContainer[JSONSchema]
-    def __init__(
-        self,
-        schema: _Optional[str] = ...,
-        id: _Optional[str] = ...,
-        title: _Optional[str] = ...,
-        description: _Optional[str] = ...,
-        type: _Optional[str] = ...,
-        properties: _Optional[_Mapping[str, JSONSchema]] = ...,
-        required: _Optional[_Iterable[str]] = ...,
-        additional_properties: bool = ...,
-        items: _Optional[_Union[JSONSchema, _Mapping]] = ...,
-        min_items: _Optional[int] = ...,
-        max_items: _Optional[int] = ...,
-        min_length: _Optional[int] = ...,
-        max_length: _Optional[int] = ...,
-        pattern: _Optional[str] = ...,
-        format: _Optional[str] = ...,
-        minimum: _Optional[float] = ...,
-        maximum: _Optional[float] = ...,
-        multiple_of: _Optional[float] = ...,
-        enum: _Optional[_Iterable[str]] = ...,
-        default_value: _Optional[str] = ...,
-        definitions: _Optional[_Mapping[str, JSONSchema]] = ...,
-        ref: _Optional[str] = ...,
-        all_of: _Optional[_Iterable[_Union[JSONSchema, _Mapping]]] = ...,
-        any_of: _Optional[_Iterable[_Union[JSONSchema, _Mapping]]] = ...,
-        one_of: _Optional[_Iterable[_Union[JSONSchema, _Mapping]]] = ...,
-        **kwargs
-    ) -> None: ...
+    def __init__(self, schema: _Optional[str] = ..., id: _Optional[str] = ..., title: _Optional[str] = ..., description: _Optional[str] = ..., type: _Optional[str] = ..., properties: _Optional[_Mapping[str, JSONSchema]] = ..., required: _Optional[_Iterable[str]] = ..., additional_properties: bool = ..., items: _Optional[_Union[JSONSchema, _Mapping]] = ..., min_items: _Optional[int] = ..., max_items: _Optional[int] = ..., min_length: _Optional[int] = ..., max_length: _Optional[int] = ..., pattern: _Optional[str] = ..., format: _Optional[str] = ..., minimum: _Optional[float] = ..., maximum: _Optional[float] = ..., multiple_of: _Optional[float] = ..., enum: _Optional[_Iterable[str]] = ..., default_value: _Optional[str] = ..., definitions: _Optional[_Mapping[str, JSONSchema]] = ..., ref: _Optional[str] = ..., all_of: _Optional[_Iterable[_Union[JSONSchema, _Mapping]]] = ..., any_of: _Optional[_Iterable[_Union[JSONSchema, _Mapping]]] = ..., one_of: _Optional[_Iterable[_Union[JSONSchema, _Mapping]]] = ..., **kwargs) -> None: ...
 
 class TraverseRequest(_message.Message):
-    __slots__ = (
-        "nodes",
-        "alias",
-        "groups",
-        "name",
-        "allowed_actions",
-        "integrations",
-        "bypass",
-    )
-
+    __slots__ = ("nodes", "alias", "groups", "name", "allowed_actions", "integrations", "bypass")
     class AllowedActionsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -219,7 +126,6 @@ class TraverseRequest(_message.Message):
         key: str
         value: bool
         def __init__(self, key: _Optional[str] = ..., value: bool = ...) -> None: ...
-
     NODES_FIELD_NUMBER: _ClassVar[int]
     ALIAS_FIELD_NUMBER: _ClassVar[int]
     GROUPS_FIELD_NUMBER: _ClassVar[int]
@@ -234,16 +140,7 @@ class TraverseRequest(_message.Message):
     allowed_actions: _containers.ScalarMap[str, bool]
     integrations: _struct_pb2.Struct
     bypass: bool
-    def __init__(
-        self,
-        nodes: _Optional[_Iterable[str]] = ...,
-        alias: _Optional[str] = ...,
-        groups: _Optional[_Iterable[str]] = ...,
-        name: _Optional[str] = ...,
-        allowed_actions: _Optional[_Mapping[str, bool]] = ...,
-        integrations: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...,
-        bypass: bool = ...,
-    ) -> None: ...
+    def __init__(self, nodes: _Optional[_Iterable[str]] = ..., alias: _Optional[str] = ..., groups: _Optional[_Iterable[str]] = ..., name: _Optional[str] = ..., allowed_actions: _Optional[_Mapping[str, bool]] = ..., integrations: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., bypass: bool = ...) -> None: ...
 
 class TraverseGraph(_message.Message):
     __slots__ = ("origin", "nodes", "edges")
@@ -253,12 +150,7 @@ class TraverseGraph(_message.Message):
     origin: str
     nodes: _containers.RepeatedScalarFieldContainer[str]
     edges: _containers.RepeatedCompositeFieldContainer[Edge]
-    def __init__(
-        self,
-        origin: _Optional[str] = ...,
-        nodes: _Optional[_Iterable[str]] = ...,
-        edges: _Optional[_Iterable[_Union[Edge, _Mapping]]] = ...,
-    ) -> None: ...
+    def __init__(self, origin: _Optional[str] = ..., nodes: _Optional[_Iterable[str]] = ..., edges: _Optional[_Iterable[_Union[Edge, _Mapping]]] = ...) -> None: ...
 
 class Edge(_message.Message):
     __slots__ = ("source", "target", "concurrent", "name")
@@ -270,10 +162,4 @@ class Edge(_message.Message):
     target: str
     concurrent: bool
     name: str
-    def __init__(
-        self,
-        source: _Optional[str] = ...,
-        target: _Optional[str] = ...,
-        concurrent: bool = ...,
-        name: _Optional[str] = ...,
-    ) -> None: ...
+    def __init__(self, source: _Optional[str] = ..., target: _Optional[str] = ..., concurrent: bool = ..., name: _Optional[str] = ...) -> None: ...

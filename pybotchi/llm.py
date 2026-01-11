@@ -25,23 +25,19 @@ class LLM:
 
     @overload
     @classmethod
-    def get(cls, llm: str, type: type[T], throw: Literal[True]) -> T:
-        """Get LLM."""
+    def get(cls, llm: str, type: type[T], throw: Literal[True]) -> T: ...
 
     @overload
     @classmethod
-    def get(cls, llm: str, type: type[T]) -> T:
-        """Get LLM."""
+    def get(cls, llm: str, type: type[T]) -> T: ...
 
     @overload
     @classmethod
-    def get(cls, llm: str, type: type[T], throw: Literal[False]) -> T | None:
-        """Get LLM."""
+    def get(cls, llm: str, type: type[T], throw: Literal[False]) -> T | None: ...
 
     @overload
     @classmethod
-    def get(cls, llm: str) -> Any:
-        """Get LLM."""
+    def get(cls, llm: str) -> Any: ...
 
     @classmethod
     def get(cls, llm: str, type: type[T] | None = None, throw: bool = True) -> T | None:

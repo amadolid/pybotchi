@@ -146,13 +146,7 @@ class GRPCContext(Context[TLLM], Generic[TLLM]):
             },
         )
 
-    async def set_metadata(
-        self,
-        *paths: Any,
-        value: Any,
-        update: bool = False,
-        source_id: str | None = None
-    ) -> None:
+    async def set_metadata(self, *paths: Any, value: Any, update: bool = False, source_id: str | None = None) -> None:
         """Override metadata value."""
         await super().set_metadata(*paths, value=value, update=update)
         await self.grpc_send_up(

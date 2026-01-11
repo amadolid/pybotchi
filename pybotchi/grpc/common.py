@@ -112,9 +112,7 @@ class GRPCConnection:
                     else self.root_certificates
                 ),
                 "private_key": (
-                    await read_cert(self.private_key)
-                    if isinstance(self.private_key, str)
-                    else self.private_key
+                    await read_cert(self.private_key) if isinstance(self.private_key, str) else self.private_key
                 ),
                 "certificate_chain": (
                     await read_cert(self.certificate_chain)
@@ -139,10 +137,7 @@ class GRPCConnection:
 
         metadata: dict[str, str] | None
         if _metadata := override.get("metadata"):
-            if self.metadata is None:
-                metadata = _metadata
-            else:
-                metadata = self.metadata | _metadata
+            metadata = _metadata if self.metadata is None else (self.metadata | _metadata)
         else:
             metadata = self.metadata
 
@@ -152,11 +147,7 @@ class GRPCConnection:
             else self.root_certificates
         )
 
-        private_key = (
-            await read_cert(self.private_key)
-            if isinstance(self.private_key, str)
-            else self.private_key
-        )
+        private_key = await read_cert(self.private_key) if isinstance(self.private_key, str) else self.private_key
 
         certificate_chain = (
             await read_cert(self.certificate_chain)

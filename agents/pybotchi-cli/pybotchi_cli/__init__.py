@@ -57,8 +57,6 @@ Leave this field empty if no confirmation is required. Use this to warn about po
         You may use websocket or any approach that can ask user before proceeding.
         """
         if self.confirmation_message:
-            response = input(
-                f"{apply_placeholders(self.confirmation_message, script=self.script)}\n"
-            )
+            response = input(f"{apply_placeholders(self.confirmation_message, script=self.script)}\n")
             return response.lower() == "i know what i am doing"
         return True

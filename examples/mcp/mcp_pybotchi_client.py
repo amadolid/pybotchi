@@ -17,9 +17,7 @@ from mcp_prerequisite import (
 class GeneralChat(MCPAction):
     """Casual Generic Chat."""
 
-    __mcp_connections__ = [
-        MCPConnection("testing", "SHTTP", "http://localhost:8000/group-1/mcp")
-    ]
+    __mcp_connections__ = [MCPConnection("testing", "SHTTP", "http://localhost:8000/group-1/mcp")]
 
     async def pre_mcp(self, context: MCPContext) -> ActionReturn:
         """Execute pre mcp execution."""
@@ -51,9 +49,7 @@ async def test() -> None:
     print(dumps(context.prompts, indent=4))
     print(dumps(action.serialize(), indent=4))
 
-    general_chat_graph = await graph(
-        GeneralChat, {"IgnoredAction": False}, integrations
-    )
+    general_chat_graph = await graph(GeneralChat, {"IgnoredAction": False}, integrations)
     print(general_chat_graph.flowchart())
 
 

@@ -4,9 +4,7 @@
 class GRPCRemoteError(Exception):
     """GRPC Remote Exception."""
 
-    def __init__(
-        self, cls: str, alias: str, type: str, message: str, tracebacks: list[str]
-    ) -> None:
+    def __init__(self, cls: str, alias: str, type: str, message: str, tracebacks: list[str]) -> None:
         """Initialize Error."""
         self.cls = cls
         self.alias = alias

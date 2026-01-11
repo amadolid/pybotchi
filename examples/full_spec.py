@@ -7,7 +7,6 @@ from pydantic import Field
 
 # Your Action name should resemble the actual flow.
 class GeneralChat(Action):
-
     # Class doc should describe what it's for
     # This will be used as tool description
     """Casual Generic Chat."""
@@ -89,9 +88,7 @@ class GeneralChat(Action):
     # This process is triggered last per `context execution` if not halted
     # parent_action(pre) -> child_action1 | 2 | 3 | fallback -> parent_action(post)
     # Usually used for consolidating child action results or cleanups
-    async def post(
-        self, execution: Context, parent: "Action | None" = None
-    ) -> ActionReturn:
+    async def post(self, execution: Context, parent: "Action | None" = None) -> ActionReturn:
         """Execute post process."""
         return ActionReturn.GO
 

@@ -7,7 +7,7 @@ from itertools import islice
 from os import getenv
 from typing import Any, Callable, Generic, Literal
 
-from datamodel_code_generator import DataModelType, PythonVersion
+from datamodel_code_generator import DataModelType, Formatter, PythonVersion
 from datamodel_code_generator.model import get_data_model_types
 from datamodel_code_generator.parser.base import title_to_class_name
 from datamodel_code_generator.parser.jsonschema import (
@@ -74,9 +74,7 @@ class MCPClient:
         """Build MCPToolAction."""
         globals: dict[str, Any] = {}
         class_name = (
-            f"{tool.name[0].upper()}{tool.name[1:]}"
-            if is_camel_case(tool.name)
-            else title_to_class_name(tool.name)
+            f"{tool.name[0].upper()}{tool.name[1:]}" if is_camel_case(tool.name) else title_to_class_name(tool.name)
         )
         exec(
             JsonSchemaParser(
@@ -88,6 +86,7 @@ class MCPClient:
                 dump_resolve_reference_action=DMT.dump_resolve_reference_action,
                 class_name=class_name,
                 strict_nullable=True,
+                formatters=[Formatter.RUFF_FORMAT, Formatter.RUFF_CHECK],
             )
             .parse()
             .removeprefix("from __future__ import annotations"),  # type: ignore[union-attr]
@@ -103,9 +102,7 @@ class MCPClient:
             {
                 "__mcp_tool_name__": tool.name,
                 "__mcp_client__": self,
-                "__mcp_exclude_unset__": getattr(
-                    base_class, "__mcp_exclude_unset__", self.exclude_unset
-                ),
+                "__mcp_exclude_unset__": getattr(base_class, "__mcp_exclude_unset__", self.exclude_unset),
                 "__module__": f"mcp.{self.name}",
             },
         )
@@ -115,9 +112,7 @@ class MCPClient:
 
         return class_name, action
 
-    async def patch_tools(
-        self, actions: ChildActions, mcp_actions: ChildActions
-    ) -> ChildActions:
+    async def patch_tools(self, actions: ChildActions, mcp_actions: ChildActions) -> ChildActions:
         """Retrieve Tools."""
         response = await self.session.list_tools()
         for tool in response.tools:
@@ -171,9 +166,7 @@ class MCPAction(Action[TContext], Generic[TContext]):
         """Execute pre mcp process."""
         return ActionReturn.GO
 
-    async def execute(
-        self, context: TContext, parent: Action | None = None
-    ) -> ActionReturn:
+    async def execute(self, context: TContext, parent: Action | None = None) -> ActionReturn:
         """Execute main process."""
         self._parent = parent
         parent_context = context
@@ -187,15 +180,10 @@ class MCPAction(Action[TContext], Generic[TContext]):
             if context.check_self_recursion(self):
                 return ActionReturn.END
 
-            if (
-                self.__has_pre_mcp__
-                and (result := await self.pre_mcp(context)).is_break
-            ):
+            if self.__has_pre_mcp__ and (result := await self.pre_mcp(context)).is_break:
                 return result
 
-            async with multi_mcp_clients(
-                context.integrations, self.__mcp_connections__
-            ) as clients:
+            async with multi_mcp_clients(context.integrations, self.__mcp_connections__) as clients:
                 self.__mcp_clients__ = clients
 
                 if self.__has_pre__ and (result := await self.pre(context)).is_break:
@@ -219,7 +207,7 @@ class MCPAction(Action[TContext], Generic[TContext]):
         except Exception as exception:
             if not self.__has_on_error__:
                 self.__to_commit__ = False
-                raise next(unwrap_exceptions(exception))
+                raise next(unwrap_exceptions(exception)) from None
             elif (
                 result := await self.on_error(
                     context,
@@ -284,9 +272,7 @@ class MCPToolAction(Action[TContext], Generic[TContext]):
     def build_progress_callback(self, context: TContext) -> ProgressFnT:
         """Generate progress callback function."""
 
-        async def progress_callback(
-            progress: float, total: float | None, message: str | None
-        ) -> None:
+        async def progress_callback(progress: float, total: float | None, message: str | None) -> None:
             await context.notify(
                 {
                     "event": "mcp-call-tool",
@@ -314,12 +300,10 @@ class MCPToolAction(Action[TContext], Generic[TContext]):
                 if isinstance(resource := content.resource, TextResourceContents):
                     return f'<a href="{resource.uri}">\n{resource.text}\n</a>'
                 else:
-                    mime = (
-                        resource.mimeType.lower().split("/")
-                        if resource.mimeType
-                        else None
+                    mime = resource.mimeType.lower().split("/") if resource.mimeType else None
+                    source = (
+                        f'<source src="data:{resource.mimeType};base64,{resource.blob}" type="{resource.mimeType}">'
                     )
-                    source = f'<source src="data:{resource.mimeType};base64,{resource.blob}" type="{resource.mimeType}">'
                     match mime:
                         case "video":
                             return f"<video controls>\n\t{source}\n</video>"
@@ -328,9 +312,7 @@ class MCPToolAction(Action[TContext], Generic[TContext]):
                         case _:
                             return source
             case ResourceLink():
-                description = (
-                    f"\n{content.description}\n" if content.description else ""
-                )
+                description = f"\n{content.description}\n" if content.description else ""
                 return f'<a href="{content.uri}">{description}</a>'
             case _:
                 return f"The response of {self.__class__.__name__} is yet supported: {content.__class__.__name__}"
@@ -409,9 +391,7 @@ async def multi_mcp_clients(
                 )
             else:
                 async_client = await stack.enter_async_context(
-                    AsyncClient(
-                        **overrided_config["async_client_args"], follow_redirects=True
-                    )
+                    AsyncClient(**overrided_config["async_client_args"], follow_redirects=True)
                 )
 
                 streams = await stack.enter_async_context(
@@ -422,9 +402,7 @@ async def multi_mcp_clients(
                     )
                 )
 
-            session = await stack.enter_async_context(
-                ClientSession(*islice(streams, 0, 2))
-            )
+            session = await stack.enter_async_context(ClientSession(*islice(streams, 0, 2)))
             await session.initialize()
             clients[conn.name] = MCPClient(
                 session,
@@ -532,9 +510,7 @@ def build_mcp_app(
         async def lifespan(app: AppType) -> AsyncGenerator[None, None]:
             async with AsyncExitStack() as stack:
                 for streamable_server in streamable_servers:
-                    await stack.enter_async_context(
-                        streamable_server.session_manager.run()
-                    )
+                    await stack.enter_async_context(streamable_server.session_manager.run())
                 yield
 
         return Starlette(routes=mounts, lifespan=lifespan)
@@ -581,9 +557,7 @@ async def tool({", ".join(kwargs)}):
     return globals["tool"]
 
 
-def add_mcp_server(
-    group: str, action: type["Action"], entry: Callable[..., Awaitable[str]]
-) -> None:
+def add_mcp_server(group: str, action: type["Action"], entry: Callable[..., Awaitable[str]]) -> None:
     """Add action."""
     if not (server := MCPAction.__mcp_servers__.get(group)):
         server = MCPAction.__mcp_servers__[group] = FastMCP(
@@ -641,13 +615,8 @@ async def traverse(
         child_actions = action.__child_actions__.copy()
 
     if issubclass(action, MCPAction):
-        async with multi_mcp_clients(
-            integrations, action.__mcp_connections__, bypass
-        ) as clients:
-            [
-                await client.patch_tools(child_actions, action.__mcp_tool_actions__)
-                for client in clients.values()
-            ]
+        async with multi_mcp_clients(integrations, action.__mcp_connections__, bypass) as clients:
+            [await client.patch_tools(child_actions, action.__mcp_tool_actions__) for client in clients.values()]
 
     for child_action in child_actions.values():
         child = f"{child_action.__module__}.{child_action.__qualname__}"
@@ -656,11 +625,7 @@ async def traverse(
                 current,
                 child,
                 child_action.__concurrent__,
-                (
-                    child_action.__mcp_client__.name
-                    if issubclass(child_action, MCPToolAction)
-                    else ""
-                ),
+                (child_action.__mcp_client__.name if issubclass(child_action, MCPToolAction) else ""),
             )
         )
 

@@ -41,9 +41,7 @@ class Context(BaseModel, Generic[TLLM]):
         """Get base LLM."""
         return LLM.base()
 
-    async def start(
-        self, action: type[TAction], /, **kwargs: Any
-    ) -> tuple[TAction, ActionReturn]:
+    async def start(self, action: type[TAction], /, **kwargs: Any) -> tuple[TAction, ActionReturn]:
         """Start Action."""
         if not self.prompts or self.prompts[0]["role"] != ChatRole.SYSTEM:
             raise RuntimeError("Prompts should not be empty and start with system!")
@@ -91,19 +89,13 @@ class Context(BaseModel, Generic[TLLM]):
         _input_token_details = base["input_token_details"]
         if input_token_details := usage.get("input_token_details"):
             _input_token_details["audio"] += input_token_details.get("audio", 0)
-            _input_token_details["cache_creation"] += input_token_details.get(
-                "cache_creation", 0
-            )
-            _input_token_details["cache_read"] += input_token_details.get(
-                "cache_read", 0
-            )
+            _input_token_details["cache_creation"] += input_token_details.get("cache_creation", 0)
+            _input_token_details["cache_read"] += input_token_details.get("cache_read", 0)
 
         _output_token_details = base["output_token_details"]
         if output_token_details := usage.get("output_token_details"):
             _output_token_details["audio"] += output_token_details.get("audio", 0)
-            _output_token_details["reasoning"] += output_token_details.get(
-                "reasoning", 0
-            )
+            _output_token_details["reasoning"] += output_token_details.get("reasoning", 0)
 
     async def add_usage(
         self,
@@ -124,9 +116,7 @@ class Context(BaseModel, Generic[TLLM]):
 
         await self.merge_to_usages(model, usage)
 
-    async def add_message(
-        self, role: ChatRole, content: str, metadata: dict[str, Any] | None = None
-    ) -> None:
+    async def add_message(self, role: ChatRole, content: str, metadata: dict[str, Any] | None = None) -> None:
         """Add message."""
         self.prompts.append({"content": content, "role": role})
 
@@ -148,9 +138,7 @@ class Context(BaseModel, Generic[TLLM]):
             }
         )
 
-        self.prompts.append(
-            {"content": content, "role": ChatRole.TOOL, "tool_call_id": action["id"]}
-        )
+        self.prompts.append({"content": content, "role": ChatRole.TOOL, "tool_call_id": action["id"]})
 
     async def set_metadata(
         self,
@@ -167,7 +155,7 @@ class Context(BaseModel, Generic[TLLM]):
 
                 if update:
                     target = parent_target[paths[-1]]
-                    match (target):
+                    match target:
                         case dict() | set():
                             target.update(value)
                         case list():
@@ -176,7 +164,7 @@ class Context(BaseModel, Generic[TLLM]):
                             else:
                                 target.append(value)
                         case tuple():
-                            match (value):
+                            match value:
                                 case tuple():
                                     parent_target[paths[-1]] = target + value
                                 case Iterable():
@@ -188,15 +176,9 @@ class Context(BaseModel, Generic[TLLM]):
                 else:
                     parent_target[paths[-1]] = value
             except Exception as e:
-                raise ValueError(
-                    f'Error occured when setting value to path `{" -> ".join(paths)}`!'
-                ) from e
-        elif not isinstance(value, dict) or any(
-            not isinstance(key, str) for key in value.keys()
-        ):
-            raise ValueError(
-                f"New metadata must be a serializable dict[str, Any], got {type(value).__name__}"
-            )
+                raise ValueError(f"Error occured when setting value to path `{' -> '.join(paths)}`!") from e
+        elif not isinstance(value, dict) or any(not isinstance(key, str) for key in value):
+            raise ValueError(f"New metadata must be a serializable dict[str, Any], got {type(value).__name__}")
 
         self.metadata = value
 
@@ -210,7 +192,7 @@ class Context(BaseModel, Generic[TLLM]):
 
                 target = parent_target[paths[-1]]
 
-                match (target):
+                match target:
                     case dict() | set():
                         target.update(value)
                     case list():
@@ -219,7 +201,7 @@ class Context(BaseModel, Generic[TLLM]):
                         else:
                             target.append(value)
                     case tuple():
-                        match (target):
+                        match target:
                             case tuple():
                                 parent_target[paths[-1]] = target + value
                             case Iterable():
@@ -229,15 +211,9 @@ class Context(BaseModel, Generic[TLLM]):
                     case _:
                         parent_target[paths[-1]] = value
             except Exception as e:
-                raise ValueError(
-                    f'Error occured when setting value to path `{" -> ".join(paths)}`!'
-                ) from e
-        elif not isinstance(value, dict) or any(
-            not isinstance(key, str) for key in value.keys()
-        ):
-            raise ValueError(
-                f"New metadata must be a serializable dict[str, Any], got {type(value).__name__}"
-            )
+                raise ValueError(f"Error occured when setting value to path `{' -> '.join(paths)}`!") from e
+        elif not isinstance(value, dict) or any(not isinstance(key, str) for key in value):
+            raise ValueError(f"New metadata must be a serializable dict[str, Any], got {type(value).__name__}")
 
         self.metadata = value
 
@@ -271,9 +247,7 @@ class Context(BaseModel, Generic[TLLM]):
         **kwargs: P.kwargs,
     ) -> Future[T]:
         """Run func on different thread."""
-        return get_event_loop().run_in_executor(
-            executor, partial(task, *args, **kwargs)
-        )
+        return get_event_loop().run_in_executor(executor, partial(task, *args, **kwargs))
 
     async def detach_context(self: TContext) -> TContext:
         """Spawn detached context."""

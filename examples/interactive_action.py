@@ -43,9 +43,7 @@ class GeneralChat(Action):
             ######################################################
             #     Wait for client response before continuing     #
             ######################################################
-            reply = await context.wait_for_input(
-                {"message": "before I answer that give me your answer?"}
-            )
+            reply = await context.wait_for_input({"message": "before I answer that give me your answer?"})
 
             if int(reply.strip()) != self.answer:
                 message = f"You're Wrong! Answer is {self.answer}"

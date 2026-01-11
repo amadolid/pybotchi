@@ -11,9 +11,7 @@ from pydantic import Field
 class MathProblemAction(Action):
     """Solve the math problem."""
 
-    equation: str = Field(
-        description="The mathematical equation to solve (e.g., '2x + 5')"
-    )
+    equation: str = Field(description="The mathematical equation to solve (e.g., '2x + 5')")
 
     async def pre(self, context: Context) -> ActionReturn:
         """Execute pre process."""
@@ -31,9 +29,7 @@ class TranslationAction(Action):
 
     async def pre(self, context: Context) -> ActionReturn:
         """Execute pre process."""
-        message = await context.llm.ainvoke(
-            f"Translate `{self.message}` to {self.language}"
-        )
+        message = await context.llm.ainvoke(f"Translate `{self.message}` to {self.language}")
         await context.add_usage(self, context.llm.model_name, message.usage_metadata)
         await context.add_response(self, message.text)
 

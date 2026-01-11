@@ -80,9 +80,7 @@ async def serve(
 
         queue.extend(que.__subclasses__())
 
-    add_PyBotchiGRPCServicer_to_server(
-        grpc_handler(id, module_spec.__name__, groups), server
-    )
+    add_PyBotchiGRPCServicer_to_server(grpc_handler(id, module_spec.__name__, groups), server)
 
     address = f"{host}:{port}"
     if private_key and certificate_chain:

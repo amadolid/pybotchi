@@ -512,6 +512,7 @@ jinja2 = ">=2.10.1,<4"
 packaging = "*"
 pydantic = ">=1.5"
 pyyaml = ">=6.0.1"
+ruff = {version = ">=0.9.10", optional = true, markers = "extra == \"ruff\""}
 
 [package.extras]
 all = ["graphql-core (>=3.2.3)", "httpx (>=0.24.1)", "openapi-spec-validator (>=0.2.8,<0.8)", "prance (>=0.18.2)", "pysnooper (>=0.4.1,<2)", "ruff (>=0.9.10)", "watchfiles (>=1.1)"]
@@ -1521,6 +1522,22 @@ files = [
 markers = {main = "extra == \"mcp\" or extra == \"grpc\""}
 
 [[package]]
+name = "mypy-protobuf"
+version = "4.0.0"
+description = "Generate mypy stub files from protobuf specs"
+optional = false
+python-versions = ">=3.8"
+groups = ["dev"]
+files = [
+    {file = "mypy_protobuf-4.0.0-py3-none-any.whl", hash = "sha256:b859286891c51e420aef711b3e6616444e81c64723c12110d1dda809fad105f6"},
+    {file = "mypy_protobuf-4.0.0.tar.gz", hash = "sha256:e200c833645dcfdfe8aa47f4a33d3a4b01b6be5b9a58ddbfc441329d5b679274"},
+]
+
+[package.dependencies]
+protobuf = ">=4.25.3"
+types-protobuf = ">=4.24"
+
+[[package]]
 name = "nodeenv"
 version = "1.10.0"
 description = "Node.js virtual environment builder"
@@ -1729,10 +1746,9 @@ virtualenv = ">=20.10.0"
 name = "protobuf"
 version = "6.33.3"
 description = ""
-optional = true
+optional = false
 python-versions = ">=3.9"
-groups = ["main"]
-markers = "extra == \"grpc\""
+groups = ["main", "dev"]
 files = [
     {file = "protobuf-6.33.3-cp310-abi3-win32.whl", hash = "sha256:b4046f9f2ede57ad5b1d9917baafcbcad42f8151a73c755a1e2ec9557b0a764f"},
     {file = "protobuf-6.33.3-cp310-abi3-win_amd64.whl", hash = "sha256:1fd18f030ae9df97712fbbb0849b6e54c63e3edd9b88d8c3bb4771f84d8db7a4"},
@@ -1745,6 +1761,7 @@ files = [
     {file = "protobuf-6.33.3-py3-none-any.whl", hash = "sha256:c2bf221076b0d463551efa2e1319f08d4cffcc5f0d864614ccd3d0e77a637794"},
     {file = "protobuf-6.33.3.tar.gz", hash = "sha256:c8794debeb402963fddff41a595e1f649bcd76616ba56c835645cab4539e810e"},
 ]
+markers = {main = "extra == \"grpc\""}
 
 [[package]]
 name = "pycparser"
@@ -2432,7 +2449,7 @@ version = "0.14.10"
 description = "An extremely fast Python linter and code formatter, written in Rust."
 optional = false
 python-versions = ">=3.7"
-groups = ["dev"]
+groups = ["main", "dev"]
 files = [
     {file = "ruff-0.14.10-py3-none-linux_armv6l.whl", hash = "sha256:7a3ce585f2ade3e1f29ec1b92df13e3da262178df8c8bdf876f48fa0e8316c49"},
     {file = "ruff-0.14.10-py3-none-macosx_10_12_x86_64.whl", hash = "sha256:674f9be9372907f7257c51f1d4fc902cb7cf014b9980152b802794317941f08f"},
@@ -3186,4 +3203,4 @@ mcp = ["datamodel-code-generator", "mcp"]
 [metadata]
 lock-version = "2.1"
 python-versions = "<4.0,>=3.12.0"
-content-hash = "251e64a65077d0c317ebce80322d44ebfac3c8c441ddd33e319ab02647bad616"
+content-hash = "3197e9084bb458c46424da855666830db969356baf46e6f7650841ecd17ad1f6"

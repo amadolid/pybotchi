@@ -71,9 +71,7 @@ async def test() -> None:
     print(dumps(context.prompts, indent=4))
     print(dumps(action.serialize(), indent=4))
 
-    general_chat_graph = await graph(
-        GeneralChat, {"IgnoredAction": False}, integrations
-    )
+    general_chat_graph = await graph(GeneralChat, {"IgnoredAction": False}, integrations)
     print(general_chat_graph.flowchart())
 
 
