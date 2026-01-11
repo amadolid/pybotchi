@@ -1,11 +1,6 @@
 """MCP Server Action."""
 
-from collections.abc import AsyncGenerator
-from contextlib import AsyncExitStack, asynccontextmanager
-
-from fastapi import FastAPI
-
-from mcp_prerequisite import Action, ActionReturn, ChatRole, Context, mount_mcp_groups
+from mcp_prerequisite import Action, ActionReturn, ChatRole, Context, build_mcp_app
 
 from pydantic import Field
 
@@ -107,20 +102,13 @@ class JokeWithStoryTelling(Action):
 
 
 ##################################################################################
-#                                  Multi Groups                                  #
+#                                   Direct MCP                                   #
+#                      SSE paths /group-1/sse & /group-2/sse                     #
+#                Streamable HTTP paths /group-1/mcp & /group-2/mcp               #
 ##################################################################################
 
+app = build_mcp_app(transport="streamable-http")
 
-@asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncGenerator[None, FastAPI]:
-    """Override life cycle."""
-    async with AsyncExitStack() as stack:
-        await mount_mcp_groups(app, stack)
-
-        yield
-
-
-app = FastAPI(lifespan=lifespan)
 if __name__ == "__main__":
     run(
         app,
@@ -129,13 +117,30 @@ if __name__ == "__main__":
         log_level="info",
     )
 
-
 ##################################################################################
-#                                  Single Group                                  #
-#       Path will be `/mcp`` instead of having this pattern `/{group}/mcp`       #
+#                                FastAPI Mounting                                #
 ##################################################################################
 
-# from pybotchi.mcp import run_mcp
+# from collections.abc import AsyncGenerator
+# from contextlib import asynccontextmanager
 
+# from fastapi import FastAPI
+
+# from pybotchi.mcp import mount_mcp_app
+
+
+# @asynccontextmanager
+# async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+#     """Override life cycle."""
+#     async with mount_mcp_app(app, transport="streamable-http"):
+#         yield
+
+
+# app = FastAPI(lifespan=lifespan)
 # if __name__ == "__main__":
-#     run_mcp("group-1")
+#     run(
+#         app,
+#         host="127.0.0.1",
+#         port=8000,
+#         log_level="info",
+#     )

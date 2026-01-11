@@ -33,7 +33,8 @@ from mcp.types import (
 
 from orjson import dumps, loads
 
-from starlette.applications import AppType
+from starlette.applications import AppType, Starlette
+from starlette.routing import Mount
 
 from .common import MCPConfig, MCPConnection, MCPIntegration, MCPMode
 from .context import TContext
@@ -457,26 +458,88 @@ def initialize_mcp_groups() -> None:
         queue.extend(que.__subclasses__())
 
 
-async def mount_mcp_groups(app: AppType, stack: AsyncExitStack) -> None:
+@asynccontextmanager
+async def mount_mcp_app(
+    app: AppType,
+    *groups: str,
+    transport: Literal["sse", "streamable-http"] | dict[str, str] = "streamable-http",
+) -> AsyncGenerator[AsyncExitStack, None]:
     """Start MCP Servers."""
     initialize_mcp_groups()
 
-    for server, mcp in MCPAction.__mcp_servers__.items():
-        app.mount(f"/{server}", mcp.streamable_http_app())
-        await stack.enter_async_context(mcp.session_manager.run())
+    allowed_groups = set(groups) if groups else None
+
+    async with AsyncExitStack() as stack:
+        for group, server in MCPAction.__mcp_servers__.items():
+            if allowed_groups and group not in allowed_groups:
+                continue
+
+            match transport:
+                case "sse":
+                    mcp = server.sse_app()
+                case "streamable-http":
+                    mcp = server.streamable_http_app()
+                    await stack.enter_async_context(server.session_manager.run())
+                case dict():
+                    if transport.get(group) == "sse":
+                        mcp = server.sse_app()
+                    else:
+                        mcp = server.streamable_http_app()
+                        await stack.enter_async_context(server.session_manager.run())
+                case _:
+                    raise NotImplementedError(f"{transport} is not supported!")
+
+            app.mount(f"/{group}", mcp, server.name)
+
+        yield stack
 
 
-def run_mcp(
-    group: str,
-    transport: Literal["stdio", "sse", "streamable-http"] = "streamable-http",
-) -> None:
+def build_mcp_app(
+    *groups: str,
+    transport: Literal["sse", "streamable-http"] | dict[str, str] = "streamable-http",
+) -> Starlette:
     """Start MCP server by group."""
     initialize_mcp_groups()
 
-    if not (server := MCPAction.__mcp_servers__.get(group)):
-        raise ValueError(f"Group `{group}` is not available!")
+    mounts: list[Mount] = []
+    streamable_servers: list[FastMCP] = []
+    allowed_groups = set(groups) if groups else None
 
-    server.run(transport)
+    for group, server in MCPAction.__mcp_servers__.items():
+        if allowed_groups and group not in allowed_groups:
+            continue
+
+        match transport:
+            case "sse":
+                app = server.sse_app()
+            case "streamable-http":
+                app = server.streamable_http_app()
+                streamable_servers.append(server)
+            case dict():
+                if transport.get(group) == "sse":
+                    app = server.sse_app()
+                else:
+                    app = server.streamable_http_app()
+                    streamable_servers.append(server)
+            case _:
+                raise NotImplementedError(f"{transport} is not supported!")
+
+        mounts.append(Mount(f"/{group}", app, name=server.name))
+
+    if streamable_servers:
+
+        @asynccontextmanager
+        async def lifespan(app: AppType) -> AsyncGenerator[None, None]:
+            async with AsyncExitStack() as stack:
+                for streamable_server in streamable_servers:
+                    await stack.enter_async_context(
+                        streamable_server.session_manager.run()
+                    )
+                yield
+
+        return Starlette(routes=mounts, lifespan=lifespan)
+
+    return Starlette(routes=mounts)
 
 
 def build_mcp_entry(action: type["Action"]) -> Callable[..., Awaitable[str]]:

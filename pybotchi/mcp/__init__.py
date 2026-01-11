@@ -1,16 +1,16 @@
 """Pybotchi MCP."""
 
 try:
-    from .action import MCPAction, MCPToolAction, graph, mount_mcp_groups, run_mcp
+    from .action import MCPAction, MCPToolAction, build_mcp_app, graph, mount_mcp_app
     from .common import MCPConfig, MCPConnection, MCPIntegration, MCPMode
     from .context import MCPContext
 
     __all__ = [
         "MCPAction",
         "MCPToolAction",
+        "build_mcp_app",
         "graph",
-        "mount_mcp_groups",
-        "run_mcp",
+        "mount_mcp_app",
         "MCPConfig",
         "MCPConnection",
         "MCPIntegration",

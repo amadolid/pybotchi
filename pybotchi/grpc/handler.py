@@ -53,7 +53,7 @@ class PyBotchiGRPC(PyBotchiGRPCServicer, Generic[TContext]):
         pass
 
     async def consume(
-        self, context: TContext, groups: list[str], events: AsyncGenerator[Event]
+        self, context: TContext, groups: list[str], events: AsyncGenerator[Event, None]
     ) -> None:
         """Consume event."""
         try:
@@ -150,7 +150,7 @@ class PyBotchiGRPC(PyBotchiGRPCServicer, Generic[TContext]):
                     await ret
 
     async def accept(
-        self, events: AsyncGenerator[Event], context: ServicerContext
+        self, events: AsyncGenerator[Event, None], context: ServicerContext
     ) -> Queue[Event]:
         """Accept connect execution."""
         event = await anext(events)
@@ -174,8 +174,8 @@ class PyBotchiGRPC(PyBotchiGRPCServicer, Generic[TContext]):
     ##############################################################################################
 
     async def execute_connect(
-        self, request_iterator: AsyncGenerator[Event], context: ServicerContext
-    ) -> AsyncGenerator[Event]:
+        self, request_iterator: AsyncGenerator[Event, None], context: ServicerContext
+    ) -> AsyncGenerator[Event, None]:
         """Execute `connect` method."""
         queue = await self.accept(request_iterator, context)
         while True:
@@ -190,8 +190,8 @@ class PyBotchiGRPC(PyBotchiGRPCServicer, Generic[TContext]):
     ##############################################################################################
 
     async def connect(
-        self, request_iterator: AsyncGenerator[Event], context: ServicerContext
-    ) -> AsyncGenerator[Event]:
+        self, request_iterator: AsyncGenerator[Event, None], context: ServicerContext
+    ) -> AsyncGenerator[Event, None]:
         """Consume `connect` method."""
         if self.__has_validate_metadata__ and self.validate_metadata(
             context.invocation_metadata()

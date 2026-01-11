@@ -13,9 +13,9 @@ from pybotchi.mcp import (
     MCPContext as BaseMCPContext,
     MCPIntegration,
     MCPToolAction,
+    build_mcp_app,
     graph,
-    mount_mcp_groups,
-    run_mcp,
+    mount_mcp_app,
 )
 
 load_dotenv()
@@ -45,7 +45,7 @@ __all__ = [
     "MCPContext",
     "MCPIntegration",
     "MCPToolAction",
+    "build_mcp_app",
     "graph",
-    "mount_mcp_groups",
-    "run_mcp",
+    "mount_mcp_app",
 ]
