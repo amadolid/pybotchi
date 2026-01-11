@@ -86,6 +86,16 @@ class GRPCClient:
             globals,
         )
         base_class = globals[class_name]
+
+        concurrent = action_schema.concurrent
+        if self.remote_action_class is not GRPCRemoteAction:
+            for cls in self.remote_action_class.__mro__:
+                if cls is GRPCRemoteAction:
+                    break
+                if (con := cls.__dict__.get("__concurrent__")) is not None:
+                    concurrent = con
+                    break
+
         action = type(
             class_name,
             (
@@ -96,8 +106,8 @@ class GRPCClient:
                 "__grpc_client__": self,
                 "__grpc_group__": action_schema.group,
                 "__grpc_action_name__": schema.title,
-                "__grpc_exclude_unset__": getattr(base_class, "__grpc_exclude_unset__", self.exclude_unset),
-                "__concurrent__": action_schema.concurrent,
+                "__grpc_exclude_unset__": self.exclude_unset,
+                "__concurrent__": concurrent,
                 "__module__": f"grpc.{agent_id}",
             },
         )
@@ -166,12 +176,12 @@ class GRPCAction(Action[TContext], Generic[TContext]):
         """Execute pre grpc process."""
         return ActionReturn.GO
 
-    async def execute(self, context: TContext, parent: Action | None = None) -> ActionReturn:
+    async def execute(self, context: TContext, parent: Action | None = None, append: bool = True) -> ActionReturn:
         """Execute main process."""
         self._parent = parent
         parent_context = context
         try:
-            if parent:
+            if parent and append:
                 parent._actions.append(self)
 
             if self.__detached__:

@@ -235,12 +235,12 @@ class Action(BaseModel, Generic[TContext]):
 
         return next_actions, message.text
 
-    async def execute(self, context: TContext, parent: Action | None = None) -> ActionReturn:
+    async def execute(self, context: TContext, parent: Action | None = None, append: bool = True) -> ActionReturn:
         """Execute main process."""
         self._parent = parent
         parent_context = context
         try:
-            if parent:
+            if parent and append:
                 parent._actions.append(self)
 
             if self.__detached__:
@@ -283,6 +283,11 @@ class Action(BaseModel, Generic[TContext]):
         finally:
             if self.__to_commit__ and self.__detached__:
                 await self.commit_context(parent_context, context)
+
+    async def execute_concurrently(self, context: TContext, parent: Action | None = None, append: bool = True) -> None:
+        """Execute main process concurrently."""
+        if (result := await self.execute(context, parent, append)).is_break:
+            raise ConcurrentBreakPoint(result)
 
     async def execution(self, context: TContext) -> ActionReturn:
         """Execute core process."""
@@ -377,20 +382,16 @@ class Action(BaseModel, Generic[TContext]):
 
         return ActionReturn.GO
 
-    async def execute_child_concurrently(self, context: TContext, action: Action) -> None:
-        """Execute child concurrently."""
-        if (result := await action.execute(context, self)).is_break:
-            raise ConcurrentBreakPoint(result)
-
     async def concurrent_children_execution(self, context: TContext, next_actions: list[Action]) -> ActionReturn:
         """Run children execution with concurrent."""
         break_point = None
         try:
             async with TaskGroup() as tg:
                 for next_action in next_actions:
+                    self._actions.append(next_action)
                     if next_action.__concurrent__:
-                        tg.create_task(self.execute_child_concurrently(context, next_action))
-                    elif (result := await next_action.execute(context, self)).is_break:
+                        tg.create_task(next_action.execute_concurrently(context, self, False))
+                    elif (result := await next_action.execute(context, self, False)).is_break:
                         return result
         except* ConcurrentBreakPoint as eg:
             queue = deque(eg.exceptions)

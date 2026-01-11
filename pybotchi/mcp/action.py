@@ -93,6 +93,16 @@ class MCPClient:
             globals,
         )
         base_class = globals[class_name]
+
+        concurrent = tool.meta.get("concurrent") if tool.meta else False
+        if self.tool_action_class is not MCPToolAction:
+            for cls in self.tool_action_class.__mro__:
+                if cls is MCPToolAction:
+                    break
+                if (con := cls.__dict__.get("__concurrent__")) is not None:
+                    concurrent = con
+                    break
+
         action = type(
             class_name,
             (
@@ -102,7 +112,8 @@ class MCPClient:
             {
                 "__mcp_tool_name__": tool.name,
                 "__mcp_client__": self,
-                "__mcp_exclude_unset__": getattr(base_class, "__mcp_exclude_unset__", self.exclude_unset),
+                "__mcp_exclude_unset__": self.exclude_unset,
+                "__concurrent__": concurrent,
                 "__module__": f"mcp.{self.name}",
             },
         )
@@ -166,12 +177,12 @@ class MCPAction(Action[TContext], Generic[TContext]):
         """Execute pre mcp process."""
         return ActionReturn.GO
 
-    async def execute(self, context: TContext, parent: Action | None = None) -> ActionReturn:
+    async def execute(self, context: TContext, parent: Action | None = None, append: bool = True) -> ActionReturn:
         """Execute main process."""
         self._parent = parent
         parent_context = context
         try:
-            if parent:
+            if parent and append:
                 parent._actions.append(self)
 
             if self.__detached__:
@@ -431,7 +442,7 @@ def initialize_mcp_groups() -> None:
         if _groups:
             entry = build_mcp_entry(que)
             for group in _groups:
-                add_mcp_server(group.lower(), que, entry)
+                add_mcp_tool(group.lower(), que, entry)
 
         queue.extend(que.__subclasses__())
 
@@ -557,7 +568,7 @@ async def tool({", ".join(kwargs)}):
     return globals["tool"]
 
 
-def add_mcp_server(group: str, action: type["Action"], entry: Callable[..., Awaitable[str]]) -> None:
+def add_mcp_tool(group: str, action: type["Action"], entry: Callable[..., Awaitable[str]]) -> None:
     """Add action."""
     if not (server := MCPAction.__mcp_servers__.get(group)):
         server = MCPAction.__mcp_servers__[group] = FastMCP(
@@ -565,7 +576,9 @@ def add_mcp_server(group: str, action: type["Action"], entry: Callable[..., Awai
             stateless_http=True,
             log_level=getenv("MCP_LOGGER_LEVEL", "WARNING"),  # type: ignore[arg-type]
         )
-    server.add_tool(entry, action.__name__, action.__display_name__, getdoc(action))
+    server.add_tool(
+        entry, action.__name__, action.__display_name__, getdoc(action), meta={"concurrent": action.__concurrent__}
+    )
 
 
 ##########################################################################
