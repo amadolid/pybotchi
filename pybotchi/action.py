@@ -15,6 +15,7 @@ from pydantic import BaseModel, PrivateAttr
 from .common import (
     ActionEntry,
     ActionReturn,
+    ConcurrentBreakPoint,
     Graph,
     Groups,
     ToolCall,
@@ -254,6 +255,9 @@ class Action(BaseModel, Generic[TContext]):
         self._parent = parent
         parent_context = context
         try:
+            if parent:
+                parent._actions.append(self)
+
             if self.__detached__:
                 context = await context.detach_context()
 
@@ -303,8 +307,7 @@ class Action(BaseModel, Generic[TContext]):
             and not (action := next(iter(child_actions.values()))).model_fields
             and not self.__has_fallback__
         ):
-            self._actions.append(next_action := action())  # type: ignore[call-arg]
-            if (result := await next_action.execute(context, self)).is_break:
+            if (result := await action().execute(context, self)).is_break:  # type: ignore[call-arg]
                 return result
         elif child_actions:
             await context.notify(
@@ -332,7 +335,12 @@ class Action(BaseModel, Generic[TContext]):
             )
 
             if next_actions:
-                if (
+                if self.__first_tool_only__ or len(next_actions) == 1:
+                    if (
+                        result := await next_actions[0].execute(context, self)
+                    ).is_break:
+                        return result
+                elif (
                     result := await (
                         self.concurrent_children_execution
                         if any(True for na in next_actions if na.__concurrent__)
@@ -394,30 +402,44 @@ class Action(BaseModel, Generic[TContext]):
 
         return ActionReturn.GO
 
+    async def execute_child_concurrently(
+        self, context: TContext, action: Action
+    ) -> None:
+        """Execute child concurrently."""
+        if (result := await action.execute(context, self)).is_break:
+            raise ConcurrentBreakPoint(result)
+
     async def concurrent_children_execution(
         self, context: TContext, next_actions: list[Action]
     ) -> ActionReturn:
         """Run children execution with concurrent."""
-        async with TaskGroup() as tg:
-            for next_action in (
-                islice(next_actions, 1) if self.__first_tool_only__ else next_actions
-            ):
-                self._actions.append(next_action)
-                if next_action.__concurrent__:
-                    tg.create_task(next_action.execute(context, self))
-                elif (result := await next_action.execute(context, self)).is_break:
-                    return result
+        break_point = None
+        try:
+            async with TaskGroup() as tg:
+                for next_action in next_actions:
+                    if next_action.__concurrent__:
+                        tg.create_task(
+                            self.execute_child_concurrently(context, next_action)
+                        )
+                    elif (result := await next_action.execute(context, self)).is_break:
+                        return result
+        except* ConcurrentBreakPoint as eg:
+            queue = deque(eg.exceptions)
+            while queue:
+                que = queue.popleft()
+                if isinstance(que, ExceptionGroup):
+                    queue.extend(que.exceptions)
+                else:
+                    break_point = que.action_return
+                    break
 
-        return ActionReturn.GO
+        return break_point or ActionReturn.GO
 
     async def sequential_children_execution(
         self, context: TContext, next_actions: list[Action]
     ) -> ActionReturn:
         """Run children execution sequentially."""
-        for next_action in (
-            islice(next_actions, 1) if self.__first_tool_only__ else next_actions
-        ):
-            self._actions.append(next_action)
+        for next_action in next_actions:
             if (result := await next_action.execute(context, self)).is_break:
                 return result
 

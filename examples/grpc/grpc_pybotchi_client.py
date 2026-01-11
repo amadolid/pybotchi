@@ -1,4 +1,4 @@
-"""GRPC PyBotchi Client."""
+"""GRPC Client Action."""
 
 from asyncio import run
 from json import dumps

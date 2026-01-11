@@ -1,11 +1,14 @@
 """Pybotchi GRPC Common."""
 
 from enum import StrEnum
-from typing import Any, Sequence, TypedDict
+from typing import Any, Sequence, TYPE_CHECKING, TypedDict
 
 from grpc.aio import ClientInterceptor
 
 from .utils import read_cert
+
+if TYPE_CHECKING:
+    from .action import GRPCRemoteAction
 
 
 class GRPCCompression(StrEnum):
@@ -73,6 +76,7 @@ class GRPCConnection:
         allow_exec: bool = False,
         manual_enable: bool = False,
         allowed_actions: dict[str, bool] | None = None,
+        remote_action_class: type["GRPCRemoteAction"] | None = None,
         exclude_unset: bool = True,
         require_integration: bool = True,
     ) -> None:
@@ -91,6 +95,7 @@ class GRPCConnection:
         self.allow_exec = allow_exec
         self.manual_enable = manual_enable
         self.allowed_actions = {} if allowed_actions is None else allowed_actions
+        self.remote_action_class = remote_action_class
         self.exclude_unset = exclude_unset
         self.require_integration = require_integration
 

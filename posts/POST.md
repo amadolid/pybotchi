@@ -471,7 +471,7 @@ class YourAction(Action):
 
 ### **Real-World Applications**
 
-- [`interactive_agent.py`](https://github.com/amadolid/pybotchi/blob/master/examples/interactive_agent.py) - Real-time WebSocket communication
+- [`interactive_action.py`](https://github.com/amadolid/pybotchi/blob/master/examples/interactive_action.py) - Real-time WebSocket communication
 - [`jira_agent.py`](https://github.com/amadolid/pybotchi/blob/master/examples/jira_agent.py) - Integration with MCP Atlassian server
 - [`agent_with_mcp.py`](https://github.com/amadolid/pybotchi/blob/master/examples/agent_with_mcp.py) - Hosting Actions as MCP tools
 

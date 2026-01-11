@@ -109,4 +109,4 @@ async def interactive_chat(context: InteractiveContext) -> None:
 
 ## **Example Implementations**
 
-- [Interactive Agent](../examples/interactive_agent.py)
+- [Interactive Agent](../examples/interactive_action.py)

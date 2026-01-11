@@ -1,4 +1,4 @@
-"""Direct MCP Agent Server."""
+"""MCP Server Action."""
 
 from collections.abc import AsyncGenerator
 from contextlib import AsyncExitStack, asynccontextmanager

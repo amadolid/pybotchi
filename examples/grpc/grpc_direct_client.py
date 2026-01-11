@@ -1,4 +1,4 @@
-"""The Python AsyncIO implementation of the GRPC hellostreamingworld.MultiGreeter client."""
+"""Direct GRPC Client."""
 
 from asyncio import Queue, run
 from collections.abc import AsyncGenerator

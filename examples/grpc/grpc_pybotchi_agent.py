@@ -1,4 +1,4 @@
-"""User APIs."""
+"""GRPC Server Action."""
 
 from grpc_prerequisite import (
     Action,

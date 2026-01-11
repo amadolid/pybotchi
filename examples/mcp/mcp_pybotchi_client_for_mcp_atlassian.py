@@ -1,4 +1,4 @@
-"""User APIs."""
+"""MCP Client Action for MCP Atlassian."""
 
 from asyncio import run
 from json import dumps

@@ -1,4 +1,4 @@
-"""Sample LLMs."""
+"""Common Action Setup."""
 
 from os import getenv
 

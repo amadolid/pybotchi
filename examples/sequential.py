@@ -1,4 +1,4 @@
-"""User APIs."""
+"""Sequential Action."""
 
 from asyncio import run
 from json import dumps

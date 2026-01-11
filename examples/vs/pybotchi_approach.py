@@ -166,7 +166,7 @@ class Approach2(Action):
                 await context.add_response(self, "It's warm and sunny.")
 
             # Indirect Trigger
-            result = await Approach2().execute(context)
+            result = await Approach2().execute(context, self)  # type: ignore[call-arg]
             return result
 
 
@@ -228,7 +228,7 @@ class Approach3(Action):
                 await context.add_response(self, "It's warm and sunny.")
 
             # OR Indirect Trigger
-            # action, result await context.execute(Approach2())
+            # action, result = await Approach3().execute(context, self)
             return ActionReturn.GO
 
 

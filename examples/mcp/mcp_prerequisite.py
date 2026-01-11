@@ -1,4 +1,4 @@
-"""Sample LLMs."""
+"""Common MCP Action Setup."""
 
 from os import getenv
 

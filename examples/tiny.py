@@ -1,4 +1,4 @@
-"""Full Spec Action."""
+"""Tiny Spec Action."""
 
 from pybotchi import Action, ActionReturn, ChatRole, Context
 

@@ -2,12 +2,15 @@
 
 from collections.abc import Callable, Mapping, Sequence
 from enum import StrEnum
-from typing import Any, Literal, TypedDict
+from typing import Any, Literal, TYPE_CHECKING, TypedDict
 
 from httpx import Auth
 from httpx._types import CertTypes, PrimitiveData
 
 from mcp.client.streamable_http import McpHttpClientFactory, create_mcp_http_client
+
+if TYPE_CHECKING:
+    from .action import MCPToolAction
 
 
 class MCPMode(StrEnum):
@@ -97,6 +100,7 @@ class MCPConnection:
         async_client_args: AsyncClientArgs | None = None,
         manual_enable: bool = False,
         allowed_tools: dict[str, bool] | None = None,
+        tool_action_class: type["MCPToolAction"] | None = None,
         exclude_unset: bool = True,
         require_integration: bool = True,
     ) -> None:
@@ -116,6 +120,7 @@ class MCPConnection:
         )
         self.manual_enable = manual_enable
         self.allowed_tools = {} if allowed_tools is None else allowed_tools
+        self.tool_action_class = tool_action_class
         self.exclude_unset = exclude_unset
         self.require_integration = require_integration
 

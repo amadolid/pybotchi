@@ -179,6 +179,15 @@ class End(Break):
     """End Action."""
 
 
+class ConcurrentBreakPoint(Exception):  # noqa: N818
+    """Concurrent Break Point."""
+
+    def __init__(self, action_return: ActionReturn) -> None:
+        """Initialize ConcurrentBreakPoint Exception."""
+        self.action_return = action_return
+        super().__init__(action_return)
+
+
 ActionReturn.GO = Go()
 ActionReturn.END = End()
 ActionReturn.BREAK = Break()

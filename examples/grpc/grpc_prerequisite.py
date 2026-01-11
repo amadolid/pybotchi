@@ -1,4 +1,4 @@
-"""Sample LLMs."""
+"""Common GRPC Action Setup."""
 
 from os import getenv
 

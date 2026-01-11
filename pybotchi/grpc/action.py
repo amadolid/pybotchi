@@ -52,6 +52,7 @@ class GRPCClient:
         config: GRPCConfigLoaded,
         manual_enable: bool,
         allowed_actions: dict[str, bool],
+        remote_action_class: type["GRPCRemoteAction"] | None,
         exclude_unset: bool,
     ) -> None:
         """Build GRPC Client."""
@@ -60,6 +61,7 @@ class GRPCClient:
         self.config = config
         self.manual_enable = manual_enable
         self.allowed_actions = allowed_actions
+        self.remote_action_class = remote_action_class or GRPCRemoteAction
         self.exclude_unset = exclude_unset
 
     def build_action(
@@ -89,7 +91,7 @@ class GRPCClient:
             class_name,
             (
                 base_class,
-                GRPCRemoteAction,
+                self.remote_action_class,
             ),
             {
                 "__grpc_client__": self,
@@ -176,6 +178,9 @@ class GRPCAction(Action[TContext], Generic[TContext]):
         self._parent = parent
         parent_context = context
         try:
+            if parent:
+                parent._actions.append(self)
+
             if self.__detached__:
                 context = await context.detach_context()
 
@@ -507,6 +512,7 @@ async def multi_grpc_clients(
                 overrided_config,
                 conn.manual_enable,
                 allowed_actions,
+                conn.remote_action_class,
                 integration.get(
                     "exclude_unset",
                     conn.exclude_unset,
