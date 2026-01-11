@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pybotchi"
-version = "3.0.4"
+version = "3.1.0"
 description = "A deterministic, intent-based AI agent builder."
 authors = ["Alexie (Boyong) Madolid <madolid.alexie@gmail.com>"]
 readme = "README.md"
@@ -29,19 +29,10 @@ grpcio-tools = { version = ">=1.76.0", optional = true }
 aiofiles = { version = ">=25.1.0", optional = true }
 
 [tool.poetry.group.dev.dependencies]
-mypy = "1.16.1"
 python-dotenv = "1.1.1"
-black = "25.1.0"
-pre-commit = "4.2.0"
-pytest = "8.4.1"
-flake8 = "7.3.0"
-flake8-import-order = "0.19.2"
-flake8-docstrings = "1.7.0"
-flake8-comprehensions = "3.16.0"
-flake8-bugbear = "24.12.12"
-flake8-annotations = "3.1.1"
-flake8_simplify = "0.22.0"
-pep8-naming = "0.15.1"
+mypy = "1.19.1"
+ruff = "0.14.10"
+pre-commit = "4.5.1"
 types-protobuf = "6.32.1.20251105"
 types-aiofiles = "25.1.0.20251011"
 

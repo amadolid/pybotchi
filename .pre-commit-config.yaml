@@ -1,33 +1,26 @@
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v6.0.0
     hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
       - id: check-yaml
         args: [--allow-multiple-documents]
+      - id: check-added-large-files
       - id: check-json
-      - id: trailing-whitespace
-  - repo: https://github.com/psf/black
-    rev: 25.1.0
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: debug-statements
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.14.10
     hooks:
-      - id: black
-  - repo: https://github.com/PyCQA/flake8
-    rev: 7.3.0
-    hooks:
-      - id: flake8
-        args: ["--config=.flake8"]
-        additional_dependencies:
-          [
-            pep8-naming,
-            flake8_import_order,
-            flake8_docstrings,
-            flake8_comprehensions,
-            flake8_bugbear,
-            flake8_annotations,
-            flake8_simplify,
-          ]
-        exclude: v1
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.15.0
+    rev: v1.19.1
     hooks:
       - id: mypy
         exclude: pybotchi/grpc/pybotchi_pb2
@@ -36,4 +29,4 @@ repos:
           - --follow-imports=silent
           - --ignore-missing-imports
         additional_dependencies:
-          [types-redis, types-Markdown, types-aiofiles, mcp, grpcio]
+          [types-aiofiles, mcp, grpcio]
