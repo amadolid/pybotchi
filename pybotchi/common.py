@@ -140,7 +140,7 @@ class ActionReturn(BaseModel):
     BREAK: ClassVar["Break"]
     END: ClassVar["End"]
 
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(arbitrary_types_allowed=True)
 
     @staticmethod
     def end(value: Any) -> "End":

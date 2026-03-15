@@ -8,7 +8,7 @@ from collections.abc import Generator
 from inspect import getmembers
 from itertools import islice
 from os import getenv
-from typing import Any, Generic, TYPE_CHECKING, TypeAlias, TypeVar
+from typing import Any, Generic, TYPE_CHECKING, TypeVar
 
 from pydantic import BaseModel, PrivateAttr
 
@@ -54,7 +54,7 @@ TAction = TypeVar("TAction", bound="Action")
 TContext = TypeVar("TContext", bound="Context")
 T = TypeVar("T")
 
-ChildActions: TypeAlias = dict[str, type["Action"]]
+type ChildActions = dict[str, type["Action"]]
 
 
 class Action(BaseModel, Generic[TContext]):
