@@ -1,4 +1,14 @@
 repos:
+  - repo: local
+    hooks:
+      - id: stubgen
+        name: Generate or Update Stubs
+        entry: bash -c 'stubgen "$@" -o . && git add **/*.pyi' --
+        language: system
+        files: ^pybotchi/
+        exclude: \.pyi$
+        types: [python]
+
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
@@ -17,16 +27,14 @@ repos:
     hooks:
       - id: ruff
         args: [--fix]
+        exclude: \.pyi$
       - id: ruff-format
+        exclude: \.pyi$
 
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.19.1
     hooks:
       - id: mypy
-        exclude: pybotchi/grpc/pybotchi_pb2
-        args:
-          - --python-version=3.13
-          - --follow-imports=silent
-          - --ignore-missing-imports
+        exclude: ^pybotchi/grpc/pybotchi_pb2|^examples/|\.pyi$
         additional_dependencies:
           [types-protobuf, types-aiofiles, mypy-protobuf, mcp, grpcio]

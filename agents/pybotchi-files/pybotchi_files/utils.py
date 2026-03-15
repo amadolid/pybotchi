@@ -1,5 +1,7 @@
 """Utilities for PyBotchi Agent for file."""
 
+from typing import ClassVar
+
 from cv2.typing import MatLike
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -14,7 +16,7 @@ class DocxContent(BaseModel):
     ignored_images: list[MatLike] = Field(default_factory=list)
     table: bool = False
 
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(arbitrary_types_allowed=True)
 
     def append(self, text: str) -> None:
         """Append text."""

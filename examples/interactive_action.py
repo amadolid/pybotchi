@@ -1,6 +1,6 @@
 """Interactive Action."""
 
-from typing import Any
+from typing import Any, ClassVar
 
 from fastapi import FastAPI, WebSocket
 
@@ -16,7 +16,7 @@ class InteractiveContext(Context):
 
     websocket: WebSocket
 
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(arbitrary_types_allowed=True)
 
     async def notify(self, message: dict[str, Any]) -> None:
         """Notify Client."""
