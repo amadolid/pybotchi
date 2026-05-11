@@ -6,7 +6,6 @@ from asyncio import TaskGroup
 from collections import deque
 from collections.abc import Generator
 from inspect import getmembers
-from itertools import islice
 from os import getenv
 from typing import Any, Generic, TYPE_CHECKING, TypeVar
 
@@ -49,6 +48,29 @@ ${system}
 ${addons}
 """.strip(),
 )
+DEFAULT_MAX_ITERATION_PROMPT = getenv(
+    "DEFAULT_MAX_ITERATION_PROMPT",
+    """
+You are an AI assistant responsible for delivering the final response to the user.
+Your primary responsibility is to synthesize all prior tool calls and results from the conversation history into a clear, coherent, and complete response.
+
+# Finalization Guidelines:
+- Review the full conversation history, including all function calls made, their inputs, and their returned results.
+- Synthesize all gathered information into a single, well-structured final response.
+- Do NOT invoke any additional functions or tools — this is a finalization step only.
+- If the task was fully completed through prior iterations, summarize and present the results clearly.
+- If the task was only partially completed, clearly communicate:
+  - What was successfully accomplished.
+  - What could not be completed and why (e.g., iteration limit reached before all steps finished).
+  - Any actionable next steps the user can take.
+- If conflicting or incomplete data exists across iterations, use your best judgment to reconcile it and flag any uncertainty to the user.
+- Maintain the tone and context established in the original task.
+- Never expose raw function names, parameters, or internal tool output directly — always translate them into natural, user-friendly language.
+
+# Initial Task:
+${system}
+""".strip(),
+)
 
 TAction = TypeVar("TAction", bound="Action")
 TContext = TypeVar("TContext", bound="Context")
@@ -67,6 +89,7 @@ class Action(BaseModel, Generic[TContext]):
     __enabled__: bool = True
     __system_prompt__: str | None = None
     __tool_call_prompt__: str | None = None
+    __max_iteration_prompt__: str | None = None
     __temperature__: float | None = None
     __max_tool_prompts__: int | None = None
     __default_tool__ = DEFAULT_ACTION
@@ -165,6 +188,57 @@ class Action(BaseModel, Generic[TContext]):
         """Execute on error process."""
         return ActionReturn.GO
 
+    async def on_max_iteration(self, context: TContext) -> ActionReturn:
+        """Execute on max iteration process."""
+        await context.notify(
+            {
+                "event": "tool",
+                "type": "finalize",
+                "status": "started",
+                "data": self.__display_name__,
+            }
+        )
+        llm = context.llm
+        if self.__temperature__ is not None:
+            llm = llm.with_config(configurable={"llm_temperature": self.__temperature__})
+
+        message = await llm.ainvoke(
+            [
+                {
+                    "content": self.max_iteration_prompt(context),
+                    "role": "system",
+                },
+                *context.shifted_prompts(self.__max_tool_prompts__),
+            ]
+        )
+
+        await context.add_usage(
+            self,
+            getattr(
+                context.llm,
+                "model_name",
+                getattr(
+                    context.llm,
+                    "deployment_name",
+                    UNSPECIFIED,
+                ),
+            ),
+            message.usage_metadata,
+            "$finalize",
+        )
+
+        await context.notify(
+            {
+                "event": "tool",
+                "type": "finalize",
+                "status": "completed",
+                "data": self.__display_name__,
+            }
+        )
+        await context.add_response(self, message.text)
+
+        return ActionReturn.GO
+
     async def post(self, context: TContext) -> ActionReturn:
         """Execute post process."""
         return ActionReturn.GO
@@ -180,6 +254,13 @@ class Action(BaseModel, Generic[TContext]):
             self.__tool_call_prompt__ or DEFAULT_TOOL_CALL_PROMPT,
             tool_choice=tool_choice,
             default=self.__default_tool__,
+            system=self.__system_prompt__ or context.prompts[0]["content"] or "Not defined",
+        )
+
+    def max_iteration_prompt(self, context: TContext) -> str:
+        """Get max iteration prompt."""
+        return apply_placeholders(
+            self.__max_iteration_prompt__ or DEFAULT_MAX_ITERATION_PROMPT,
             system=self.__system_prompt__ or context.prompts[0]["content"] or "Not defined",
         )
 
@@ -208,25 +289,26 @@ class Action(BaseModel, Generic[TContext]):
         if self.__temperature__ is not None:
             llm = llm.with_config(configurable={"llm_temperature": self.__temperature__})
 
-        max = len(context.prompts)
-        if self.__max_tool_prompts__:
-            min = max - self.__max_tool_prompts__
-            min = 1 if min < 1 else min
-        else:
-            min = 1
-
         message = await llm.ainvoke(
             [
                 {
                     "content": self.child_selection_prompt(context, tool_choice),
                     "role": "system",
                 },
-                *islice(context.prompts, min, max),
+                *context.shifted_prompts(self.__max_tool_prompts__),
             ]
         )
         await context.add_usage(
             self,
-            context.llm.model_name,
+            getattr(
+                context.llm,
+                "model_name",
+                getattr(
+                    context.llm,
+                    "deployment_name",
+                    UNSPECIFIED,
+                ),
+            ),
             message.usage_metadata,
             "$tool",
         )
@@ -254,11 +336,14 @@ class Action(BaseModel, Generic[TContext]):
 
             if self.__max_child_iteration__:
                 iteration = 0
-                while iteration <= self.__max_child_iteration__:
+                while iteration < self.__max_child_iteration__:
                     if (result := await self.execution(context)).is_break:
                         break
                     iteration += 1
-                if result.is_end:
+                if result.is_end or (
+                    iteration >= self.__max_child_iteration__
+                    and (result := await self.on_max_iteration(context)).is_break
+                ):
                     return result
             elif (result := await self.execution(context)).is_break:
                 return result

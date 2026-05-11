@@ -49,11 +49,26 @@ class GeneralChatCombination(Action):
 class GeneralChatIteration(GeneralChatCombination):
     """Casual Generic Chat."""
 
-    __max_child_iteration__ = 4
-
     async def fallback(self, context: Context, content: str) -> ActionReturn:
         """Execute fallback."""
         return ActionReturn.BREAK
+
+
+class GeneralChatIterationWithLimit(Action):
+    """Casual Generic Chat."""
+
+    __max_child_iteration__ = 4
+    __first_tool_only__ = True
+
+    class Shout(Action):
+        """Shout Number."""
+
+        count: int
+
+        async def pre(self, context: Context) -> ActionReturn:
+            """Execute pre process."""
+            await context.add_response(self, str(self.count))
+            return ActionReturn.GO
 
 
 async def combination() -> None:
@@ -73,10 +88,14 @@ async def combination() -> None:
     action, _ = await context.start(GeneralChatCombination)
 
     print("######################################################")
-    print("#                Combination Approach                #")
+    print("#          Sequential Approach (Combination)         #")
     print("######################################################")
     print(dumps(context.prompts, indent=4))
     print(dumps(action.serialize(), indent=4))
+    print("# ----------------- Final Responses ---------------- #")
+    print(context.prompts[-3]["content"])
+    print(context.prompts[-1]["content"])
+    print("# -------------------------------------------------- #")
 
     general_chat_graph = await graph(GeneralChatCombination)
     print(general_chat_graph.flowchart())
@@ -99,14 +118,48 @@ async def iteration() -> None:
     action, _ = await context.start(GeneralChatIteration)
 
     print("######################################################")
-    print("#                 Iteration Approach                 #")
+    print("#           Sequential Approach (Iteration)          #")
     print("######################################################")
     print(dumps(context.prompts, indent=4))
     print(dumps(action.serialize(), indent=4))
+    print("# ----------------- Final Responses ---------------- #")
+    print(context.prompts[-3]["content"])
+    print(context.prompts[-1]["content"])
+    print("# -------------------------------------------------- #")
 
     general_chat_graph = await graph(GeneralChatIteration)
     print(general_chat_graph.flowchart())
 
 
+async def iteration_with_limit() -> None:
+    """Chat."""
+    context = Context(
+        prompts=[
+            {
+                "role": ChatRole.SYSTEM,
+                "content": "",
+            },
+            {
+                "role": ChatRole.USER,
+                "content": "Shout from 1 to 10",
+            },
+        ],
+    )
+    action, _ = await context.start(GeneralChatIterationWithLimit)
+
+    print("######################################################")
+    print("#     Sequential Approach (Iteration with limit)     #")
+    print("######################################################")
+    print(dumps(context.prompts, indent=4))
+    print(dumps(action.serialize(), indent=4))
+    print("# ----------------- Final Response ----------------- #")
+    print(context.prompts[-1]["content"])
+    print("# -------------------------------------------------- #")
+
+    general_chat_graph = await graph(GeneralChatIterationWithLimit)
+    print(general_chat_graph.flowchart())
+
+
 run(combination())
 run(iteration())
+run(iteration_with_limit())

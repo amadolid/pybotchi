@@ -1,7 +1,7 @@
 """Pybotchi Context."""
 
 from asyncio import Future, get_event_loop, new_event_loop
-from collections.abc import Callable, Coroutine, Iterable
+from collections.abc import Callable, Coroutine, Iterable, Iterator
 from concurrent.futures import Executor
 from copy import deepcopy
 from functools import cached_property, partial
@@ -40,6 +40,17 @@ class Context(BaseModel, Generic[TLLM]):
     def llm(self) -> TLLM:
         """Get base LLM."""
         return LLM.base()
+
+    def shifted_prompts(self, offset: int | None) -> Iterator[dict[str, Any]]:
+        """Get shifted prompts."""
+        max = len(self.prompts)
+        if offset:
+            min = max - offset
+            min = 1 if min < 1 else min
+        else:
+            min = 1
+
+        return islice(self.prompts, min, max)
 
     async def start(self, action: type[TAction], /, **kwargs: Any) -> tuple[TAction, ActionReturn]:
         """Start Action."""

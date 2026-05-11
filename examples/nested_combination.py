@@ -122,8 +122,14 @@ Ensure that all relevant tools are effectively utilized and properly sequenced t
     )
     action, result = await context.start(GeneralChat)
 
+    print("######################################################")
+    print("#                   Nested Approach                  #")
+    print("######################################################")
     print(dumps(context.prompts, indent=4))
     print(dumps(action.serialize(), indent=4))
+    print("# ----------------- Final Response ----------------- #")
+    print(context.prompts[-1]["content"])
+    print("# -------------------------------------------------- #")
 
     general_chat_graph = await graph(GeneralChat)
     print(general_chat_graph.flowchart())
