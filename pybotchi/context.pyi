@@ -2,7 +2,7 @@ from .action import Action as Action, ActionReturn as ActionReturn, T as T, TAct
 from .common import ChatRole as ChatRole, ToolCall as ToolCall, UNSPECIFIED as UNSPECIFIED, UsageMetadata as UsageMetadata
 from .llm import LLM as LLM
 from asyncio import Future
-from collections.abc import Callable as Callable, Coroutine
+from collections.abc import Callable as Callable, Coroutine, Iterator
 from concurrent.futures import Executor
 from functools import cached_property as cached_property
 from langchain_core.language_models.chat_models import BaseChatModel
@@ -24,6 +24,7 @@ class Context(BaseModel, Generic[TLLM]):
     parent: Self | None
     @cached_property
     def llm(self) -> TLLM: ...
+    def shifted_prompts(self, offset: int | None) -> Iterator[dict[str, Any]]: ...
     async def start(self, action: type[TAction], /, **kwargs: Any) -> tuple[TAction, ActionReturn]: ...
     def check_self_recursion(self, action: Action) -> bool: ...
     async def merge_to_usages(self, model: str, usage: UsageMetadata) -> None: ...
