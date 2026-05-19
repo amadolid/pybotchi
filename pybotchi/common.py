@@ -92,8 +92,10 @@ class Graph(BaseModel):
     """Action Result Class."""
 
     origin: str | None = None
-    nodes: set[str] = Field(default_factory=set)
-    edges: set[tuple[str, str, bool, str]] = Field(default_factory=set)
+
+    # `default_factory=set` has issue with current mypy 2.1.0; using lambda: set() for now
+    nodes: set[str] = Field(default_factory=lambda: set())
+    edges: set[tuple[str, str, bool, str]] = Field(default_factory=lambda: set())
 
     def flowchart(self) -> str:
         """Draw Mermaid flowchart."""

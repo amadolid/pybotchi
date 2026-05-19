@@ -18,7 +18,6 @@ from .common import (
     Graph,
     Groups,
     ToolCall,
-    UNSPECIFIED,
     UsageData,
 )
 from .utils import apply_placeholders, unwrap_exceptions, uuid
@@ -214,15 +213,7 @@ class Action(BaseModel, Generic[TContext]):
 
         await context.add_usage(
             self,
-            getattr(
-                context.llm,
-                "model_name",
-                getattr(
-                    context.llm,
-                    "deployment_name",
-                    UNSPECIFIED,
-                ),
-            ),
+            context.llm_model,
             message.usage_metadata,
             "$finalize",
         )
@@ -300,15 +291,7 @@ class Action(BaseModel, Generic[TContext]):
         )
         await context.add_usage(
             self,
-            getattr(
-                context.llm,
-                "model_name",
-                getattr(
-                    context.llm,
-                    "deployment_name",
-                    UNSPECIFIED,
-                ),
-            ),
+            context.llm_model,
             message.usage_metadata,
             "$tool",
         )
@@ -440,15 +423,7 @@ class Action(BaseModel, Generic[TContext]):
 
             await context.add_usage(
                 self,
-                getattr(
-                    context.llm,
-                    "model_name",
-                    getattr(
-                        context.llm,
-                        "deployment_name",
-                        UNSPECIFIED,
-                    ),
-                ),
+                context.llm_model,
                 message.usage_metadata,
                 "$fallback",
             )
