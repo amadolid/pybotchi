@@ -1,4 +1,4 @@
-from .common import ActionEntry as ActionEntry, ActionReturn as ActionReturn, ConcurrentBreakPoint as ConcurrentBreakPoint, Graph as Graph, Groups as Groups, ToolCall as ToolCall, UNSPECIFIED as UNSPECIFIED, UsageData as UsageData
+from .common import ActionEntry as ActionEntry, ActionReturn as ActionReturn, ConcurrentBreakPoint as ConcurrentBreakPoint, Graph as Graph, Groups as Groups, ToolCall as ToolCall, UsageData as UsageData
 from .context import Context as Context
 from .utils import apply_placeholders as apply_placeholders, unwrap_exceptions as unwrap_exceptions, uuid as uuid
 from _typeshed import Incomplete

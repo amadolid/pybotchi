@@ -41,6 +41,19 @@ class Context(BaseModel, Generic[TLLM]):
         """Get base LLM."""
         return LLM.base()
 
+    @cached_property
+    def llm_model(self) -> str:
+        """Get base LLM Model."""
+        return getattr(
+            self.llm,
+            "model_name",
+            getattr(
+                self.llm,
+                "deployment_name",
+                UNSPECIFIED,
+            ),
+        )
+
     def shifted_prompts(self, offset: int | None) -> Iterator[dict[str, Any]]:
         """Get shifted prompts."""
         max = len(self.prompts)
