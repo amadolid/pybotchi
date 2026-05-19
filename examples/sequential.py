@@ -2,10 +2,11 @@
 
 from asyncio import run
 from json import dumps
+from typing import Any, ClassVar
 
-from prerequisite import Action, ActionReturn, ChatRole, Context, graph
+from prerequisite import Action, ActionReturn, ChatRole, Context, graph, uuid
 
-from pydantic import Field
+from pydantic import BaseModel, Field
 
 
 class MathProblemAction(Action):
@@ -60,15 +61,107 @@ class GeneralChatIterationWithLimit(Action):
     __max_child_iteration__ = 4
     __first_tool_only__ = True
 
-    class Shout(Action):
-        """Shout Number."""
+    class Print(Action):
+        """Print Number."""
 
-        count: int
+        number: int
 
         async def pre(self, context: Context) -> ActionReturn:
             """Execute pre process."""
-            await context.add_response(self, str(self.count))
+            await context.add_response(self, str(self.number))
             return ActionReturn.GO
+
+
+class GeneralChatWithCorrection(Action):
+    """Casual Generic Chat."""
+
+    __max_child_iteration__ = 4
+    __first_tool_only__ = True
+
+    class Print(Action):
+        """Print Number."""
+
+        number: int
+
+        failed_once: ClassVar[bool] = False
+
+        @classmethod
+        async def _as_tool(cls, context: Context) -> dict[str, Any] | type[BaseModel]:
+            """Convert Action to tool."""
+            if not cls.failed_once:
+                print("###################################################")
+                print("#         FORCING FIRST TOOL CALL TO FAIL         #")
+                print("###################################################")
+                cls.failed_once = True
+                schema = cls.model_json_schema()
+
+                schema["properties"]["number"] = {
+                    "description": "Word number: one, two, ...",
+                    "title": "number",
+                    "type": "string",
+                }
+                schema["additionalProperties"] = False
+                return {
+                    "type": "function",
+                    "function": {
+                        "name": schema.pop("title"),
+                        "description": schema.pop("description", ""),
+                        "strict": True,
+                        "parameters": schema,
+                    },
+                }
+            return cls
+
+        async def pre(self, context: Context) -> ActionReturn:
+            """Execute pre process."""
+            await context.add_response(self, str(self.number))
+            return ActionReturn.GO
+
+    async def on_child_init_error(
+        self,
+        context: Context,
+        next_actions: list[Action],
+        child_cls: type[Action],
+        child_args: dict[str, Any],
+        exception: Exception,
+    ) -> str | None:
+        """Execute on child init error process."""
+        # All of this are optional
+
+        # This is not necessary but good for monitoring
+        self._actions.append(
+            {
+                "name": child_cls.__name__,
+                "args": child_args,
+                "usages": [],
+                "actions": [],
+            }
+        )
+
+        # This one can be critical to retain proper history
+        await context.add_response(
+            {
+                "id": f"call_{uuid().hex}",
+                "function": {
+                    "name": child_cls.__name__,
+                    "arguments": dumps(child_args),
+                },
+                "type": "function",
+            },
+            str(exception),
+        )
+
+        # Other approach #1
+        # You may just add assistant error
+        # await context.add_message(ChatRole.ASSISTANT, str(exception))
+
+        # Other approach #2
+        # construct the
+        # child = child_cls.model_construct(**child_args)
+        # self._actions.append(child)
+        # await context.add_response(child, str(exception))
+
+        return None
 
 
 async def combination() -> None:
@@ -92,7 +185,7 @@ async def combination() -> None:
     print("######################################################")
     print(dumps(context.prompts, indent=4))
     print(dumps(action.serialize(), indent=4))
-    print("# ----------------- Final Responses ---------------- #")
+    print("# --------- Final Responses (Combination)  --------- #")
     print(context.prompts[-3]["content"])
     print(context.prompts[-1]["content"])
     print("# -------------------------------------------------- #")
@@ -122,7 +215,7 @@ async def iteration() -> None:
     print("######################################################")
     print(dumps(context.prompts, indent=4))
     print(dumps(action.serialize(), indent=4))
-    print("# ----------------- Final Responses ---------------- #")
+    print("# ----------- Final Responses (Iteration) ---------- #")
     print(context.prompts[-3]["content"])
     print(context.prompts[-1]["content"])
     print("# -------------------------------------------------- #")
@@ -141,7 +234,7 @@ async def iteration_with_limit() -> None:
             },
             {
                 "role": ChatRole.USER,
-                "content": "Shout from 1 to 10",
+                "content": "Print from 1 to 10",
             },
         ],
     )
@@ -152,7 +245,7 @@ async def iteration_with_limit() -> None:
     print("######################################################")
     print(dumps(context.prompts, indent=4))
     print(dumps(action.serialize(), indent=4))
-    print("# ----------------- Final Response ----------------- #")
+    print("# ------ Final Response (Iteration with limit) ----- #")
     print(context.prompts[-1]["content"])
     print("# -------------------------------------------------- #")
 
@@ -160,6 +253,36 @@ async def iteration_with_limit() -> None:
     print(general_chat_graph.flowchart())
 
 
+async def iteration_with_correction() -> None:
+    """Chat."""
+    context = Context(
+        prompts=[
+            {
+                "role": ChatRole.SYSTEM,
+                "content": "",
+            },
+            {
+                "role": ChatRole.USER,
+                "content": "Print from 1 to 10",
+            },
+        ],
+    )
+    action, _ = await context.start(GeneralChatWithCorrection)
+
+    print("######################################################")
+    print("#   Sequential Approach (Iteration with correction)  #")
+    print("######################################################")
+    print(dumps(context.prompts, indent=4))
+    print(dumps(action.serialize(), indent=4))
+    print("# --- Final Response (Iteration with correction) --- #")
+    print(context.prompts[-1]["content"])
+    print("# -------------------------------------------------- #")
+
+    general_chat_graph = await graph(GeneralChatWithCorrection)
+    print(general_chat_graph.flowchart())
+
+
 run(combination())
 run(iteration())
 run(iteration_with_limit())
+run(iteration_with_correction())

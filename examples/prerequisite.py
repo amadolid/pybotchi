@@ -14,6 +14,7 @@ from pybotchi import (
     LLM,
     graph,
 )
+from pybotchi.utils import uuid
 
 load_dotenv()
 
@@ -37,4 +38,5 @@ __all__ = [
     "ChatRole",
     "Context",
     "graph",
+    "uuid",
 ]

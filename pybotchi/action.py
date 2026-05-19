@@ -97,6 +97,7 @@ class Action(BaseModel, Generic[TContext]):
 
     __has_pre__: bool
     __has_fallback__: bool
+    __has_on_child_init_error__: bool
     __has_on_error__: bool
     __has_post__: bool
     __has_as_tool__: bool
@@ -137,6 +138,7 @@ class Action(BaseModel, Generic[TContext]):
         cls.__display_name__ = src.get("__display_name__", cls.__name__)
         cls.__has_pre__ = cls.pre is not Action.pre
         cls.__has_fallback__ = cls.fallback is not Action.fallback
+        cls.__has_on_child_init_error__ = cls.on_child_init_error is not Action.on_child_init_error
         cls.__has_on_error__ = cls.on_error is not Action.on_error
         cls.__has_post__ = cls.post is not Action.post
         cls.__has_as_tool__ = cls._as_tool is not Action._as_tool
@@ -177,6 +179,16 @@ class Action(BaseModel, Generic[TContext]):
     async def fallback(self, context: TContext, content: str) -> ActionReturn:
         """Execute fallback process."""
         return ActionReturn.GO
+
+    async def on_child_init_error(
+        self,
+        context: TContext,
+        next_actions: list["Action"],
+        child_cls: type[Action],
+        child_args: dict[str, Any],
+        exception: Exception,
+    ) -> str | None:
+        """Execute on child init error process."""
 
     async def on_error(
         self,
@@ -276,6 +288,7 @@ class Action(BaseModel, Generic[TContext]):
         llm = context.llm.bind_tools(
             [await child._as_tool(context) if child.__has_as_tool__ else child for child in child_actions.values()],
             tool_choice=tool_choice,
+            parallel_tool_calls=not self.__first_tool_only__,
         )
         if self.__temperature__ is not None:
             llm = llm.with_config(configurable={"llm_temperature": self.__temperature__})
@@ -296,8 +309,25 @@ class Action(BaseModel, Generic[TContext]):
             "$tool",
         )
 
-        next_actions = [child_actions[call["name"]](**call["args"]) for call in message.tool_calls]
-
+        next_actions: list[Action] = []
+        for call in message.tool_calls:
+            child_action = child_actions[call["name"]]
+            try:
+                next_actions.append(child_action(**call["args"]))
+            except Exception as error:
+                if self.__has_on_child_init_error__:
+                    if (
+                        error_message := await self.on_child_init_error(
+                            context,
+                            next_actions,
+                            child_action,
+                            call["args"],
+                            error,
+                        )
+                    ) is not None:
+                        return [], error_message
+                else:
+                    raise error
         return next_actions, message.text
 
     async def execute(self, context: TContext, parent: Action | None = None, append: bool = True) -> ActionReturn:
@@ -561,7 +591,7 @@ async def graph(action: type[Action], allowed_actions: dict[str, bool] | None = 
     """Retrieve Graph."""
     origin = f"{action.__module__}.{action.__qualname__}"
     await traverse(
-        graph := Graph(origin=origin, nodes={origin}),
+        graph := Graph(origin=origin, nodes={origin}, edges=set()),
         action,
         allowed_actions,
     )
