@@ -110,11 +110,13 @@ class Graph(BaseModel):
 
             if concurrent:
                 connection = (
-                    f"ed{con}@--**{base}** : {alias}<br>*[concurrent]*-->" if alias else f"ed{con}@--*[concurrent]*-->"
+                    f'ed{con}@--"`**{base}** : {alias}<br>*[concurrent]*`"-->'
+                    if alias
+                    else f'ed{con}@--"`*[concurrent]*`"-->'
                 )
                 con += 1
             else:
-                connection = f"--**{base}** : {alias}-->" if alias else "-->"
+                connection = f'--"`**{base}** : {alias}`"-->' if alias else "-->"
             content += f"{source} {connection} {target}\n"
 
         constraints = (

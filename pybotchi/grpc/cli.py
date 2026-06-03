@@ -4,7 +4,7 @@ from asyncio import run
 from importlib.resources import files
 from importlib.util import module_from_spec, spec_from_file_location
 from inspect import getmembers, isclass
-from multiprocessing import Process, cpu_count
+from multiprocessing import Process, cpu_count, current_process
 from os import getenv
 from pathlib import Path
 from signal import SIGINT, SIGTERM, signal
@@ -96,10 +96,12 @@ async def serve(
         server.add_insecure_port(address)
     await server.start()
 
-    echo(f"# Agent Path: {path}")
-    echo(f"# Agent Handler: {grpc_handler.__name__}")
-    echo(f"# gRPC server running on {address}")
-    echo("#-------------------------------------------------------#")
+    process = current_process()
+    echo(
+        f"# Agent Process: {process.name} [{process.pid}]\n"
+        f"# Agent Handler: {grpc_handler.__name__}\n"
+        "#-------------------------------------------------------#"
+    )
     await server.wait_for_termination()
 
 
@@ -191,7 +193,6 @@ def main(
     else:
         _certificate_chain = None
 
-    echo(f"# Agent Path: {path}")
     echo(f"# Starting {workers} worker(s) on {host}:{port}")
     echo("#-------------------------------------------------------#")
 

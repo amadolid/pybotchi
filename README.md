@@ -103,11 +103,16 @@ LLM.add(base=ChatOpenAI(
 ```python
 from pybotchi import Action, ActionReturn
 
+from pydantic import Field
+
 class Translation(Action):
-    """Translate to specified language."""
+    """Translate to specific language."""
+
+    message: str = Field(description="The text content to be translated.")
+    language: str = Field(description="The ISO code or name of the target language.")
 
     async def pre(self, context):
-        message = await context.llm.ainvoke(context.prompts)
+        message = await context.llm.ainvoke(f"Reply only with translation of `{self.message}` to {self.language}.")
         await context.add_response(self, message.text)
         return ActionReturn.GO
 ```
@@ -155,22 +160,20 @@ async def test():
     context = Context(
         prompts=[
             {"role": "system", "content": "You're an AI that can solve math problems and translate requests."},
-            {"role": "user", "content": "4 x 4 and explain in Filipino"}
+            {"role": "user", "content": "4 x 4 then explain in Filipino"},
         ],
     )
     await context.start(MultiAgent)
-    print(context.prompts[-1]["content"])
+    print(f"MathProblem: {context.prompts[-3]['content']}")
+    print(f"Translate: {context.prompts[-1]['content']}")
 
 asyncio.run(test())
 ```
 
 **Result:**
 ```
-Ang sagot sa 4 x 4 ay 16.
-
-Paliwanag: Kapag sinabi nating 4 x 4, ibig sabihin ay apat na grupo ng apat. Kung bibilangin natin ito, makakakuha tayo ng kabuuang labing-anim (16).
-
-Ibig sabihin, 4 + 4 + 4 + 4 = 16.
+MathProblem: Four multiplied by four is sixteen. Imagine you have four groups, and each group has four candies. If you count all the candies together, you will have sixteen candies. That's what 4 x 4 means!
+Translate: Ang apat na pinarami sa apat ay labing-anim. Ipagpalagay mong may apat na grupo, at bawat grupo ay may apat na kendi. Kung bibilangin mo lahat ng kendi, magkakaroon ka ng labing-anim na kendi. Iyan ang ibig sabihin ng 4 x 4!
 ```
 
 ### Visualize Your Graph
@@ -184,7 +187,7 @@ async def print_mermaid_graph():
     multi_agent_graph = await graph(MultiAgent)
     print(multi_agent_graph.flowchart())
 
-run(print_mermaid_graph())
+asyncio.run(print_mermaid_graph())
 ```
 **Result:**
 ```
@@ -367,14 +370,12 @@ pybotchi-grpc server.py
 **Result**
 ```bash
 #-------------------------------------------------------#
-# Agent ID: agent_b6c9ada82c7444818356a6338e975c09
-# Agent Path: server.py
+# Agent ID: agent_8b3c5685c84b4602966d1b3252916aa7
 # Agent Path: server.py
 # Starting None worker(s) on 0.0.0.0:50051
 #-------------------------------------------------------#
-# Agent Path: server.py
+# Agent Process: Process-1 [173012]
 # Agent Handler: PyBotchiGRPC
-# gRPC server running on 0.0.0.0:50051
 #-------------------------------------------------------#
 ```
 gRPC client print graph:
@@ -383,9 +384,9 @@ python3 client.py
 ```
 ```bash
 flowchart TD
+grpc.agent_8b3c5685c84b4602966d1b3252916aa7.MathProblem[MathProblem]
 __main__.MultiAgent[MultiAgent]
-grpc.agent_b6c9ada82c7444818356a6338e975c09.MathProblem[MathProblem]
-__main__.MultiAgent --**GRPC** : remote--> grpc.agent_b6c9ada82c7444818356a6338e975c09.MathProblem
+__main__.MultiAgent --"`**GRPC** : remote`"--> grpc.agent_8b3c5685c84b4602966d1b3252916aa7.MathProblem
 style __main__.MultiAgent fill:#4CAF50,color:#000000
 ```
 ![gRPC MultiAgent Graph](docs/mermaid2.png)
