@@ -3,7 +3,7 @@ repos:
     hooks:
       - id: stubgen
         name: Generate or Update Stubs
-        entry: bash -c 'stubgen "$@" -o . && git add **/*.pyi' --
+        entry: bash -c 'stubgen --include-private "$@" -o . && git add **/*.pyi' --
         language: system
         files: ^pybotchi/
         exclude: \.pyi$

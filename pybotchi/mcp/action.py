@@ -402,7 +402,13 @@ async def multi_mcp_clients(
                 )
             else:
                 async_client = await stack.enter_async_context(
-                    AsyncClient(**overrided_config["async_client_args"], follow_redirects=True)
+                    AsyncClient(
+                        base_url=overrided_config["url"],
+                        headers=overrided_config["headers"],
+                        timeout=overrided_config["timeout"],
+                        **overrided_config["async_client_args"],
+                        follow_redirects=True,
+                    )
                 )
 
                 streams = await stack.enter_async_context(

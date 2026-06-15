@@ -2,6 +2,7 @@ from _typeshed import Incomplete
 
 GRPC_GENERATED_VERSION: str
 GRPC_VERSION: Incomplete
+_version_not_supported: bool
 
 class PyBotchiGRPCStub:
     connect: Incomplete

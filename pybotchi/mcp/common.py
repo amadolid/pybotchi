@@ -35,18 +35,13 @@ class AsyncClientArgs(TypedDict, total=False):
         | bytes
         | None
     )
-    headers: (
-        Mapping[str, str] | Mapping[bytes, bytes] | Sequence[tuple[str, str]] | Sequence[tuple[bytes, bytes]] | None
-    )
     cookies: dict[str, str] | list[tuple[str, str]] | None
     verify: str | bool
     cert: CertTypes | None
     http1: bool
     http2: bool
     proxy: str | None
-    timeout: float | None | tuple[float | None, float | None, float | None, float | None] | None
     max_redirects: int
-    base_url: str
     trust_env: bool
     default_encoding: str
 

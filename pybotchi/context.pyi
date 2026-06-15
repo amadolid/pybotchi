@@ -22,6 +22,7 @@ class Context(BaseModel, Generic[TLLM]):
     streaming: bool
     max_self_loop: int | None
     parent: Self | None
+    _action_call: dict[str, int]
     @cached_property
     def llm(self) -> TLLM: ...
     @cached_property

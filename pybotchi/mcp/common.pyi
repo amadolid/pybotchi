@@ -14,16 +14,13 @@ class MCPMode(StrEnum):
 class AsyncClientArgs(TypedDict, total=False):
     auth: tuple[str | bytes, str | bytes] | None
     params: Mapping[str, PrimitiveData | Sequence[PrimitiveData]] | list[tuple[str, PrimitiveData]] | tuple[tuple[str, PrimitiveData], ...] | str | bytes | None
-    headers: Mapping[str, str] | Mapping[bytes, bytes] | Sequence[tuple[str, str]] | Sequence[tuple[bytes, bytes]] | None
     cookies: dict[str, str] | list[tuple[str, str]] | None
     verify: str | bool
     cert: CertTypes | None
     http1: bool
     http2: bool
     proxy: str | None
-    timeout: float | None | tuple[float | None, float | None, float | None, float | None] | None
     max_redirects: int
-    base_url: str
     trust_env: bool
     default_encoding: str
 

@@ -3,6 +3,7 @@ from ..context import Action as Action, ChatRole as ChatRole, Context as Context
 from ..utils import uuid as uuid
 from .common import GRPCIntegration as GRPCIntegration
 from .pybotchi_pb2 import Event as Event
+from asyncio import Queue
 from typing import Any, Generic, TypeVar
 
 TContext = TypeVar('TContext', bound='GRPCContext')
@@ -11,6 +12,8 @@ class GRPCContext(Context[TLLM], Generic[TLLM]):
     integrations: dict[str, GRPCIntegration]
     source_id: str | None
     context_id: str
+    _response_queue: Queue[Event] | None
+    _request_queues: dict[str, Queue]
     def grpc_dump(self) -> dict[str, Any]: ...
     def grpc_sharing_dump(self) -> dict[str, Any]: ...
     async def grpc_send_up(self, source_id: str | None, name: str, data: dict[str, Any]) -> None: ...
