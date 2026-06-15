@@ -7,7 +7,7 @@ from collections import deque
 from collections.abc import Generator
 from inspect import getmembers
 from os import getenv
-from typing import Any, Generic, TYPE_CHECKING, TypeVar
+from typing import Any, Generic, Literal, TYPE_CHECKING, TypeVar
 
 from pydantic import BaseModel, PrivateAttr
 
@@ -503,13 +503,13 @@ class Action(BaseModel, Generic[TContext]):
 
         return ActionReturn.GO
 
-    def serialize(self) -> ActionEntry:
+    def serialize(self, mode: str | Literal["python", "json"] = "python") -> ActionEntry:
         """Serialize Action."""
         return {
             "name": self.__class__.__name__,
-            "args": self.model_dump(),
+            "args": self.model_dump(mode=mode),
             "usages": self._usage,
-            "actions": [a.serialize() if isinstance(a, Action) else a for a in self._actions],
+            "actions": [a.serialize(mode) if isinstance(a, Action) else a for a in self._actions],
         }
 
     ####################################################################################################
