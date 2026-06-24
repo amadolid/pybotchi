@@ -50,12 +50,15 @@ class GeneralChatCombination(Action):
 class GeneralChatIteration(GeneralChatCombination):
     """Casual Generic Chat."""
 
+    __max_child_iteration__ = 10
+    __first_tool_only__ = True
+
     async def fallback(self, context: Context, content: str) -> ActionReturn:
         """Execute fallback."""
         return ActionReturn.BREAK
 
 
-class GeneralChatIterationWithLimit(Action):
+class GeneralChatIterationExceedLimit(Action):
     """Casual Generic Chat."""
 
     __max_child_iteration__ = 4
@@ -224,7 +227,7 @@ async def iteration() -> None:
     print(general_chat_graph.flowchart())
 
 
-async def iteration_with_limit() -> None:
+async def iteration_exceed_limit() -> None:
     """Chat."""
     context = Context(
         prompts=[
@@ -238,18 +241,18 @@ async def iteration_with_limit() -> None:
             },
         ],
     )
-    action, _ = await context.start(GeneralChatIterationWithLimit)
+    action, _ = await context.start(GeneralChatIterationExceedLimit)
 
     print("######################################################")
-    print("#     Sequential Approach (Iteration with limit)     #")
+    print("#    Sequential Approach (Iteration exceed limit)    #")
     print("######################################################")
     print(dumps(context.prompts, indent=4))
     print(dumps(action.serialize(), indent=4))
-    print("# ------ Final Response (Iteration with limit) ----- #")
+    print("# ----- Final Response (Iteration exceed limit) ---- #")
     print(context.prompts[-1]["content"])
     print("# -------------------------------------------------- #")
 
-    general_chat_graph = await graph(GeneralChatIterationWithLimit)
+    general_chat_graph = await graph(GeneralChatIterationExceedLimit)
     print(general_chat_graph.flowchart())
 
 
@@ -284,5 +287,5 @@ async def iteration_with_correction() -> None:
 
 run(combination())
 run(iteration())
-run(iteration_with_limit())
+run(iteration_exceed_limit())
 run(iteration_with_correction())
