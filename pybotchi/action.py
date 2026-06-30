@@ -26,8 +26,8 @@ if TYPE_CHECKING:
     from .context import Context
 
 
-DEFAULT_ACTION = getenv("DEFAULT_ACTION", "DefaultAction")
-DEFAULT_TOOL_CALL_PROMPT = getenv(
+DEFAULT_ACTION: str = getenv("DEFAULT_ACTION", "DefaultAction")
+DEFAULT_TOOL_CALL_PROMPT: str = getenv(
     "DEFAULT_TOOL_CALL_PROMPT",
     """
 You are an AI assistant expert in function calling.
@@ -47,7 +47,7 @@ ${system}
 ${addons}
 """.strip(),
 )
-DEFAULT_MAX_ITERATION_PROMPT = getenv(
+DEFAULT_MAX_ITERATION_PROMPT: str = getenv(
     "DEFAULT_MAX_ITERATION_PROMPT",
     """
 You are an AI assistant responsible for delivering the final response to the user.

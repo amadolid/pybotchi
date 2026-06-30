@@ -4,14 +4,14 @@ from collections import deque
 from collections.abc import Generator
 from contextlib import suppress
 from importlib import import_module
-from re import compile
+from re import Pattern, compile
 from typing import Any, Callable
 from uuid import UUID
 
 from orjson import loads
 
-PLACEHOLDERS = compile(r"(\${\s*([^:\s]+)\s*(?:\:\s*([\S\s]*?))?\s*})")
-CAMEL_CASE = compile(r"^[a-z]+(?:[A-Z][a-z0-9]*)*$")
+PLACEHOLDERS: Pattern = compile(r"(\${\s*([^:\s]+)\s*(?:\:\s*([\S\s]*?))?\s*})")
+CAMEL_CASE: Pattern = compile(r"^[a-z]+(?:[A-Z][a-z0-9]*)*$")
 
 
 def apply_placeholders(target: str, **placeholders: Any) -> str:

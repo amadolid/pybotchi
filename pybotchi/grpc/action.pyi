@@ -6,27 +6,27 @@ from .context import TContext as TContext
 from .exception import GRPCRemoteError as GRPCRemoteError
 from .pybotchi_pb2 import ActionListRequest as ActionListRequest, ActionListResponse as ActionListResponse, ActionSchema as ActionSchema, Event as Event, TraverseGraph as TraverseGraph, TraverseRequest as TraverseRequest
 from .pybotchi_pb2_grpc import PyBotchiGRPCStub as PyBotchiGRPCStub
-from _typeshed import Incomplete
 from asyncio import Queue
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, AsyncIterator
 from contextlib import asynccontextmanager
+from datamodel_code_generator.model import DataModelSet as DataModelSet
 from typing import Any, Generic
 
-DMT: Incomplete
+DMT: DataModelSet
 
 class GRPCClient:
-    stub: Incomplete
-    name: Incomplete
-    config: Incomplete
-    manual_enable: Incomplete
-    allowed_actions: Incomplete
-    remote_action_class: Incomplete
-    exclude_unset: Incomplete
+    stub: PyBotchiGRPCStub
+    name: str
+    config: GRPCConfigLoaded
+    manual_enable: bool
+    allowed_actions: dict[str, bool]
+    remote_action_class: type['GRPCRemoteAction']
+    exclude_unset: bool
     def __init__(self, stub: PyBotchiGRPCStub, name: str, config: GRPCConfigLoaded, manual_enable: bool, allowed_actions: dict[str, bool], remote_action_class: type['GRPCRemoteAction'] | None, exclude_unset: bool) -> None: ...
     def build_action(self, agent_id: str, action_schema: ActionSchema) -> tuple[str, type['GRPCRemoteAction']]: ...
     async def patch_actions(self, actions: ChildActions, grpc_actions: ChildActions) -> ChildActions: ...
 
-class GRPCAction(Action[TContext], Generic[TContext]):
+class GRPCAction(Action[TContext]):
     __grpc_clients__: dict[str, GRPCClient]
     __grpc_connections__: list[GRPCConnection]
     __grpc_tool_actions__: ChildActions
@@ -36,7 +36,7 @@ class GRPCAction(Action[TContext], Generic[TContext]):
     @classmethod
     def __init_child_actions__(cls) -> None: ...
     async def pre_grpc(self, context: TContext) -> ActionReturn: ...
-    _parent: Incomplete
+    _parent: Action | None
     __to_commit__: bool
     async def execute(self, context: TContext, parent: Action | None = None, append: bool = True) -> ActionReturn: ...
     async def get_child_actions(self, context: TContext) -> ChildActions: ...
@@ -60,6 +60,6 @@ class GRPCRemoteAction(Action[TContext], Generic[TContext]):
     async def pre(self, context: TContext) -> ActionReturn: ...
 
 @asynccontextmanager
-async def multi_grpc_clients(integrations: dict[str, GRPCIntegration], connections: list[GRPCConnection], bypass: bool = False) -> AsyncGenerator[dict[str, GRPCClient], None]: ...
+async def multi_grpc_clients(integrations: dict[str, GRPCIntegration], connections: list[GRPCConnection], bypass: bool = False) -> AsyncIterator[dict[str, GRPCClient]]: ...
 async def graph(action: type[Action], allowed_actions: dict[str, bool] | None = None, integrations: dict[str, GRPCIntegration] | None = None, bypass: bool = False) -> Graph: ...
 async def traverse(graph: Graph, action: type[Action], allowed_actions: dict[str, bool] | None, integrations: dict[str, GRPCIntegration], bypass: bool = False, module: str | None = None, alias: str | None = None) -> None: ...

@@ -1,14 +1,13 @@
 from .common import ActionEntry as ActionEntry, ActionReturn as ActionReturn, ConcurrentBreakPoint as ConcurrentBreakPoint, Graph as Graph, Groups as Groups, ToolCall as ToolCall, UsageData as UsageData
 from .context import Context as Context
 from .utils import apply_placeholders as apply_placeholders, unwrap_exceptions as unwrap_exceptions, uuid as uuid
-from _typeshed import Incomplete
 from collections.abc import Generator
 from pydantic import BaseModel
 from typing import Any, Generic, Literal, TypeVar
 
-DEFAULT_ACTION: Incomplete
-DEFAULT_TOOL_CALL_PROMPT: Incomplete
-DEFAULT_MAX_ITERATION_PROMPT: Incomplete
+DEFAULT_ACTION: str
+DEFAULT_TOOL_CALL_PROMPT: str
+DEFAULT_MAX_ITERATION_PROMPT: str
 TAction = TypeVar('TAction', bound='Action')
 TContext = TypeVar('TContext', bound='Context')
 T = TypeVar('T')

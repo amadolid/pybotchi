@@ -81,23 +81,23 @@ class GRPCConnection:
         require_integration: bool = True,
     ) -> None:
         """Build GRPC Connection."""
-        self.name = name
-        self.url = url
-        self.groups = [] if groups is None else groups
-        self.secure = secure
-        self.root_certificates = root_certificates
-        self.private_key = private_key
-        self.certificate_chain = certificate_chain
-        self.options = options
-        self.compression = compression
-        self.interceptors = interceptors
-        self.metadata = metadata
-        self.allow_exec = allow_exec
-        self.manual_enable = manual_enable
-        self.allowed_actions = {} if allowed_actions is None else allowed_actions
-        self.remote_action_class = remote_action_class
-        self.exclude_unset = exclude_unset
-        self.require_integration = require_integration
+        self.name: str = name
+        self.url: str = url
+        self.groups: list[str] = [] if groups is None else groups
+        self.secure: bool = secure
+        self.root_certificates: str | bytes | None = root_certificates
+        self.private_key: str | bytes | None = private_key
+        self.certificate_chain: str | bytes | None = certificate_chain
+        self.options: list[tuple[str, Any]] | None = options
+        self.compression: GRPCCompression | None = compression
+        self.interceptors: Sequence[ClientInterceptor] | None = interceptors
+        self.metadata: dict[str, Any] | None = metadata
+        self.allow_exec: bool = allow_exec
+        self.manual_enable: bool = manual_enable
+        self.allowed_actions: dict[str, bool] = {} if allowed_actions is None else allowed_actions
+        self.remote_action_class: type["GRPCRemoteAction"] | None = remote_action_class
+        self.exclude_unset: bool = exclude_unset
+        self.require_integration: bool = require_integration
 
     async def get_config(self, override: GRPCConfig | None) -> GRPCConfigLoaded:
         """Generate config."""

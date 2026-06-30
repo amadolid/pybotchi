@@ -6,7 +6,7 @@ repos:
         entry: bash -c 'stubgen --include-private "$@" -o . && git add **/*.pyi' --
         language: system
         files: ^pybotchi/
-        exclude: \.pyi$
+        exclude: pybotchi_pb2
         types: [python]
 
   - repo: https://github.com/pre-commit/pre-commit-hooks

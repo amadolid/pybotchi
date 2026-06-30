@@ -1,4 +1,3 @@
-from _typeshed import Incomplete
 from enum import StrEnum
 from functools import cached_property as cached_property
 from pydantic import BaseModel, ConfigDict, SkipValidation as SkipValidation
@@ -80,7 +79,7 @@ class Break(ActionReturn): ...
 class End(Break): ...
 
 class ConcurrentBreakPoint(Exception):
-    action_return: Incomplete
+    action_return: ActionReturn
     def __init__(self, action_return: ActionReturn) -> None: ...
 
 UNSPECIFIED: str

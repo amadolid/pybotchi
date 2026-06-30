@@ -234,7 +234,8 @@ def compile() -> None:
             f"--python_out={current_dir}",
             f"--pyi_out={current_dir}",
             f"--grpc_python_out={current_dir}",
-            "pybotchi.proto",  # must be relative to --proto_path
+            f"--mypy_grpc_out={current_dir}",
+            "pybotchi.proto",
         ]
     )
 

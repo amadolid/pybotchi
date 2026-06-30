@@ -3,9 +3,9 @@ from ..common import ActionReturn as ActionReturn, ChatRole as ChatRole, Graph a
 from ..utils import is_camel_case as is_camel_case, unwrap_exceptions as unwrap_exceptions
 from .common import MCPConfig as MCPConfig, MCPConnection as MCPConnection, MCPIntegration as MCPIntegration, MCPMode as MCPMode
 from .context import TContext as TContext
-from _typeshed import Incomplete
-from collections.abc import AsyncGenerator, Awaitable
+from collections.abc import AsyncGenerator, AsyncIterator, Awaitable
 from contextlib import AsyncExitStack, asynccontextmanager
+from datamodel_code_generator.model import DataModelSet as DataModelSet
 from mcp import ClientSession, Tool as Tool
 from mcp.server.fastmcp import FastMCP
 from mcp.shared.session import ProgressFnT as ProgressFnT
@@ -13,21 +13,21 @@ from mcp.types import ContentBlock as ContentBlock
 from starlette.applications import AppType as AppType, Starlette
 from typing import Any, Callable, Generic, Literal
 
-DMT: Incomplete
+DMT: DataModelSet
 
 class MCPClient:
-    session: Incomplete
-    name: Incomplete
-    config: Incomplete
-    manual_enable: Incomplete
-    allowed_tools: Incomplete
-    tool_action_class: Incomplete
-    exclude_unset: Incomplete
+    session: ClientSession
+    name: str
+    config: MCPConfig
+    manual_enable: bool
+    allowed_tools: dict[str, bool]
+    tool_action_class: type['MCPToolAction']
+    exclude_unset: bool
     def __init__(self, session: ClientSession, name: str, config: MCPConfig, manual_enable: bool, allowed_tools: dict[str, bool], tool_action_class: type['MCPToolAction'] | None, exclude_unset: bool) -> None: ...
     def build_tool(self, tool: Tool) -> tuple[str, type['MCPToolAction']]: ...
     async def patch_tools(self, actions: ChildActions, mcp_actions: ChildActions) -> ChildActions: ...
 
-class MCPAction(Action[TContext], Generic[TContext]):
+class MCPAction(Action[TContext]):
     __mcp_servers__: dict[str, FastMCP]
     __mcp_clients__: dict[str, MCPClient]
     __mcp_connections__: list[MCPConnection]
@@ -38,7 +38,7 @@ class MCPAction(Action[TContext], Generic[TContext]):
     @classmethod
     def __init_child_actions__(cls) -> None: ...
     async def pre_mcp(self, context: TContext) -> ActionReturn: ...
-    _parent: Incomplete
+    _parent: Action | None
     __to_commit__: bool
     async def execute(self, context: TContext, parent: Action | None = None, append: bool = True) -> ActionReturn: ...
     async def get_child_actions(self, context: TContext) -> ChildActions: ...
@@ -55,7 +55,7 @@ class MCPToolAction(Action[TContext], Generic[TContext]):
     async def pre(self, context: TContext) -> ActionReturn: ...
 
 @asynccontextmanager
-async def multi_mcp_clients(integrations: dict[str, MCPIntegration], connections: list[MCPConnection], bypass: bool = False) -> AsyncGenerator[dict[str, MCPClient], None]: ...
+async def multi_mcp_clients(integrations: dict[str, MCPIntegration], connections: list[MCPConnection], bypass: bool = False) -> AsyncIterator[dict[str, MCPClient]]: ...
 def initialize_mcp_groups() -> None: ...
 @asynccontextmanager
 async def mount_mcp_app(app: AppType, *groups: str, transport: Literal['sse', 'streamable-http'] | dict[str, str] = 'streamable-http') -> AsyncGenerator[AsyncExitStack, None]: ...

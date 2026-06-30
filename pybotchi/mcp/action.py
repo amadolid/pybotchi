@@ -1,6 +1,6 @@
 """Pybotchi MCP Classes."""
 
-from collections.abc import AsyncGenerator, Awaitable
+from collections.abc import AsyncGenerator, AsyncIterator, Awaitable
 from contextlib import AsyncExitStack, asynccontextmanager, suppress
 from inspect import getdoc, getmembers
 from itertools import islice
@@ -8,7 +8,7 @@ from os import getenv
 from typing import Any, Callable, Generic, Literal
 
 from datamodel_code_generator import DataModelType, Formatter, PythonVersion
-from datamodel_code_generator.model import get_data_model_types
+from datamodel_code_generator.model import DataModelSet, get_data_model_types
 from datamodel_code_generator.parser.base import title_to_class_name
 from datamodel_code_generator.parser.jsonschema import (
     JsonSchemaParser,
@@ -42,7 +42,7 @@ from ..action import Action, ChildActions
 from ..common import ActionReturn, ChatRole, Graph
 from ..utils import is_camel_case, unwrap_exceptions
 
-DMT = get_data_model_types(
+DMT: DataModelSet = get_data_model_types(
     DataModelType.PydanticV2BaseModel,
     target_python_version=PythonVersion.PY_313,
 )
@@ -62,13 +62,13 @@ class MCPClient:
         exclude_unset: bool,
     ) -> None:
         """Build MCP Client."""
-        self.session = session
-        self.name = name
-        self.config = config
-        self.manual_enable = manual_enable
-        self.allowed_tools = allowed_tools
-        self.tool_action_class = tool_action_class or MCPToolAction
-        self.exclude_unset = exclude_unset
+        self.session: ClientSession = session
+        self.name: str = name
+        self.config: MCPConfig = config
+        self.manual_enable: bool = manual_enable
+        self.allowed_tools: dict[str, bool] = allowed_tools
+        self.tool_action_class: type["MCPToolAction"] = tool_action_class or MCPToolAction
+        self.exclude_unset: bool = exclude_unset
 
     def build_tool(self, tool: Tool) -> tuple[str, type["MCPToolAction"]]:
         """Build MCPToolAction."""
@@ -142,7 +142,7 @@ class MCPClient:
         return actions
 
 
-class MCPAction(Action[TContext], Generic[TContext]):
+class MCPAction(Action[TContext]):
     """MCP Action."""
 
     __mcp_servers__: dict[str, FastMCP] = {}
@@ -179,7 +179,7 @@ class MCPAction(Action[TContext], Generic[TContext]):
 
     async def execute(self, context: TContext, parent: Action | None = None, append: bool = True) -> ActionReturn:
         """Execute main process."""
-        self._parent = parent
+        self._parent: Action | None = parent
         parent_context = context
         try:
             if parent and append:
@@ -367,7 +367,7 @@ async def multi_mcp_clients(
     integrations: dict[str, MCPIntegration],
     connections: list[MCPConnection],
     bypass: bool = False,
-) -> AsyncGenerator[dict[str, MCPClient], None]:
+) -> AsyncIterator[dict[str, MCPClient]]:
     """Connect to multiple mcp clients."""
     async with AsyncExitStack() as stack:
         clients: dict[str, MCPClient] = {}

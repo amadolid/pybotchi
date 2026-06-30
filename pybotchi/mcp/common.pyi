@@ -1,5 +1,4 @@
 from .action import MCPToolAction as MCPToolAction
-from _typeshed import Incomplete
 from collections.abc import Callable as Callable, Mapping, Sequence
 from enum import StrEnum
 from httpx import Auth as Auth
@@ -41,21 +40,21 @@ class MCPIntegration(TypedDict, total=False):
     exclude_unset: bool
 
 class MCPConnection:
-    name: Incomplete
-    mode: Incomplete
-    url: Incomplete
-    headers: Incomplete
-    timeout: Incomplete
-    sse_read_timeout: Incomplete
-    terminate_on_close: Incomplete
-    httpx_client_factory: Incomplete
-    auth: Incomplete
-    on_session_created: Incomplete
+    name: str
+    mode: MCPMode | Literal['SSE', 'SHTTP']
+    url: str
+    headers: dict[str, str] | None
+    timeout: float
+    sse_read_timeout: float
+    terminate_on_close: bool
+    httpx_client_factory: McpHttpClientFactory
+    auth: Auth | None
+    on_session_created: Callable[[str], None] | None
     async_client_args: AsyncClientArgs
-    manual_enable: Incomplete
-    allowed_tools: Incomplete
-    tool_action_class: Incomplete
-    exclude_unset: Incomplete
-    require_integration: Incomplete
+    manual_enable: bool
+    allowed_tools: dict[str, bool]
+    tool_action_class: type['MCPToolAction'] | None
+    exclude_unset: bool
+    require_integration: bool
     def __init__(self, name: str, mode: MCPMode | Literal['SSE', 'SHTTP'], url: str = '', headers: dict[str, str] | None = None, timeout: float = 5.0, sse_read_timeout: float = 300.0, terminate_on_close: bool = True, httpx_client_factory: McpHttpClientFactory = ..., auth: Auth | None = None, on_session_created: Callable[[str], None] | None = None, async_client_args: AsyncClientArgs | None = None, manual_enable: bool = False, allowed_tools: dict[str, bool] | None = None, tool_action_class: type['MCPToolAction'] | None = None, exclude_unset: bool = True, require_integration: bool = True) -> None: ...
     def get_config(self, override: MCPConfig | None) -> MCPConfig: ...

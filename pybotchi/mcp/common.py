@@ -91,22 +91,22 @@ class MCPConnection:
         require_integration: bool = True,
     ) -> None:
         """Build MCP Connection."""
-        self.name = name
-        self.mode = mode
-        self.url = url
-        self.headers = headers
-        self.timeout = timeout
-        self.sse_read_timeout = sse_read_timeout
-        self.terminate_on_close = terminate_on_close
-        self.httpx_client_factory = httpx_client_factory
-        self.auth = auth
-        self.on_session_created = on_session_created
+        self.name: str = name
+        self.mode: MCPMode | Literal["SSE", "SHTTP"] = mode
+        self.url: str = url
+        self.headers: dict[str, str] | None = headers
+        self.timeout: float = timeout
+        self.sse_read_timeout: float = sse_read_timeout
+        self.terminate_on_close: bool = terminate_on_close
+        self.httpx_client_factory: McpHttpClientFactory = httpx_client_factory
+        self.auth: Auth | None = auth
+        self.on_session_created: Callable[[str], None] | None = on_session_created
         self.async_client_args: AsyncClientArgs = {} if async_client_args is None else async_client_args
-        self.manual_enable = manual_enable
-        self.allowed_tools = {} if allowed_tools is None else allowed_tools
-        self.tool_action_class = tool_action_class
-        self.exclude_unset = exclude_unset
-        self.require_integration = require_integration
+        self.manual_enable: bool = manual_enable
+        self.allowed_tools: dict[str, bool] = {} if allowed_tools is None else allowed_tools
+        self.tool_action_class: type["MCPToolAction"] | None = tool_action_class
+        self.exclude_unset: bool = exclude_unset
+        self.require_integration: bool = require_integration
 
     def get_config(self, override: MCPConfig | None) -> MCPConfig:
         """Generate config."""

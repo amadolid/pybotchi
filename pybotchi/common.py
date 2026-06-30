@@ -182,7 +182,7 @@ class ConcurrentBreakPoint(Exception):  # noqa: N818
 
     def __init__(self, action_return: ActionReturn) -> None:
         """Initialize ConcurrentBreakPoint Exception."""
-        self.action_return = action_return
+        self.action_return: ActionReturn = action_return
         super().__init__(action_return)
 
 

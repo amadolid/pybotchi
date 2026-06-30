@@ -1,14 +1,14 @@
 """Pybotchi GRPC Classes."""
 
 from asyncio import Queue
-from collections.abc import AsyncGenerator, Awaitable
+from collections.abc import AsyncGenerator, AsyncIterator, Awaitable
 from contextlib import AsyncExitStack, asynccontextmanager
 from inspect import getmembers
 from itertools import islice
 from typing import Any, Generic
 
 from datamodel_code_generator import DataModelType, Formatter, PythonVersion
-from datamodel_code_generator.model import get_data_model_types
+from datamodel_code_generator.model import DataModelSet, get_data_model_types
 from datamodel_code_generator.parser.jsonschema import (
     JsonSchemaParser,
 )
@@ -36,7 +36,7 @@ from ..action import Action, ChildActions
 from ..common import ActionReturn, Graph
 from ..utils import unwrap_exceptions
 
-DMT = get_data_model_types(
+DMT: DataModelSet = get_data_model_types(
     DataModelType.PydanticV2BaseModel,
     target_python_version=PythonVersion.PY_313,
 )
@@ -56,13 +56,13 @@ class GRPCClient:
         exclude_unset: bool,
     ) -> None:
         """Build GRPC Client."""
-        self.stub = stub
-        self.name = name
-        self.config = config
-        self.manual_enable = manual_enable
-        self.allowed_actions = allowed_actions
-        self.remote_action_class = remote_action_class or GRPCRemoteAction
-        self.exclude_unset = exclude_unset
+        self.stub: PyBotchiGRPCStub = stub
+        self.name: str = name
+        self.config: GRPCConfigLoaded = config
+        self.manual_enable: bool = manual_enable
+        self.allowed_actions: dict[str, bool] = allowed_actions
+        self.remote_action_class: type["GRPCRemoteAction"] = remote_action_class or GRPCRemoteAction
+        self.exclude_unset: bool = exclude_unset
 
     def build_action(self, agent_id: str, action_schema: ActionSchema) -> tuple[str, type["GRPCRemoteAction"]]:
         """Build GRPCToolAction."""
@@ -143,7 +143,7 @@ class GRPCClient:
         return actions
 
 
-class GRPCAction(Action[TContext], Generic[TContext]):
+class GRPCAction(Action[TContext]):
     """GRPC Action."""
 
     __grpc_clients__: dict[str, GRPCClient]
@@ -178,7 +178,7 @@ class GRPCAction(Action[TContext], Generic[TContext]):
 
     async def execute(self, context: TContext, parent: Action | None = None, append: bool = True) -> ActionReturn:
         """Execute main process."""
-        self._parent = parent
+        self._parent: Action | None = parent
         parent_context = context
         try:
             if parent and append:
@@ -441,7 +441,7 @@ async def multi_grpc_clients(
     integrations: dict[str, GRPCIntegration],
     connections: list[GRPCConnection],
     bypass: bool = False,
-) -> AsyncGenerator[dict[str, GRPCClient], None]:
+) -> AsyncIterator[dict[str, GRPCClient]]:
     """Connect to multiple grpc clients."""
     async with AsyncExitStack() as stack:
         clients: dict[str, GRPCClient] = {}
