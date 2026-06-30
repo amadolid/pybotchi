@@ -1,3 +1,0 @@
-CERT_CACHE: dict[str, bytes]
-
-async def read_cert(path: str) -> bytes: ...
