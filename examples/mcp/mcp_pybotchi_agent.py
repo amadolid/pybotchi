@@ -17,7 +17,7 @@ class MathProblem(Action):
     async def pre(self, context: Context) -> ActionReturn:
         """Execute pre process."""
         message = await context.llm.ainvoke(f"Solve `{self.equation}`")
-        await context.add_usage(self, context.llm.model_name, message.usage_metadata)
+        await context.add_usage(self, context.llm.model, message.usage_metadata)
         await context.add_response(self, message.text)
         return ActionReturn.GO
 
@@ -33,7 +33,7 @@ class Translation(Action):
     async def pre(self, context: Context) -> ActionReturn:
         """Execute pre process."""
         message = await context.llm.ainvoke(f"Translate `{self.message}` to {self.language}")
-        await context.add_usage(self, context.llm.model_name, message.usage_metadata)
+        await context.add_usage(self, context.llm.model, message.usage_metadata)
         await context.add_response(self, message.text)
 
         return ActionReturn.GO
@@ -60,7 +60,7 @@ class JokeWithStoryTelling(Action):
             """Execute pre process."""
             print("Executing Joke...")
             message = await context.llm.ainvoke("generate very short joke")
-            await context.add_usage(self, context.llm.model_name, message.usage_metadata)
+            await context.add_usage(self, context.llm.model, message.usage_metadata)
 
             await context.add_response(self, message.text)
             print("Done executing Joke...")
@@ -75,7 +75,7 @@ class JokeWithStoryTelling(Action):
             """Execute pre process."""
             print("Executing StoryTelling...")
             message = await context.llm.ainvoke("generate a very short story")
-            await context.add_usage(self, context.llm.model_name, message.usage_metadata)
+            await context.add_usage(self, context.llm.model, message.usage_metadata)
 
             await context.add_response(self, message.text)
             print("Done executing StoryTelling...")
@@ -85,7 +85,7 @@ class JokeWithStoryTelling(Action):
         """Execute pre process."""
         print("Executing post...")
         message = await context.llm.ainvoke(context.prompts)
-        await context.add_usage(self, context.llm.model_name, message.usage_metadata, "combine")
+        await context.add_usage(self, context.llm.model, message.usage_metadata, "combine")
         await context.add_message(ChatRole.ASSISTANT, message.text)
         print("Done executing post...")
         return ActionReturn.END

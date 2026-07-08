@@ -44,7 +44,7 @@ class GeneralChat(MCPAction):
         async def pre(self, context: MCPContext) -> ActionReturn:
             """Test."""
             message = await context.llm.ainvoke(context.prompts)
-            await context.add_usage(self, context.llm.model_name, message.usage_metadata)
+            await context.add_usage(self, context.llm.model, message.usage_metadata)
 
             await context.add_response(self, message.text)
 

@@ -281,10 +281,11 @@ class Action(BaseModel, Generic[TContext]):
         child_actions: ChildActions | None = None,
     ) -> tuple[list["Action"], str]:
         """Execute tool selection process."""
-        tool_choice = "auto" if self.__has_fallback__ else "required"
-
         if child_actions is None:
             child_actions = await self.get_child_actions(context)
+
+        tool_choice = "auto" if self.__has_fallback__ else ("any" if context.llm_is_anthropic else "required")
+
         llm = context.llm.bind_tools(
             [await child._as_tool(context) if child.__has_as_tool__ else child for child in child_actions.values()],
             tool_choice=tool_choice,

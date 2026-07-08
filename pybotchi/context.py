@@ -6,7 +6,8 @@ from concurrent.futures import Executor
 from copy import deepcopy
 from functools import cached_property, partial
 from itertools import islice
-from typing import Any, Generic, ParamSpec, Self
+from os import getenv
+from typing import Any, ClassVar, Generic, ParamSpec, Self
 
 from langchain_core.language_models.chat_models import BaseChatModel
 
@@ -35,6 +36,10 @@ class Context(BaseModel, Generic[TLLM]):
     parent: Self | None = None
 
     _action_call: dict[str, int] = PrivateAttr(default_factory=dict)
+    _model_source: ClassVar[list[str]] = getenv(
+        "MODEL_NAME_SOURCE",
+        "model,model_name,deployment_name",
+    ).split(",")
 
     @cached_property
     def llm(self) -> TLLM:
@@ -42,17 +47,16 @@ class Context(BaseModel, Generic[TLLM]):
         return LLM.base()
 
     @cached_property
+    def llm_is_anthropic(self) -> bool:
+        """Get base LLM type."""
+        if llm_type := getattr(self.llm, "_llm_type", None):
+            return "anthropic" in llm_type
+        return False
+
+    @cached_property
     def llm_model(self) -> str:
         """Get base LLM Model."""
-        return getattr(
-            self.llm,
-            "model_name",
-            getattr(
-                self.llm,
-                "deployment_name",
-                UNSPECIFIED,
-            ),
-        )
+        return next((name for source in self._model_source if (name := getattr(self.llm, source, None))), UNSPECIFIED)
 
     def shifted_prompts(self, offset: int | None) -> Iterator[dict[str, Any]]:
         """Get shifted prompts."""

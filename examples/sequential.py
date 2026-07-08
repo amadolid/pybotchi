@@ -17,7 +17,7 @@ class MathProblemAction(Action):
     async def pre(self, context: Context) -> ActionReturn:
         """Execute pre process."""
         message = await context.llm.ainvoke(f"Solve `{self.equation}`")
-        await context.add_usage(self, context.llm.model_name, message.usage_metadata)
+        await context.add_usage(self, context.llm.model, message.usage_metadata)
         await context.add_response(self, message.text)
         return ActionReturn.GO
 
@@ -31,7 +31,7 @@ class TranslationAction(Action):
     async def pre(self, context: Context) -> ActionReturn:
         """Execute pre process."""
         message = await context.llm.ainvoke(f"Translate `{self.message}` to {self.language}")
-        await context.add_usage(self, context.llm.model_name, message.usage_metadata)
+        await context.add_usage(self, context.llm.model, message.usage_metadata)
         await context.add_response(self, message.text)
 
         return ActionReturn.GO
