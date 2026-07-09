@@ -3,15 +3,7 @@
 from asyncio import run
 from json import dumps
 
-from mcp_prerequisite import (
-    ActionReturn,
-    ChatRole,
-    MCPAction,
-    MCPConnection,
-    MCPContext,
-    MCPIntegration,
-    graph,
-)
+from mcp_prerequisite import ChatRole, MCPAction, MCPConnection, MCPContext, MCPIntegration, graph
 
 
 class GeneralChat(MCPAction):
@@ -19,13 +11,12 @@ class GeneralChat(MCPAction):
 
     __mcp_connections__ = [MCPConnection("testing", "SHTTP", "http://localhost:8000/group-1/mcp")]
 
-    async def pre_mcp(self, context: MCPContext) -> ActionReturn:
+    async def pre_mcp(self, context: MCPContext) -> None:
         """Execute pre mcp execution."""
         print("Trigger anything here before mcp client connection")
         print("Build context.integrations['testing']['config']")
         print("Refresh tokens")
         print("etc ...")
-        return ActionReturn.GO
 
 
 async def test() -> None:

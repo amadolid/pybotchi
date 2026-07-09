@@ -13,6 +13,7 @@ from pydantic import BaseModel, PrivateAttr
 
 from .common import (
     ActionEntry,
+    ActionResult,
     ActionReturn,
     ConcurrentBreakPoint,
     Graph,
@@ -63,10 +64,14 @@ Your primary responsibility is to synthesize all prior tool calls and results fr
   - What could not be completed and why (e.g., iteration limit reached before all steps finished).
   - Any actionable next steps the user can take.
 - If conflicting or incomplete data exists across iterations, use your best judgment to reconcile it and flag any uncertainty to the user.
-- Maintain the tone and context established in the original task.
+- Maintain the tone and context established in the initial system prompt.
 - Never expose raw function names, parameters, or internal tool output directly — always translate them into natural, user-friendly language.
 
-# Initial Task:
+# Critical Rules:
+- You must NOT attempt to answer, solve, or complete the user's original request yourself. Your only job is to report on what already happened in the conversation.
+- If information needed to answer is missing from the tool results, say so — do not fill the gap with your own knowledge or reasoning.
+
+# Initial System Prompt:
 ${system}
 """.strip(),
 )
@@ -90,7 +95,7 @@ class Action(BaseModel, Generic[TContext]):
     __tool_call_prompt__: str | None = None
     __max_iteration_prompt__: str | None = None
     __temperature__: float | None = None
-    __max_tool_prompts__: int | None = None
+    __max_child_selection_prompts__: int | None = None
     __default_tool__ = DEFAULT_ACTION
     __first_tool_only__ = False
     __concurrent__ = False
@@ -103,8 +108,8 @@ class Action(BaseModel, Generic[TContext]):
     __has_as_tool__: bool
     __detached__: bool
 
+    __max_self_recursion__: int | None = None
     __max_iteration__: int | None = None
-    __max_child_iteration__: int | None = None
     __child_actions__: ChildActions
 
     # --------------------- not inheritable -------------------- #
@@ -172,13 +177,11 @@ class Action(BaseModel, Generic[TContext]):
         """Convert Action to tool."""
         return cls
 
-    async def pre(self, context: TContext) -> ActionReturn:
+    async def pre(self, context: TContext) -> ActionResult:
         """Execute pre process."""
-        return ActionReturn.GO
 
-    async def fallback(self, context: TContext, content: str) -> ActionReturn:
+    async def fallback(self, context: TContext, content: str) -> ActionResult:
         """Execute fallback process."""
-        return ActionReturn.GO
 
     async def on_child_init_error(
         self,
@@ -195,11 +198,10 @@ class Action(BaseModel, Generic[TContext]):
         context: TContext,
         exception: Exception,
         unwrapped_exceptions: Generator[Exception, None, None],
-    ) -> ActionReturn:
+    ) -> ActionResult:
         """Execute on error process."""
-        return ActionReturn.GO
 
-    async def on_max_iteration(self, context: TContext) -> ActionReturn:
+    async def on_max_iteration(self, context: TContext) -> ActionResult:
         """Execute on max iteration process."""
         await context.notify(
             {
@@ -209,9 +211,12 @@ class Action(BaseModel, Generic[TContext]):
                 "data": self.__display_name__,
             }
         )
-        llm = context.llm
-        if self.__temperature__ is not None:
-            llm = llm.with_config(configurable={"llm_temperature": self.__temperature__})
+
+        llm = (
+            context.llm.with_config(configurable={"llm_temperature": self.__temperature__})
+            if self.__temperature__ is None
+            else context.llm
+        )
 
         message = await llm.ainvoke(
             [
@@ -219,7 +224,7 @@ class Action(BaseModel, Generic[TContext]):
                     "content": self.max_iteration_prompt(context),
                     "role": "system",
                 },
-                *context.shifted_prompts(self.__max_tool_prompts__),
+                *context.shifted_prompts(self.__max_child_selection_prompts__),
             ]
         )
 
@@ -240,11 +245,10 @@ class Action(BaseModel, Generic[TContext]):
         )
         await context.add_response(self, message.text)
 
-        return ActionReturn.GO
+        return None
 
-    async def post(self, context: TContext) -> ActionReturn:
+    async def post(self, context: TContext) -> ActionResult:
         """Execute post process."""
-        return ActionReturn.GO
 
     async def commit_context(self, parent: TContext, child: TContext) -> None:
         """Execute commit context if it's detached."""
@@ -300,7 +304,7 @@ class Action(BaseModel, Generic[TContext]):
                     "content": self.child_selection_prompt(context, tool_choice),
                     "role": "system",
                 },
-                *context.shifted_prompts(self.__max_tool_prompts__),
+                *context.shifted_prompts(self.__max_child_selection_prompts__),
             ]
         )
         await context.add_usage(
@@ -331,9 +335,11 @@ class Action(BaseModel, Generic[TContext]):
                     raise error
         return next_actions, message.text
 
-    async def execute(self, context: TContext, parent: Action | None = None, append: bool = True) -> ActionReturn:
+    async def execute(self, context: TContext, parent: Action | None = None, append: bool = True) -> ActionResult:
         """Execute main process."""
         self._parent = parent
+
+        result = None
         parent_context = context
         try:
             if parent and append:
@@ -343,29 +349,34 @@ class Action(BaseModel, Generic[TContext]):
                 context = await context.detach_context()
 
             if context.check_self_recursion(self):
-                return ActionReturn.END
+                return ActionReturn.STOP
 
-            if self.__has_pre__ and (result := await self.pre(context)).is_break:
+            if self.__has_pre__ and (result := await self.pre(context)) and result.is_end:
                 return result
 
-            if self.__max_child_iteration__:
+            if self.__max_iteration__:
                 iteration = 0
-                while iteration < self.__max_child_iteration__:
-                    if (result := await self.execution(context)).is_break:
+                while iteration < self.__max_iteration__:
+                    if (result := await self.execution(context)) and result.is_break:
                         break
                     iteration += 1
-                if result.is_end or (
-                    iteration >= self.__max_child_iteration__
-                    and (result := await self.on_max_iteration(context)).is_break
+                if (
+                    result
+                    and result.is_stop
+                    or (
+                        iteration >= self.__max_iteration__
+                        and (result := await self.on_max_iteration(context))
+                        and result.is_end
+                    )
                 ):
                     return result
-            elif (result := await self.execution(context)).is_break:
+            elif (result := await self.execution(context)) and result.is_end:
                 return result
 
-            if self.__has_post__ and (result := await self.post(context)).is_break:
+            if self.__has_post__ and (result := await self.post(context)) and result.is_end:
                 return result
 
-            return ActionReturn.GO
+            return result
         except Exception as exception:
             if not self.__has_on_error__:
                 self.__to_commit__ = False
@@ -376,27 +387,28 @@ class Action(BaseModel, Generic[TContext]):
                     exception,
                     unwrap_exceptions(exception),
                 )
-            ).is_break:
+            ) and result.is_end:
                 return result
-            return ActionReturn.GO
+            return result
         finally:
             if self.__to_commit__ and self.__detached__:
                 await self.commit_context(parent_context, context)
 
     async def execute_concurrently(self, context: TContext, parent: Action | None = None, append: bool = True) -> None:
         """Execute main process concurrently."""
-        if (result := await self.execute(context, parent, append)).is_break:
+        if (result := await self.execute(context, parent, append)) and result.is_break:
             raise ConcurrentBreakPoint(result)
 
-    async def execution(self, context: TContext) -> ActionReturn:
+    async def execution(self, context: TContext) -> ActionResult:
         """Execute core process."""
+        result = None
         child_actions = await self.get_child_actions(context)
         if (
             len(child_actions) == 1
             and not (action := next(iter(child_actions.values()))).model_fields
             and not self.__has_fallback__
         ):
-            if (result := await action().execute(context, self)).is_break:  # type: ignore[call-arg]
+            if (result := await action().execute(context, self)) and result.is_break:  # type: ignore[call-arg]
                 return result
         elif child_actions:
             await context.notify(
@@ -422,7 +434,7 @@ class Action(BaseModel, Generic[TContext]):
 
             if next_actions:
                 if self.__first_tool_only__ or len(next_actions) == 1:
-                    if (result := await next_actions[0].execute(context, self)).is_break:
+                    if (result := await next_actions[0].execute(context, self)) and result.is_break:
                         return result
                 elif (
                     result := await (
@@ -430,9 +442,9 @@ class Action(BaseModel, Generic[TContext]):
                         if any(True for na in next_actions if na.__concurrent__)
                         else self.sequential_children_execution
                     )(context, next_actions)
-                ).is_break:
+                ) and result.is_break:
                     return result
-            elif self.__has_fallback__ and (result := await self.fallback(context, content)).is_break:
+            elif self.__has_fallback__ and (result := await self.fallback(context, content)) and result.is_end:
                 return result
         elif self.__has_fallback__:
             llm = (
@@ -468,13 +480,14 @@ class Action(BaseModel, Generic[TContext]):
                 }
             )
 
-            if (result := await self.fallback(context, message.text)).is_break:
+            if (result := await self.fallback(context, message.text)) and result.is_end:
                 return result
 
-        return ActionReturn.GO
+        return result
 
-    async def concurrent_children_execution(self, context: TContext, next_actions: list[Action]) -> ActionReturn:
+    async def concurrent_children_execution(self, context: TContext, next_actions: list[Action]) -> ActionResult:
         """Run children execution with concurrent."""
+        result = None
         break_point = None
         try:
             async with TaskGroup() as tg:
@@ -482,7 +495,7 @@ class Action(BaseModel, Generic[TContext]):
                     self._actions.append(next_action)
                     if next_action.__concurrent__:
                         tg.create_task(next_action.execute_concurrently(context, self, False))
-                    elif (result := await next_action.execute(context, self, False)).is_break:
+                    elif (result := await next_action.execute(context, self, False)) and result.is_break:
                         return result
         except* ConcurrentBreakPoint as eg:
             queue = deque(eg.exceptions)
@@ -494,15 +507,16 @@ class Action(BaseModel, Generic[TContext]):
                     break_point = que.action_return
                     break
 
-        return break_point or ActionReturn.GO
+        return break_point or result
 
-    async def sequential_children_execution(self, context: TContext, next_actions: list[Action]) -> ActionReturn:
+    async def sequential_children_execution(self, context: TContext, next_actions: list[Action]) -> ActionResult:
         """Run children execution sequentially."""
+        result = None
         for next_action in next_actions:
-            if (result := await next_action.execute(context, self)).is_break:
+            if (result := await next_action.execute(context, self)) and result.is_break:
                 return result
 
-        return ActionReturn.GO
+        return result
 
     def serialize(self, mode: str | Literal["python", "json"] = "python") -> ActionEntry:
         """Serialize Action."""

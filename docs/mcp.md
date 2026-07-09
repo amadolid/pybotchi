@@ -223,7 +223,6 @@ class TranslateToEnglish(Action):
             f"Translate this to english: {self.sentence}"
         )
         await context.add_response(self, message.text)
-        return ActionReturn.GO
 
 class TranslateToFilipino(Action):
     """Translate sentence to filipino."""
@@ -237,7 +236,6 @@ class TranslateToFilipino(Action):
             f"Translate this to Filipino: {self.sentence}"
         )
         await context.add_response(self, message.text)
-        return ActionReturn.GO
 
 @asynccontextmanager
 async def lifespan(app):

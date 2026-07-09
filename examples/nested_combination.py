@@ -2,11 +2,32 @@
 
 from asyncio import run
 from json import dumps
+from os import getenv
 
-from prerequisite import Action, ActionReturn, ChatRole, Context, graph
+from dotenv import load_dotenv
 
+from langchain_openai import AzureChatOpenAI
+
+from pybotchi import Action, ActionReturn, ChatRole, Context as BaseContext, LLM, graph
 
 from pydantic import Field
+
+
+load_dotenv()
+
+LLM.add(
+    base=AzureChatOpenAI(
+        api_key=getenv("CHAT_KEY"),  # type: ignore[arg-type]
+        azure_endpoint=getenv("CHAT_ENDPOINT"),
+        azure_deployment=getenv("CHAT_DEPLOYMENT"),
+        model=getenv("CHAT_MODEL"),
+        api_version=getenv("CHAT_VERSION"),
+        temperature=int(getenv("CHAT_TEMPERATURE", "1")),
+        stream_usage=True,
+    )
+)
+
+Context = BaseContext[AzureChatOpenAI]
 
 
 class Mini(Action):
@@ -16,7 +37,7 @@ class Mini(Action):
         """Execute fallback process."""
         await context.add_response(self, content)
 
-        return ActionReturn.END
+        return ActionReturn.STOP
 
 
 class Nano(Action):
@@ -26,7 +47,7 @@ class Nano(Action):
         """Execute nano process."""
         await context.add_response(self, "Hello")
 
-        return ActionReturn.END
+        return ActionReturn.STOP
 
 
 class Deep(Action):
@@ -38,7 +59,7 @@ class Deep(Action):
         async def pre(self, context: Context) -> ActionReturn:
             """Execute main process."""
             await context.add_message(ChatRole.ASSISTANT, "your funny")
-            return ActionReturn.END
+            return ActionReturn.STOP
 
     class NotFunny(Action):
         """This Assistant is if you find the joke not funny."""
@@ -46,7 +67,7 @@ class Deep(Action):
         async def pre(self, context: Context) -> ActionReturn:
             """Execute main process."""
             await context.add_message(ChatRole.ASSISTANT, "your not funny")
-            return ActionReturn.END
+            return ActionReturn.STOP
 
 
 class GeneralChat(Action):
@@ -66,21 +87,19 @@ class GeneralChat(Action):
 
         answer: str = Field(description="Your mathematical answer to the math problem")
 
-        async def pre(self, context: Context) -> ActionReturn:
+        async def pre(self, context: Context) -> None:
             """Execute pre process."""
             await context.add_response(self, self.answer)
-            return ActionReturn.GO
 
     class Translation(Action):
         """This Assistant is used when user's inquiry is related to Food Recipe."""
 
-        async def pre(self, context: Context) -> ActionReturn:
+        async def pre(self, context: Context) -> None:
             """Execute pre process."""
             message = await context.llm.ainvoke(context.prompts)
             await context.add_usage(self, context.llm.model, message.usage_metadata)
 
             await context.add_response(self, message.text)
-            return ActionReturn.GO
 
 
 async def test() -> None:
@@ -89,24 +108,22 @@ async def test() -> None:
         prompts=[
             {
                 "role": ChatRole.SYSTEM,
-                "content": """
-You're an AI the can solve math problem and translate any request.
-
-Your primary focus is to prioritize tool usage and efficiently handle multiple tool calls, including invoking the same tool multiple times if necessary.
-Ensure that all relevant tools are effectively utilized and properly sequenced to accurately and comprehensively address the user's inquiry.
-""".strip(),
+                "content": "",
             },
             {
                 "role": ChatRole.USER,
                 # -------------------------------------------------------#
                 # Triggers Greetings
-                "content": "hello",
+                "content": "Hello!",
                 #
                 # Triggers Goodbyes
-                # "content": "goodbyes",
+                # "content": "Good Bye!",
                 #
                 # Triggers Joke -> Funny
-                # "content": "why 6 scared of 7? because 7 ate 9",
+                # "content": "I used to be a banker, but I lost interest.",
+                #
+                # Triggers Joke -> Not Funny
+                # "content": "What will you react if I tell a racist joke",
                 #
                 # Triggers MathProblem
                 # "content": "4 x 4",
@@ -115,7 +132,7 @@ Ensure that all relevant tools are effectively utilized and properly sequenced t
                 # "content": "What's the english for kamusta",
                 #
                 # Triggers MathProblem then Translation
-                # "content": "4 x 4 and explain your answer in filipino",
+                # "content": "4 x 4 and translate `kamusta` in english",
                 # -------------------------------------------------------#
             },
         ],

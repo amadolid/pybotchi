@@ -46,7 +46,7 @@ LLM.add(
 ### Imports
 
 ```
-from pybotchi import Action, ActionReturn, Context
+from pybotchi import Action, Context
 ```
 
 ### Agent Declaration
@@ -58,7 +58,6 @@ class Translation(Action):
     async def pre(self, context):
         message = await context.llm.ainvoke(context.prompts)
         await context.add_response(self, message.text)
-        return ActionReturn.GO
 ```
 
 - This can already work as an agent. `context.llm` will use the base LLM.
@@ -74,7 +73,6 @@ class MathProblem(Action):
 
     async def pre(self, context):
         await context.add_response(self, self.answer)
-        return ActionReturn.GO
 ```
 
 - Since this agent requires arguments, you need to attach it to a parent `Action` to use it as an agent. Don't worry, it doesn't need to have anything specific; just add it as a child `Action`, and it should work fine.
@@ -138,7 +136,7 @@ Since our agents are now modular, each agent will have isolated development. Age
 ```python
 from contextlib import AsyncExitStack, asynccontextmanager
 from fastapi import FastAPI
-from pybotchi import Action, ActionReturn, mount_mcp_groups
+from pybotchi import Action, mount_mcp_groups
 
 class TranslateToEnglish(Action):
     """Translate sentence to english."""
@@ -152,7 +150,6 @@ class TranslateToEnglish(Action):
             f"Translate this to english: {self.sentence}"
         )
         await context.add_response(self, message.text)
-        return ActionReturn.GO
 
 
 @asynccontextmanager
@@ -264,7 +261,7 @@ __main__.GeneralChat --> mcp.YourAdditionalIdentifier.Translatetoenglish
 class MultiAgent(Action):
     """Solve math problems, translate to specific language, or both."""
 
-    __max_child_iteration__ = 5
+    __max_iteration__ = 5
 
     class SolveMath(MathProblem):
         pass
@@ -293,7 +290,6 @@ class GeneralChat(Action):
 
             await context.add_response(self, message.text)
             print("Done executing Joke...")
-            return ActionReturn.GO
 
     class StoryTelling(Action):
         """This Assistant is used when user's inquiry is related to generating stories."""
@@ -307,7 +303,6 @@ class GeneralChat(Action):
 
             await context.add_response(self, message.text)
             print("Done executing StoryTelling...")
-            return ActionReturn.GO
 
     async def post(self, context):
         print("Executing post...")

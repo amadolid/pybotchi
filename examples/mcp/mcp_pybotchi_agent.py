@@ -14,12 +14,11 @@ class MathProblem(Action):
 
     equation: str = Field(description="The mathematical equation to solve (e.g., '2x + 5')")
 
-    async def pre(self, context: Context) -> ActionReturn:
+    async def pre(self, context: Context) -> None:
         """Execute pre process."""
         message = await context.llm.ainvoke(f"Solve `{self.equation}`")
         await context.add_usage(self, context.llm.model, message.usage_metadata)
         await context.add_response(self, message.text)
-        return ActionReturn.GO
 
 
 class Translation(Action):
@@ -30,13 +29,11 @@ class Translation(Action):
     message: str = Field(description="The text content to be translated.")
     language: str = Field(description="The ISO code or name of the target language.")
 
-    async def pre(self, context: Context) -> ActionReturn:
+    async def pre(self, context: Context) -> None:
         """Execute pre process."""
         message = await context.llm.ainvoke(f"Translate `{self.message}` to {self.language}")
         await context.add_usage(self, context.llm.model, message.usage_metadata)
         await context.add_response(self, message.text)
-
-        return ActionReturn.GO
 
 
 class JokeWithStoryTelling(Action):
@@ -46,17 +43,16 @@ class JokeWithStoryTelling(Action):
 
     query: str
 
-    async def pre(self, context: Context) -> ActionReturn:
+    async def pre(self, context: Context) -> None:
         """Execute pre process."""
         await context.add_message(ChatRole.USER, self.query)
-        return ActionReturn.GO
 
     class Joke(Action):
         """Generate a joke."""
 
         __concurrent__ = True
 
-        async def pre(self, context: Context) -> ActionReturn:
+        async def pre(self, context: Context) -> None:
             """Execute pre process."""
             print("Executing Joke...")
             message = await context.llm.ainvoke("generate very short joke")
@@ -64,14 +60,13 @@ class JokeWithStoryTelling(Action):
 
             await context.add_response(self, message.text)
             print("Done executing Joke...")
-            return ActionReturn.GO
 
     class StoryTelling(Action):
         """Tell a story."""
 
         __concurrent__ = True
 
-        async def pre(self, context: Context) -> ActionReturn:
+        async def pre(self, context: Context) -> None:
             """Execute pre process."""
             print("Executing StoryTelling...")
             message = await context.llm.ainvoke("generate a very short story")
@@ -79,7 +74,6 @@ class JokeWithStoryTelling(Action):
 
             await context.add_response(self, message.text)
             print("Done executing StoryTelling...")
-            return ActionReturn.GO
 
     async def post(self, context: Context) -> ActionReturn:
         """Execute pre process."""
@@ -88,7 +82,7 @@ class JokeWithStoryTelling(Action):
         await context.add_usage(self, context.llm.model, message.usage_metadata, "combine")
         await context.add_message(ChatRole.ASSISTANT, message.text)
         print("Done executing post...")
-        return ActionReturn.END
+        return ActionReturn.STOP
 
 
 ##################################################################################

@@ -5,6 +5,7 @@ from json import dumps
 
 from mcp_prerequisite import (
     Action,
+    ActionResult,
     ActionReturn,
     ChatRole,
     MCPAction,
@@ -21,19 +22,18 @@ class GeneralChat(MCPAction):
 
     # https://github.com/sooperset/mcp-atlassian
     __mcp_connections__ = [MCPConnection("jira", "SSE", "http://localhost:9000/sse", manual_enable=True)]
-    __max_child_iteration__ = 5
+    __max_iteration__ = 5
     # __detached__ = True
 
-    async def pre_mcp(self, context: MCPContext) -> ActionReturn:
+    async def pre_mcp(self, context: MCPContext) -> None:
         """Execute pre mcp execution."""
         print("Trigger anything here before mcp client connection")
         print("Build context.integrations['jira']['config']")
         print("Refresh tokens")
         print("etc ...")
-        return ActionReturn.GO
 
     class JiraSearch(MCPToolAction):  # noqa: D106
-        async def pre(self, context: MCPContext) -> ActionReturn:
+        async def pre(self, context: MCPContext) -> ActionResult:
             """Execute pre execution."""
             print("#####################################")
             return await super().pre(context)

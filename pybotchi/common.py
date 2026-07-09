@@ -3,7 +3,7 @@
 from collections import Counter
 from enum import StrEnum
 from functools import cached_property
-from typing import Annotated, Any, ClassVar, Literal, NotRequired, Required, TypedDict
+from typing import Annotated, Any, ClassVar, Literal, NotRequired, Required, TypeAlias, TypedDict
 
 from pydantic import BaseModel, ConfigDict, Field, SkipValidation
 
@@ -21,24 +21,24 @@ class ChatRole(StrEnum):
 class InputTokenDetails(TypedDict, total=False):
     """Input Token Details."""
 
-    audio: float
-    cache_creation: float
-    cache_read: float
+    audio: int
+    cache_creation: int
+    cache_read: int
 
 
 class OutputTokenDetails(TypedDict, total=False):
     """Output Token Details."""
 
-    audio: float
-    reasoning: float
+    audio: int
+    reasoning: int
 
 
 class UsageMetadata(TypedDict):
     """Usage Metadata."""
 
-    input_tokens: float
-    output_tokens: float
-    total_tokens: float
+    input_tokens: int
+    output_tokens: int
+    total_tokens: int
     input_token_details: NotRequired[InputTokenDetails]
     output_token_details: NotRequired[OutputTokenDetails]
 
@@ -136,45 +136,58 @@ class Graph(BaseModel):
 class ActionReturn(BaseModel):
     """Action Result Class."""
 
-    value: Annotated[Any, SkipValidation()] = None
-
-    GO: ClassVar["Go"]
-    BREAK: ClassVar["Break"]
     END: ClassVar["End"]
+    BREAK: ClassVar["Break"]
+    STOP: ClassVar["Stop"]
 
     model_config: ClassVar[ConfigDict] = ConfigDict(arbitrary_types_allowed=True)
 
     @staticmethod
-    def end(value: Any) -> "End":
-        """Return ActionReturn.END with value."""
-        return End(value=value)
+    def convert(type: str, value: Any = None) -> "ActionReturn":
+        """Convert to ActionReturn."""
+        match type:
+            case "End":
+                return ActionReturn.END
+            case "Break":
+                return ActionReturn.BREAK
+            case "Stop":
+                return ActionReturn.stop(value)
+            case _:
+                raise ValueError(f"type `{type}` is not supported")
 
     @staticmethod
-    def go(value: Any) -> "Go":
-        """Return ActionReturn.GO with value."""
-        return Go(value=value)
-
-    @cached_property
-    def is_break(self) -> bool:
-        """Check if instance of End."""
-        return isinstance(self, Break)
+    def stop(value: Any) -> "Stop":
+        """Return ActionReturn.STOP with value."""
+        return Stop(value=value)
 
     @cached_property
     def is_end(self) -> bool:
         """Check if instance of End."""
         return isinstance(self, End)
 
+    @cached_property
+    def is_break(self) -> bool:
+        """Check if instance of Break."""
+        return isinstance(self, Break)
 
-class Go(ActionReturn):
-    """Continue Action."""
+    @cached_property
+    def is_stop(self) -> bool:
+        """Check if instance of Stop."""
+        return isinstance(self, Stop)
 
 
-class Break(ActionReturn):
+class End(ActionReturn):
+    """End Action."""
+
+
+class Break(End):
     """Break Action Iteration."""
 
 
-class End(Break):
-    """End Action."""
+class Stop(Break):
+    """Stop Agent."""
+
+    value: Annotated[Any, SkipValidation()] = None
 
 
 class ConcurrentBreakPoint(Exception):  # noqa: N818
@@ -182,12 +195,13 @@ class ConcurrentBreakPoint(Exception):  # noqa: N818
 
     def __init__(self, action_return: ActionReturn) -> None:
         """Initialize ConcurrentBreakPoint Exception."""
-        self.action_return: ActionReturn = action_return
+        self.action_return = action_return
         super().__init__(action_return)
 
 
-ActionReturn.GO = Go()
+ActionResult: TypeAlias = ActionReturn | None
 ActionReturn.END = End()
 ActionReturn.BREAK = Break()
+ActionReturn.STOP = Stop()
 
 UNSPECIFIED = "UNSPECIFIED"

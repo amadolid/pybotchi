@@ -27,7 +27,7 @@ from .pybotchi_pb2 import (
 )
 from .pybotchi_pb2_grpc import PyBotchiGRPCServicer
 from ..action import Action
-from ..common import Graph
+from ..common import Graph, Stop
 from ..utils import uuid
 
 
@@ -39,10 +39,10 @@ class PyBotchiGRPC(PyBotchiGRPCServicer, Generic[TContext]):
 
     def __init__(self, id: str, module: str, groups: dict[str, dict[str, type[Action]]]) -> None:
         """Initialize Handler."""
-        self.id: str = id
-        self.module: str = module
-        self.groups: dict[str, dict[str, type[Action]]] = groups
-        self.__has_validate_metadata__: bool = self.__class__.validate_metadata is not PyBotchiGRPC.validate_metadata
+        self.id = id
+        self.module = module
+        self.groups = groups
+        self.__has_validate_metadata__ = self.__class__.validate_metadata is not PyBotchiGRPC.validate_metadata
 
     async def validate_metadata(self, metadata: Metadata | None) -> None:
         """Validate invocation metadata."""
@@ -87,14 +87,17 @@ class PyBotchiGRPC(PyBotchiGRPCServicer, Generic[TContext]):
             next(a for group in groups if (a := self.groups[group].get(data["name"]))),
             **data.get("args", {}),
         )
+
+        return_data = None
+        if action_return:
+            return_data = {"type": action_return.__class__.__name__}
+            if isinstance(action_return, Stop):
+                return_data["value"] = action_return.value
+
         await context.grpc_send_up(
             context.context_id,
             "close",
-            {
-                "action": action.serialize(),
-                "return": action_return.value,
-                "context": context.grpc_dump(),
-            },
+            {"action": action.serialize(), "return": return_data, "context": context.grpc_dump()},
         )
 
     async def grpc_event_update(self, context: TContext, groups: list[str], event: Event) -> None:

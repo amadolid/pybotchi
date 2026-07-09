@@ -2,8 +2,30 @@
 
 from asyncio import run
 from json import dumps
+from os import getenv
+from typing import TypeAlias
 
-from prerequisite import Action, ActionReturn, ChatRole, Context, graph
+from dotenv import load_dotenv
+
+from langchain_openai import AzureChatOpenAI
+
+from pybotchi import Action, ChatRole, Context as BaseContext, LLM, graph
+
+load_dotenv()
+
+LLM.add(
+    base=AzureChatOpenAI(
+        api_key=getenv("CHAT_KEY"),  # type: ignore[arg-type]
+        azure_endpoint=getenv("CHAT_ENDPOINT"),
+        azure_deployment=getenv("CHAT_DEPLOYMENT"),
+        model=getenv("CHAT_MODEL"),
+        api_version=getenv("CHAT_VERSION"),
+        temperature=int(getenv("CHAT_TEMPERATURE", "1")),
+        stream_usage=True,
+    )
+)
+
+Context: TypeAlias = BaseContext[AzureChatOpenAI]
 
 
 class GeneralChat(Action):
@@ -18,7 +40,7 @@ class GeneralChat(Action):
             """Execute additional sync function."""
             print(f"Additional function1 - arg1: {arg1} , arg2: {arg2} , kwarg1: {kwarg1} , kwarg2: {kwarg2}")
 
-        async def your_function_name(self, context: Context) -> ActionReturn:
+        async def your_function_name(self, context: Context) -> None:
             """Execute other function."""
             print("Executing Joke...")
             message = await context.llm.ainvoke("generate very short joke")
@@ -26,9 +48,8 @@ class GeneralChat(Action):
 
             await context.add_response(self, message.text)
             print("Done executing Joke...")
-            return ActionReturn.GO
 
-        async def pre(self, context: Context) -> ActionReturn:
+        async def pre(self, context: Context) -> None:
             """Execute pre process."""
             # Without waiting
             context.run_func_in_thread(self.additional_sync_execution, None, 1, "a", kwarg1=1, kwarg2="a")
@@ -45,7 +66,7 @@ class GeneralChat(Action):
             """Execute additional sync function."""
             print(f"Additional function2 - arg1: {arg1} , arg2: {arg2} , kwarg1: {kwarg1} , kwarg2: {kwarg2}")
 
-        async def your_function_name(self, context: Context) -> ActionReturn:
+        async def your_function_name(self, context: Context) -> None:
             """Execute pre process."""
             print("Executing StoryTelling...")
             message = await context.llm.ainvoke("generate a very short story")
@@ -53,9 +74,8 @@ class GeneralChat(Action):
 
             await context.add_response(self, message.text)
             print("Done executing StoryTelling...")
-            return ActionReturn.GO
 
-        async def pre(self, context: Context) -> ActionReturn:
+        async def pre(self, context: Context) -> None:
             """Execute pre process."""
             # Without waiting
             context.run_func_in_thread(self.additional_sync_execution, None, 1, "a", kwarg1=1, kwarg2="a")
@@ -63,7 +83,7 @@ class GeneralChat(Action):
             await context.run_func_in_thread(self.additional_sync_execution, None, 2, "b", kwarg1=2, kwarg2="b")
             return await context.run_task_in_thread(self.your_function_name(context))
 
-    async def post(self, context: Context) -> ActionReturn:
+    async def post(self, context: Context) -> None:
         """Execute pre process."""
         print("Executing post...")
         message = await context.llm.ainvoke(context.prompts)
@@ -71,7 +91,6 @@ class GeneralChat(Action):
 
         await context.add_message(ChatRole.ASSISTANT, message.text)
         print("Done executing post...")
-        return ActionReturn.END
 
 
 async def test() -> None:

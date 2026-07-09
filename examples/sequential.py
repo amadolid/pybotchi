@@ -2,11 +2,34 @@
 
 from asyncio import run
 from json import dumps
+from os import getenv
 from typing import Any, ClassVar
 
-from prerequisite import Action, ActionReturn, ChatRole, Context, graph, uuid
+from dotenv import load_dotenv
+
+from langchain_openai import AzureChatOpenAI
+
+from pybotchi import Action, ActionReturn, ChatRole, Context as BaseContext, LLM, graph
+from pybotchi.utils import uuid
 
 from pydantic import BaseModel, Field
+
+
+load_dotenv()
+
+LLM.add(
+    base=AzureChatOpenAI(
+        api_key=getenv("CHAT_KEY"),  # type: ignore[arg-type]
+        azure_endpoint=getenv("CHAT_ENDPOINT"),
+        azure_deployment=getenv("CHAT_DEPLOYMENT"),
+        model=getenv("CHAT_MODEL"),
+        api_version=getenv("CHAT_VERSION"),
+        temperature=int(getenv("CHAT_TEMPERATURE", "1")),
+        stream_usage=True,
+    )
+)
+
+Context = BaseContext[AzureChatOpenAI]
 
 
 class MathProblemAction(Action):
@@ -14,12 +37,11 @@ class MathProblemAction(Action):
 
     equation: str = Field(description="The mathematical equation to solve (e.g., '2x + 5')")
 
-    async def pre(self, context: Context) -> ActionReturn:
+    async def pre(self, context: Context) -> None:
         """Execute pre process."""
         message = await context.llm.ainvoke(f"Solve `{self.equation}`")
         await context.add_usage(self, context.llm.model, message.usage_metadata)
         await context.add_response(self, message.text)
-        return ActionReturn.GO
 
 
 class TranslationAction(Action):
@@ -28,17 +50,17 @@ class TranslationAction(Action):
     message: str = Field(description="The text content to be translated.")
     language: str = Field(description="The ISO code or name of the target language.")
 
-    async def pre(self, context: Context) -> ActionReturn:
+    async def pre(self, context: Context) -> None:
         """Execute pre process."""
         message = await context.llm.ainvoke(f"Translate `{self.message}` to {self.language}")
         await context.add_usage(self, context.llm.model, message.usage_metadata)
         await context.add_response(self, message.text)
 
-        return ActionReturn.GO
-
 
 class GeneralChatCombination(Action):
     """Casual Generic Chat."""
+
+    __temperature__ = 0
 
     class MathProblem(MathProblemAction):
         """Solve the math problem."""
@@ -50,7 +72,7 @@ class GeneralChatCombination(Action):
 class GeneralChatIteration(GeneralChatCombination):
     """Casual Generic Chat."""
 
-    __max_child_iteration__ = 10
+    __max_iteration__ = 10
     __first_tool_only__ = True
 
     async def fallback(self, context: Context, content: str) -> ActionReturn:
@@ -61,7 +83,7 @@ class GeneralChatIteration(GeneralChatCombination):
 class GeneralChatIterationExceedLimit(Action):
     """Casual Generic Chat."""
 
-    __max_child_iteration__ = 4
+    __max_iteration__ = 4
     __first_tool_only__ = True
 
     class Print(Action):
@@ -69,16 +91,15 @@ class GeneralChatIterationExceedLimit(Action):
 
         number: int
 
-        async def pre(self, context: Context) -> ActionReturn:
+        async def pre(self, context: Context) -> None:
             """Execute pre process."""
             await context.add_response(self, str(self.number))
-            return ActionReturn.GO
 
 
 class GeneralChatWithCorrection(Action):
     """Casual Generic Chat."""
 
-    __max_child_iteration__ = 4
+    __max_iteration__ = 4
     __first_tool_only__ = True
 
     class Print(Action):
@@ -115,10 +136,9 @@ class GeneralChatWithCorrection(Action):
                 }
             return cls
 
-        async def pre(self, context: Context) -> ActionReturn:
+        async def pre(self, context: Context) -> None:
             """Execute pre process."""
             await context.add_response(self, str(self.number))
-            return ActionReturn.GO
 
     async def on_child_init_error(
         self,

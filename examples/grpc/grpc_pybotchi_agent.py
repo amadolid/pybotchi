@@ -19,7 +19,7 @@ class MathProblem(Action):
 
     equation: str = Field(description="The mathematical equation to solve (e.g., '2x + 5')")
 
-    async def pre(self, context: GRPCContext) -> ActionReturn:
+    async def pre(self, context: GRPCContext) -> None:
         """Execute pre process."""
         message = await context.llm.ainvoke(f"Solve `{self.equation}`")
         await context.add_usage(self, context.llm.model, message.usage_metadata)
@@ -29,7 +29,6 @@ class MathProblem(Action):
             metadata={"additional": True},
         )
         await context.add_response(self, message.text)
-        return ActionReturn.GO
 
 
 class Translation(Action):
@@ -40,7 +39,7 @@ class Translation(Action):
     message: str = Field(description="The text content to be translated.")
     language: str = Field(description="The ISO code or name of the target language.")
 
-    async def pre(self, context: GRPCContext) -> ActionReturn:
+    async def pre(self, context: GRPCContext) -> None:
         """Execute pre process."""
         message = await context.llm.ainvoke(f"Translate `{self.message}` to {self.language}")
         await context.add_usage(self, context.llm.model, message.usage_metadata)
@@ -51,8 +50,6 @@ class Translation(Action):
             metadata={"additional": True},
         )
         await context.add_response(self, message.text)
-
-        return ActionReturn.GO
 
 
 class JokeWithStoryTelling(GRPCAction):
@@ -69,7 +66,7 @@ class JokeWithStoryTelling(GRPCAction):
 
         await context.add_message(ChatRole.ASSISTANT, message.text)
         print("Done executing post...")
-        return ActionReturn.END
+        return ActionReturn.stop("Propagate this value to client!")
 
 
 class Joke(Action):
@@ -86,7 +83,10 @@ class Joke(Action):
 
         await context.add_response(self, message.text)
         print("Done executing Joke...")
-        return ActionReturn.GO
+
+        # Stop pre execution to avoid calling the nested action.
+        # Nested are just for simulating deeper GRPC Connection.
+        return ActionReturn.END
 
     # Example deeper recursion and multiple groups
     class Nested(GRPCAction):
@@ -101,7 +101,7 @@ class StoryTelling(Action):
     __concurrent__ = True
     __groups__ = {"grpc": {"group-2"}}
 
-    async def pre(self, context: GRPCContext) -> ActionReturn:
+    async def pre(self, context: GRPCContext) -> None:
         """Execute pre process."""
         print("Executing StoryTelling...")
         message = await context.llm.ainvoke("generate a very short story")
@@ -109,4 +109,3 @@ class StoryTelling(Action):
 
         await context.add_response(self, message.text)
         print("Done executing StoryTelling...")
-        return ActionReturn.GO

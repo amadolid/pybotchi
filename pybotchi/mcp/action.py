@@ -9,7 +9,6 @@ from typing import Any, Callable, Generic, Literal
 
 from datamodel_code_generator import DataModelType, Formatter, PythonVersion
 from datamodel_code_generator.model import DataModelSet, get_data_model_types
-from datamodel_code_generator.parser.base import title_to_class_name
 from datamodel_code_generator.parser.jsonschema import (
     JsonSchemaParser,
 )
@@ -39,8 +38,8 @@ from starlette.routing import Mount
 from .common import MCPConfig, MCPConnection, MCPIntegration, MCPMode
 from .context import TContext
 from ..action import Action, ChildActions
-from ..common import ActionReturn, ChatRole, Graph
-from ..utils import is_camel_case, unwrap_exceptions
+from ..common import ActionResult, ActionReturn, ChatRole, Graph
+from ..utils import is_camel_case, string_to_camel_case, unwrap_exceptions
 
 DMT: DataModelSet = get_data_model_types(
     DataModelType.PydanticV2BaseModel,
@@ -62,19 +61,19 @@ class MCPClient:
         exclude_unset: bool,
     ) -> None:
         """Build MCP Client."""
-        self.session: ClientSession = session
-        self.name: str = name
-        self.config: MCPConfig = config
-        self.manual_enable: bool = manual_enable
-        self.allowed_tools: dict[str, bool] = allowed_tools
-        self.tool_action_class: type["MCPToolAction"] = tool_action_class or MCPToolAction
-        self.exclude_unset: bool = exclude_unset
+        self.session = session
+        self.name = name
+        self.config = config
+        self.manual_enable = manual_enable
+        self.allowed_tools = allowed_tools
+        self.tool_action_class = tool_action_class or MCPToolAction
+        self.exclude_unset = exclude_unset
 
     def build_tool(self, tool: Tool) -> tuple[str, type["MCPToolAction"]]:
         """Build MCPToolAction."""
         globals: dict[str, Any] = {}
         class_name = (
-            f"{tool.name[0].upper()}{tool.name[1:]}" if is_camel_case(tool.name) else title_to_class_name(tool.name)
+            f"{tool.name[0].upper()}{tool.name[1:]}" if is_camel_case(tool.name) else string_to_camel_case(tool.name)
         )
         exec(
             JsonSchemaParser(
@@ -173,13 +172,14 @@ class MCPAction(Action[TContext]):
                 elif issubclass(child, Action):
                     cls.__child_actions__[name] = child
 
-    async def pre_mcp(self, context: TContext) -> ActionReturn:
+    async def pre_mcp(self, context: TContext) -> ActionResult:
         """Execute pre mcp process."""
-        return ActionReturn.GO
 
-    async def execute(self, context: TContext, parent: Action | None = None, append: bool = True) -> ActionReturn:
+    async def execute(self, context: TContext, parent: Action | None = None, append: bool = True) -> ActionResult:
         """Execute main process."""
-        self._parent: Action | None = parent
+        self._parent = parent
+
+        result = None
         parent_context = context
         try:
             if parent and append:
@@ -189,32 +189,40 @@ class MCPAction(Action[TContext]):
                 context = await context.detach_context()
 
             if context.check_self_recursion(self):
-                return ActionReturn.END
+                return ActionReturn.STOP
 
-            if self.__has_pre_mcp__ and (result := await self.pre_mcp(context)).is_break:
+            if self.__has_pre_mcp__ and (result := await self.pre_mcp(context)) and result.is_end:
                 return result
 
             async with multi_mcp_clients(context.integrations, self.__mcp_connections__) as clients:
                 self.__mcp_clients__ = clients
 
-                if self.__has_pre__ and (result := await self.pre(context)).is_break:
+                if self.__has_pre__ and (result := await self.pre(context)) and result.is_end:
                     return result
 
-                if self.__max_child_iteration__:
+                if self.__max_iteration__:
                     iteration = 0
-                    while iteration <= self.__max_child_iteration__:
-                        if (result := await self.execution(context)).is_break:
+                    while iteration <= self.__max_iteration__:
+                        if (result := await self.execution(context)) and result.is_break:
                             break
                         iteration += 1
-                    if result.is_end:
+                    if (
+                        result
+                        and result.is_stop
+                        or (
+                            iteration >= self.__max_iteration__
+                            and (result := await self.on_max_iteration(context))
+                            and result.is_end
+                        )
+                    ):
                         return result
-                elif (result := await self.execution(context)).is_break:
+                elif (result := await self.execution(context)) and result.is_end:
                     return result
 
-                if self.__has_post__ and (result := await self.post(context)).is_break:
+                if self.__has_post__ and (result := await self.post(context)) and result.is_end:
                     return result
 
-                return ActionReturn.GO
+                return result
         except Exception as exception:
             if not self.__has_on_error__:
                 self.__to_commit__ = False
@@ -225,9 +233,9 @@ class MCPAction(Action[TContext]):
                     exception,
                     unwrap_exceptions(exception),
                 )
-            ).is_break:
+            ) and result.is_end:
                 return result
-            return ActionReturn.GO
+            return result
         finally:
             if self.__to_commit__ and self.__detached__:
                 await self.commit_context(parent_context, context)
@@ -328,7 +336,7 @@ class MCPToolAction(Action[TContext], Generic[TContext]):
             case _:
                 return f"The response of {self.__class__.__name__} is yet supported: {content.__class__.__name__}"
 
-    async def pre(self, context: TContext) -> ActionReturn:
+    async def pre(self, context: TContext) -> ActionResult:
         """Execute pre process."""
         tool_args = self.model_dump(exclude_unset=self.__mcp_exclude_unset__)
         await context.notify(
@@ -359,7 +367,7 @@ class MCPToolAction(Action[TContext], Generic[TContext]):
         )
         await context.add_response(self, content)
 
-        return ActionReturn.GO
+        return None
 
 
 @asynccontextmanager

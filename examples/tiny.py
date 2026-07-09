@@ -25,7 +25,7 @@ class Mini(Action):
         # Recommended to retain tool trigger context and avoid retriggering
         await context.add_response(self, content)
 
-        return ActionReturn.END
+        return ActionReturn.STOP
 
 
 ################################################################################
@@ -48,4 +48,4 @@ class Nano(Action):
         # Recommended to retain tool trigger context and avoid retriggering
         await context.add_response(self, "Hello")
 
-        return ActionReturn.END
+        return ActionReturn.STOP

@@ -15,8 +15,8 @@ from pydantic import BaseModel, Field, PrivateAttr
 
 from typing_extensions import TypeVar
 
-from .action import Action, ActionReturn, T, TAction
-from .common import ChatRole, ToolCall, UNSPECIFIED, UsageMetadata
+from .action import Action, T, TAction
+from .common import ActionResult, ChatRole, ToolCall, UNSPECIFIED, UsageMetadata
 from .llm import LLM
 
 TContext = TypeVar("TContext", bound="Context", default="Context")
@@ -32,7 +32,7 @@ class Context(BaseModel, Generic[TLLM]):
     metadata: dict[str, Any] = Field(default_factory=dict)
     usages: dict[str, UsageMetadata] = Field(default_factory=dict)
     streaming: bool = False
-    max_self_loop: int | None = None
+    max_self_recursion: int | None = None
     parent: Self | None = None
 
     _action_call: dict[str, int] = PrivateAttr(default_factory=dict)
@@ -69,7 +69,7 @@ class Context(BaseModel, Generic[TLLM]):
 
         return islice(self.prompts, min, max)
 
-    async def start(self, action: type[TAction], /, **kwargs: Any) -> tuple[TAction, ActionReturn]:
+    async def start(self, action: type[TAction], /, **kwargs: Any) -> tuple[TAction, ActionResult]:
         """Start Action."""
         if not self.prompts or self.prompts[0]["role"] != ChatRole.SYSTEM:
             raise RuntimeError("Prompts should not be empty and start with system!")
@@ -87,7 +87,7 @@ class Context(BaseModel, Generic[TLLM]):
             self._action_call[name] = 1
         else:
             self._action_call[name] += 1
-            max = action.__max_iteration__ or self.max_self_loop
+            max = action.__max_self_recursion__ or self.max_self_recursion
             if max and self._action_call[name] > max:
                 return True
         return False
@@ -288,13 +288,13 @@ class Context(BaseModel, Generic[TLLM]):
             "allowed_actions": deepcopy(self.allowed_actions),
             "metadata": deepcopy(self.metadata),
             "streaming": self.streaming,
-            "max_self_loop": self.max_self_loop,
+            "max_self_recursion": self.max_self_recursion,
             **kwargs,
         }
 
     async def detached_start(
         self: TContext, action: type["Action"], /, **kwargs: Any
-    ) -> tuple[TContext, "Action", ActionReturn]:
+    ) -> tuple[TContext, "Action", ActionResult]:
         """Start Action."""
         context = await self.detach_context()
         _action, _action_return = await context.start(action, **kwargs)

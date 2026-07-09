@@ -33,7 +33,7 @@ from .pybotchi_pb2 import (
 )
 from .pybotchi_pb2_grpc import PyBotchiGRPCStub
 from ..action import Action, ChildActions
-from ..common import ActionReturn, Graph
+from ..common import ActionResult, ActionReturn, Graph
 from ..utils import unwrap_exceptions
 
 DMT: DataModelSet = get_data_model_types(
@@ -53,16 +53,18 @@ class GRPCClient:
         manual_enable: bool,
         allowed_actions: dict[str, bool],
         remote_action_class: type["GRPCRemoteAction"] | None,
+        block_return: bool,
         exclude_unset: bool,
     ) -> None:
         """Build GRPC Client."""
-        self.stub: PyBotchiGRPCStub = stub
-        self.name: str = name
-        self.config: GRPCConfigLoaded = config
-        self.manual_enable: bool = manual_enable
-        self.allowed_actions: dict[str, bool] = allowed_actions
-        self.remote_action_class: type["GRPCRemoteAction"] = remote_action_class or GRPCRemoteAction
-        self.exclude_unset: bool = exclude_unset
+        self.stub = stub
+        self.name = name
+        self.config = config
+        self.manual_enable = manual_enable
+        self.allowed_actions = allowed_actions
+        self.remote_action_class = remote_action_class or GRPCRemoteAction
+        self.block_return = block_return
+        self.exclude_unset = exclude_unset
 
     def build_action(self, agent_id: str, action_schema: ActionSchema) -> tuple[str, type["GRPCRemoteAction"]]:
         """Build GRPCToolAction."""
@@ -107,6 +109,7 @@ class GRPCClient:
                 "__grpc_group__": action_schema.group,
                 "__grpc_action_name__": schema.title,
                 "__grpc_exclude_unset__": self.exclude_unset,
+                "__grpc_block_return__": self.block_return,
                 "__concurrent__": concurrent,
                 "__module__": f"grpc.{agent_id}",
             },
@@ -172,13 +175,14 @@ class GRPCAction(Action[TContext]):
                 elif issubclass(child, Action):
                     cls.__child_actions__[name] = child
 
-    async def pre_grpc(self, context: TContext) -> ActionReturn:
+    async def pre_grpc(self, context: TContext) -> ActionResult:
         """Execute pre grpc process."""
-        return ActionReturn.GO
 
-    async def execute(self, context: TContext, parent: Action | None = None, append: bool = True) -> ActionReturn:
+    async def execute(self, context: TContext, parent: Action | None = None, append: bool = True) -> ActionResult:
         """Execute main process."""
-        self._parent: Action | None = parent
+        self._parent = parent
+
+        result = None
         parent_context = context
         try:
             if parent and append:
@@ -188,32 +192,40 @@ class GRPCAction(Action[TContext]):
                 context = await context.detach_context()
 
             if context.check_self_recursion(self):
-                return ActionReturn.END
+                return ActionReturn.STOP
 
-            if self.__has_pre_grpc__ and (result := await self.pre_grpc(context)).is_break:
+            if self.__has_pre_grpc__ and (result := await self.pre_grpc(context)) and result.is_end:
                 return result
 
             async with multi_grpc_clients(context.integrations, self.__grpc_connections__) as clients:
                 self.__grpc_clients__ = clients
 
-                if self.__has_pre__ and (result := await self.pre(context)).is_break:
+                if self.__has_pre__ and (result := await self.pre(context)) and result.is_end:
                     return result
 
-                if self.__max_child_iteration__:
+                if self.__max_iteration__:
                     iteration = 0
-                    while iteration <= self.__max_child_iteration__:
-                        if (result := await self.execution(context)).is_break:
+                    while iteration <= self.__max_iteration__:
+                        if (result := await self.execution(context)) and result.is_break:
                             break
                         iteration += 1
-                    if result.is_end:
+                    if (
+                        result
+                        and result.is_stop
+                        or (
+                            iteration >= self.__max_iteration__
+                            and (result := await self.on_max_iteration(context))
+                            and result.is_end
+                        )
+                    ):
                         return result
-                elif (result := await self.execution(context)).is_break:
+                elif (result := await self.execution(context)) and result.is_end:
                     return result
 
-                if self.__has_post__ and (result := await self.post(context)).is_break:
+                if self.__has_post__ and (result := await self.post(context)) and result.is_end:
                     return result
 
-                return ActionReturn.GO
+                return result
         except Exception as exception:
             if not self.__has_on_error__:
                 self.__to_commit__ = False
@@ -224,9 +236,9 @@ class GRPCAction(Action[TContext]):
                     exception,
                     unwrap_exceptions(exception),
                 )
-            ).is_break:
+            ) and result.is_end:
                 return result
-            return ActionReturn.GO
+            return result
         finally:
             if self.__to_commit__ and self.__detached__:
                 await self.commit_context(parent_context, context)
@@ -274,12 +286,14 @@ class GRPCRemoteAction(Action[TContext], Generic[TContext]):
     """GRPC Remote Action."""
 
     __grpc_action__ = True
+    __grpc_return__: ActionResult = None
 
     __grpc_client__: GRPCClient
     __grpc_group__: str
     __grpc_action_name__: str
     __grpc_exclude_unset__: bool
     __grpc_queue__: Queue[Event]
+    __grpc_block_return__: bool
 
     async def grpc_event_close(self, context: TContext, event: Event) -> None:
         """Consume close event."""
@@ -292,6 +306,9 @@ class GRPCRemoteAction(Action[TContext], Generic[TContext]):
 
         for child in action["actions"]:
             self._actions.append(child)
+
+        if not self.__grpc_block_return__ and (ret := data["return"]):
+            self.__grpc_return__ = ActionReturn.convert(**ret)
 
         await self.__grpc_queue__.put(event)
 
@@ -397,7 +414,7 @@ class GRPCRemoteAction(Action[TContext], Generic[TContext]):
         finally:
             context._request_queues.pop(context_id, None)
 
-    async def pre(self, context: TContext) -> ActionReturn:
+    async def pre(self, context: TContext) -> ActionResult:
         """Execute pre process."""
         action_args = self.model_dump(exclude_unset=self.__grpc_exclude_unset__)
 
@@ -433,7 +450,7 @@ class GRPCRemoteAction(Action[TContext], Generic[TContext]):
             }
         )
 
-        return ActionReturn.GO
+        return self.__grpc_return__
 
 
 @asynccontextmanager
@@ -491,6 +508,7 @@ async def multi_grpc_clients(
                 conn.manual_enable,
                 allowed_actions,
                 conn.remote_action_class,
+                conn.block_return,
                 integration.get(
                     "exclude_unset",
                     conn.exclude_unset,

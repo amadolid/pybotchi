@@ -1,19 +1,19 @@
-# 🤖 PyBotchi
+# PyBotchi
 
-> _A deterministic, intent-based AI agent orchestrator with no restrictions—supports any framework and prioritizes human-reasoning approach._
+> _A deterministic, intent-based AI agent orchestrator with no restrictions. Supports any framework and prioritizes a human-reasoning approach._
 
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)](LICENSE)
 
 ---
 
-## 🎯 Core Philosophy
+## Core Philosophy
 
 **Humans should handle the reasoning. AI should detect intent and translate natural language into processable data.**
 
-Traditional development has successfully solved complex problems across every industry using deterministic code, APIs, and events. The real limitation isn't in execution—it's in **translation**. What if we could accept natural language and automatically route to the right logic?
+Traditional development has successfully solved complex problems across every industry using deterministic code, APIs, and events. The real limitation isn't in execution, it's in **translation**. What if we could accept natural language and automatically route to the right logic?
 
-PyBotchi takes a different approach from most AI frameworks: **LLMs excel at understanding intent and translating between human and computer language—not at business logic, calculations, or deterministic execution.** Let each do what it does best.
+PyBotchi takes a different approach from most AI frameworks: **LLMs excel at understanding intent and translating between human and computer language, not at business logic, calculations, or deterministic execution.** Let each do what it does best.
 
 ### The PyBotchi Workflow
 
@@ -23,7 +23,7 @@ PyBotchi takes a different approach from most AI frameworks: **LLMs excel at und
 
 ---
 
-## ⚡ Core Architecture
+## Core Architecture
 
 **Nested Intent-Based Supervisor Agent Architecture** built on just **3 core classes**:
 
@@ -35,38 +35,38 @@ This minimal foundation ensures extreme speed, efficiency, and maximum customiza
 
 ---
 
-## 🌟 Key Features
+## Key Features
 
-### 🪶 **Ultra-Lightweight**
+### Ultra-Lightweight
 Only 3 core classes to master. The entire system is built on a minimal foundation that minimizes overhead while maximizing performance.
 
-### 🏗️ **Object-Oriented Design**
+### Object-Oriented Design
 Built on Pydantic `BaseModel` for rigorous data validation and industry-standard type hinting. Every component is inherently overridable and extendable.
 
-### 🔧 **JSON Schema Native**
+### JSON Schema Native
 Automatic JSON Schema conformance for OpenAI, Gemini, and other LLM providers. Easily adaptable to any provider's specification.
 
-### 🎣 **Action Lifecycle Hooks**
+### Action Lifecycle Hooks
 Fine-grained control over execution stages with overridable hooks: `pre`, `post`, `on_error`, `fallback`, `child_selection`, and `commit_context`.
 
-### ⚡ **Highly Scalable**
+### Highly Scalable
 Async-first architecture with built-in support for distributed execution via gRPC. Deploy agents remotely or across machines for massive parallel workloads.
 
-### 🧱 **Truly Modular**
+### Truly Modular
 Agents are isolated, self-contained units. Different teams can independently develop, improve, or modify specific agents without impacting core logic.
 
-### 🔗 **Graph By Design**
+### Graph By Design
 Structured parent-child relationships provide clear visibility into system execution and state, simplifying debugging and testing.
 
-### 🌍 **Framework & Model Agnostic**
+### Framework & Model Agnostic
 Works with any LLM client, third-party framework, or business requirement. True agnosticism through complete overridability.
 
-### 🔌 **MCP Protocol Support**
-Full integration with Model Context Protocol—expose your Actions as MCP tools or consume external MCP servers within your workflows.
+### MCP Protocol Support
+Full integration with Model Context Protocol. Expose your Actions as MCP tools or consume external MCP servers within your workflows.
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Installation
 
@@ -101,7 +101,7 @@ LLM.add(base=ChatOpenAI(
 ### Simple Agent
 
 ```python
-from pybotchi import Action, ActionReturn
+from pybotchi import Action
 
 from pydantic import Field
 
@@ -114,13 +114,12 @@ class Translation(Action):
     async def pre(self, context):
         message = await context.llm.ainvoke(f"Reply only with translation of `{self.message}` to {self.language}.")
         await context.add_response(self, message.text)
-        return ActionReturn.GO
 ```
 
 ### Agent with Fields
 
 ```python
-from pybotchi import Action, ActionReturn
+from pybotchi import Action
 
 from pydantic import Field
 
@@ -131,7 +130,6 @@ class MathProblem(Action):
 
     async def pre(self, context):
         await context.add_response(self, self.answer)
-        return ActionReturn.GO
 ```
 
 ### Multi-Agent Declaration
@@ -204,11 +202,21 @@ style __main__.MultiAgent fill:#4CAF50,color:#000000
 
 ---
 
-## 🧩 Action Lifecycle
+## Action Lifecycle
 
 Every Action follows a structured lifecycle that gives you complete control over execution flow:
 
 ![Action Lifecycle](docs/action-life-cycle.png)
+
+### Flow Control
+
+Lifecycle hooks return `ActionResult` (`ActionReturn | None`). The value controls what happens next:
+
+- **`None`** (or omit return): continue normally, nothing is interrupted
+- **`ActionReturn.END`**: stop only this action's remaining lifecycle; siblings at the same level continue unaffected
+- **`ActionReturn.BREAK`**: stop this action and break the nearest ancestor's `__max_iteration__` loop; also stops subsequent siblings
+- **`ActionReturn.STOP`**: stop the entire agent immediately, propagating through all ancestors
+- **`ActionReturn.stop(value=...)`**: same as STOP but carries a return value accessible after `context.start()`
 
 ### Core Lifecycle Hooks
 
@@ -232,6 +240,12 @@ Executes after all child agents complete. Use for:
 - Cleanup and recording
 - Logging and notifications
 
+#### **`on_child_init_error`** - Child Initialization Error Handling
+Handle errors when a child action fails to initialize (e.g. Pydantic validation on LLM tool arguments):
+- Feed the error back to the LLM so it can retry on the next iteration
+- Record the failed tool call in action history
+- Return `None` to skip the failed action and continue the loop
+
 #### **`on_error`** - Error Handling
 Handle errors during execution with:
 - Retry mechanisms
@@ -251,6 +265,13 @@ Controls context merging with main execution:
 - Isolated execution contexts
 - Custom synchronization rules
 
+#### **`on_max_iteration`** - Max Iteration Handling
+Executes when the `__max_iteration__` limit is reached:
+- Finalize and return the best available response
+- Raise max-iteration-related errors
+- Trigger fallback or summarization logic
+- Custom additional processing
+
 ### Extended Lifecycle Hooks
 
 - **`pre_mcp`** - MCP connection setup (authentication, config)
@@ -258,7 +279,7 @@ Controls context merging with main execution:
 
 ---
 
-## 🎨 Everything is Overridable & Extendable
+## Everything is Overridable & Extendable
 
 ```python
 class CustomAgent(MultiAgent):
@@ -275,23 +296,21 @@ class CustomAgent(MultiAgent):
 
 ---
 
-## 🔄 Execution Patterns
+## Execution Patterns
 
 ### Sequential Execution
 Multiple agents execute in order via iteration or multi-tool calls.
 
 ### Concurrent Execution
-Parallel execution using async patterns or threading:
+Parallel execution using async patterns. Set `__concurrent__ = True` on the child actions to run them in parallel:
 
 ```python
 class ParallelAgent(Action):
-    __concurrent__ = True  # Enable concurrent execution
-
     class Task1(Action):
-        pass
+        __concurrent__ = True
 
     class Task2(Action):
-        pass
+        __concurrent__ = True
 ```
 
 ### Nested Architectures
@@ -311,13 +330,13 @@ class ComplexAgent(Action):
 
 ---
 
-## 🌐 Distributed Systems with gRPC
+## Distributed Systems with gRPC
 
 Scale your agents across multiple servers with real-time context synchronization:
 
 **server.py**
 ```python
-from pybotchi import Action, ActionReturn
+from pybotchi import Action
 
 from pydantic import Field
 
@@ -330,13 +349,11 @@ class MathProblem(Action):
 
     async def pre(self, context):
         await context.add_response(self, self.answer)
-        return ActionReturn.GO
 ```
 **client.py**
 ```python
 from asyncio import run
 
-from pybotchi import ActionReturn
 from pybotchi.grpc import GRPCAction, GRPCConnection, graph
 
 
@@ -344,8 +361,7 @@ class MultiAgent(GRPCAction):
     __grpc_connections__ = [GRPCConnection("remote", "localhost:50051", ["group-1"])]
 
     async def pre_grpc(self, context):
-        # Setup authentication, refresh tokens, etc.
-        return ActionReturn.GO
+        print("Executed pre grpc connection!")
 
 
 async def print_mermaid_graph():
@@ -390,31 +406,56 @@ __main__.MultiAgent --"`**GRPC** : remote`"--> grpc.agent_8b3c5685c84b4602966d1b
 style __main__.MultiAgent fill:#4CAF50,color:#000000
 ```
 ![gRPC MultiAgent Graph](docs/mermaid2.png)
+
 ---
 
-## 🔌 Model Context Protocol (MCP)
+## Model Context Protocol (MCP)
 
-Integrate with the MCP ecosystem—expose Actions as MCP tools or consume external MCP servers:
+Integrate with the MCP ecosystem. Expose Actions as MCP tools or consume external MCP servers:
 
 ### As MCP Server
+**server.py**
 ```python
+from pybotchi import Action
 from pybotchi.mcp import build_mcp_app
 
-class MyAction(Action):
+from pydantic import Field
+
+
+class MathProblem(Action):
     __groups__ = {"mcp": {"group-1"}}
-    # Your action implementation
+
+    answer: str = Field(description="The answer to the math problem")
+
+    async def pre(self, context):
+        await context.add_response(self, self.answer)
+
 
 app = build_mcp_app(transport="streamable-http")
 ```
 
 ### As MCP Client
+**client.py**
 ```python
-from pybotchi.mcp import MCPAction, MCPConnection
+from asyncio import run
 
-class Agent(MCPAction):
-    __mcp_connections__ = [
-        MCPConnection("jira", "SSE", "https://mcp.atlassian.com/v1/sse")
-    ]
+from pybotchi.mcp import MCPAction, MCPConnection, graph
+
+
+class MultiAgent(MCPAction):
+    __mcp_connections__ = [MCPConnection("remote", "SHTTP", "http://localhost:8000/group-1/mcp")]
+    # __mcp_connections__ = [MCPConnection("jira", "SSE", "https://mcp.atlassian.com/v1/sse")]
+
+    async def pre_mcp(self, context):
+        print("Executed pre mcp connection!")
+
+
+async def print_mermaid_graph():
+    multi_agent_graph = await graph(MultiAgent, integrations={"remote": {}})
+    print(multi_agent_graph.flowchart())
+
+
+run(print_mermaid_graph())
 ```
 
 ### Key Benefits
@@ -423,58 +464,82 @@ class Agent(MCPAction):
 - **Bidirectional Integration** - Serve or consume MCP tools
 - **Transport Flexibility** - SSE and Streamable HTTP support
 
+Start MCP server:
+```bash
+uvicorn server:app
+```
+**Result**
+```bash
+INFO:     Started server process [6330]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+```
+MCP client print graph:
+```bash
+python3 client.py
+```
+```bash
+flowchart TD
+__main__.MultiAgent[MultiAgent]
+mcp.remote.MathProblem[MathProblem]
+__main__.MultiAgent --"`**MCP** : remote`"--> mcp.remote.MathProblem
+style __main__.MultiAgent fill:#4CAF50,color:#000000
+```
+![MCP MultiAgent Graph](docs/mermaid3.png)
+
 ---
 
-## 📚 Examples & Use Cases
+## Examples & Use Cases
 
 Explore practical examples demonstrating PyBotchi's capabilities:
 
-### 🚀 Getting Started
+### Getting Started
 - [`tiny.py`](examples/tiny.py) - Minimal implementation
 - [`full_spec.py`](examples/full_spec.py) - Complete feature demonstration
 
-### 🔄 Flow Control
+### Flow Control
 - [`sequential.py`](examples/sequential.py) - Sequential action execution
 - [`nested_combination.py`](examples/nested_combination.py) - Complex nested structures
 
-### ⚡ Concurrency
+### Concurrency
 - [`concurrent_combination.py`](examples/concurrent_combination.py) - Async parallel execution
 - [`concurrent_threading_combination.py`](examples/concurrent_threading_combination.py) - Multi-threaded processing
 
-### 🌐 Distributed Systems
+### Distributed Systems
 - [`grpc/grpc_pybotchi_agent.py`](examples/grpc/grpc_pybotchi_agent.py) - gRPC server setup
 - [`grpc/grpc_pybotchi_client.py`](examples/grpc/grpc_pybotchi_client.py) - Distributed orchestration
 
-### 🔌 MCP Integration
+### MCP Integration
 - [`mcp/mcp_pybotchi_agent.py`](examples/mcp/mcp_pybotchi_agent.py) - MCP server implementation
 - [`mcp/mcp_pybotchi_client.py`](examples/mcp/mcp_pybotchi_client.py) - MCP client integration
 - [`mcp/mcp_pybotchi_client_for_mcp_atlassian.py`](examples/mcp/mcp_pybotchi_client_for_mcp_atlassian.py) - Atlassian MCP integration
 
-### 💼 Real-World Applications
+### Real-World Applications
 - [`interactive_action.py`](examples/interactive_action.py) - Real-time WebSocket communication
 
-### ⚔️ Framework Comparison
+### Framework Comparison
 - [`vs/pybotchi_approach.py`](examples/vs/pybotchi_approach.py) - PyBotchi implementation
 - [`vs/langgraph_approach.py`](examples/vs/langgraph_approach.py) - LangGraph comparison
 
 ---
 
-## 🚀 Why Choose PyBotchi?
+## Why Choose PyBotchi?
 
 **Maximum flexibility, zero lock-in.** Build agents that combine human intelligence with AI precision.
 
 Perfect for teams that need:
-- ✅ Modular, maintainable agent architectures
-- ✅ Framework flexibility and migration capabilities
-- ✅ Community-driven agent development
-- ✅ Enterprise-grade customization and control
-- ✅ Real-time interactive agent communication
-- ✅ Distributed execution without complexity
-- ✅ Standard protocol integration (MCP)
+- Modular, maintainable agent architectures
+- Framework flexibility and migration capabilities
+- Community-driven agent development
+- Enterprise-grade customization and control
+- Real-time interactive agent communication
+- Distributed execution without complexity
+- Standard protocol integration (MCP)
 
 ---
 
-## 📖 Documentation
+## Documentation
 
 Visit our [full documentation](https://amadolid.github.io/pybotchi) for:
 - Detailed lifecycle hook explanations
@@ -484,7 +549,7 @@ Visit our [full documentation](https://amadolid.github.io/pybotchi) for:
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 We welcome contributions! Whether it's:
 - Bug reports and feature requests
@@ -496,13 +561,13 @@ Check out our [contributing guidelines](CONTRIBUTING.md) to get started.
 
 ---
 
-## 📄 License
+## License
 
-PyBotchi is released under the MIT License. See [LICENSE](LICENSE) for details.
+PyBotchi is released under the Apache License 2.0. See [LICENSE](LICENSE) for details.
 
 ---
 
-## 🌟 Community
+## Community
 
 - **GitHub**: [amadolid/pybotchi](https://github.com/amadolid/pybotchi)
 - **Issues**: [Report bugs or request features](https://github.com/amadolid/pybotchi/issues)

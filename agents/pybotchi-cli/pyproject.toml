@@ -2,12 +2,10 @@
 name = "pybotchi-cli"
 version = "0.1.0"
 description = "PyBotchi implementation for executing cli commands"
-authors = [
-  "Alexie (Boyong) Madolid <madolid.alexie@gmail.com>"
-]
+authors = ["Alexie (Boyong) Madolid <madolid.alexie@gmail.com>"]
 readme = "README.md"
 repository = "https://github.com/amadolid/pybotchi"
-packages = [{include = "pybotchi_cli"}]
+packages = [{ include = "pybotchi_cli" }]
 
 [tool.poetry.dependencies]
 python = "<4.0,>=3.13.0"

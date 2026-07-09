@@ -5,6 +5,7 @@ from json import dumps
 
 from grpc_prerequisite import (
     Action,
+    ActionResult,
     ActionReturn,
     ChatRole,
     GRPCAction,
@@ -20,18 +21,22 @@ class GeneralChat(GRPCAction):
     """Casual Generic Chat."""
 
     __grpc_connections__ = [GRPCConnection("testing", "localhost:50051", ["group-1"])]
+    __max_iteration__ = 10
 
-    async def pre_grpc(self, context: GRPCContext) -> ActionReturn:
-        """Execute pre grpc execution."""
+    async def pre_grpc(self, context: GRPCContext) -> None:
+        """Execute pre grpc process."""
         print("Trigger anything here before grpc client connection")
         print("Build context.integrations['testing']['config']")
         print("Refresh tokens")
         print("etc ...")
-        return ActionReturn.GO
+
+    async def fallback(self, context: GRPCContext, content: str) -> ActionReturn:
+        """Execute fallback process."""
+        return ActionReturn.BREAK
 
     class MathProblem(GRPCRemoteAction):  # noqa: D106
-        async def pre(self, context: GRPCContext) -> ActionReturn:
-            """Execute pre execution."""
+        async def pre(self, context: GRPCContext) -> ActionResult:
+            """Execute pre process."""
             print("#####################################")
             return await super().pre(context)
 
@@ -40,10 +45,9 @@ class GeneralChat(GRPCAction):
 
         __concurrent__ = True
 
-        async def pre(self, context: GRPCContext) -> ActionReturn:
-            """Execute pre execution."""
+        async def pre(self, context: GRPCContext) -> None:
+            """Execute pre process."""
             await context.add_response(self, "Validated!")
-            return ActionReturn.GO
 
     class IgnoredAction(Action):
         """Ignored Action."""
@@ -68,6 +72,7 @@ async def test() -> None:
         integrations=integrations,
     )
     action, result = await context.start(GeneralChat)
+    print(result)
     print(dumps(context.prompts, indent=4))
     print(dumps(action.serialize(), indent=4))
 

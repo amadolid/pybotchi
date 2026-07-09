@@ -38,26 +38,24 @@ print("Starting Approach0...")
 class Approach0(Action):
     """Casual Generic Chat."""
 
-    __max_child_iteration__ = 5
+    __max_iteration__ = 5
 
     async def fallback(self, context: Context, content: str) -> ActionReturn:
         """Execute pre process."""
         await context.add_message(ChatRole.ASSISTANT, content)
-        return ActionReturn.END
+        return ActionReturn.STOP
 
     class Weather(Action):
         """Call to get the current weather."""
 
         location: str
 
-        async def pre(self, context: Context) -> ActionReturn:
+        async def pre(self, context: Context) -> None:
             """Execute pre process."""
             if self.location.lower() in ["yorkshire"]:
                 await context.add_response(self, "It's cold and wet.")
             else:
                 await context.add_response(self, "It's warm and sunny.")
-
-            return ActionReturn.GO
 
 
 async def main() -> None:
@@ -95,21 +93,19 @@ class Approach1(Action):
     async def fallback(self, context: Context, content: str) -> ActionReturn:
         """Execute pre process."""
         await context.add_message(ChatRole.ASSISTANT, content)
-        return ActionReturn.END
+        return ActionReturn.STOP
 
     class Weather(Action):
         """Call to get the current weather."""
 
         location: str
 
-        async def pre(self, context: Context) -> ActionReturn:
+        async def pre(self, context: Context) -> None:
             """Execute pre process."""
             if self.location.lower() in ["yorkshire"]:
                 await context.add_response(self, "It's cold and wet.")
             else:
                 await context.add_response(self, "It's warm and sunny.")
-
-            return ActionReturn.GO
 
 
 # Add action on Weather pointed to Approach1
@@ -151,7 +147,7 @@ class Approach2(Action):
     async def fallback(self, context: Context, content: str) -> ActionReturn:
         """Execute pre process."""
         await context.add_message(ChatRole.ASSISTANT, content)
-        return ActionReturn.END
+        return ActionReturn.STOP
 
     class Weather(Action):
         """Call to get the current weather."""
@@ -213,14 +209,14 @@ class Approach3(Action):
             message = await context.llm.ainvoke(context.prompts)
             await context.add_message(ChatRole.ASSISTANT, message.text)
 
-            return ActionReturn.END
+            return ActionReturn.STOP
 
     class Weather(Action):
         """Call to get the current weather."""
 
         location: str
 
-        async def pre(self, context: Context) -> ActionReturn:
+        async def pre(self, context: Context) -> None:
             """Execute pre process."""
             if self.location.lower() in ["yorkshire"]:
                 await context.add_response(self, "It's cold and wet.")
@@ -229,7 +225,6 @@ class Approach3(Action):
 
             # OR Indirect Trigger
             # action, result = await Approach3().execute(context, self)
-            return ActionReturn.GO
 
 
 Approach3.Weather.add_child(Approach3, "DefaultAction")

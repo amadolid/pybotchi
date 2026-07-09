@@ -4,7 +4,7 @@ from collections import deque
 from collections.abc import Generator
 from contextlib import suppress
 from importlib import import_module
-from re import Pattern, compile
+from re import Pattern, compile, sub
 from typing import Any, Callable
 from uuid import UUID
 
@@ -27,6 +27,12 @@ def apply_placeholders(target: str, **placeholders: Any) -> str:
 def is_camel_case(data: str) -> bool:
     """Check if string is in camel case."""
     return CAMEL_CASE.fullmatch(data) is not None
+
+
+def string_to_camel_case(title: str) -> str:
+    """Convert string to camel case."""
+    classname = sub(r"[^A-Za-z0-9]+", " ", title)
+    return "".join(w[0].upper() + w[1:] for w in classname.split())
 
 
 def unwrap_exceptions(

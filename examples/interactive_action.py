@@ -1,14 +1,35 @@
 """Interactive Action."""
 
+from os import getenv
 from typing import Any, ClassVar
+
+from dotenv import load_dotenv
 
 from fastapi import FastAPI, WebSocket
 
-from prerequisite import Action, ActionReturn, ChatRole, Context
+from langchain_openai import AzureChatOpenAI
+
+from pybotchi import Action, ChatRole, Context as BaseContext, LLM
 
 from pydantic import ConfigDict, Field
 
 from uvicorn import run
+
+load_dotenv()
+
+LLM.add(
+    base=AzureChatOpenAI(
+        api_key=getenv("CHAT_KEY"),  # type: ignore[arg-type]
+        azure_endpoint=getenv("CHAT_ENDPOINT"),
+        azure_deployment=getenv("CHAT_DEPLOYMENT"),
+        model=getenv("CHAT_MODEL"),
+        api_version=getenv("CHAT_VERSION"),
+        temperature=int(getenv("CHAT_TEMPERATURE", "1")),
+        stream_usage=True,
+    )
+)
+
+Context = BaseContext[AzureChatOpenAI]
 
 
 class InteractiveContext(Context):
@@ -26,8 +47,8 @@ class InteractiveContext(Context):
         """Wait for client input."""
         await self.websocket.send_json(message)
         # reply_json = await self.websocket.receive_json()
-        reply_message = await self.websocket.receive_json()
-        return reply_message["message"]
+        reply_message = await self.websocket.receive_text()
+        return reply_message
 
 
 class GeneralChat(Action):
@@ -38,7 +59,7 @@ class GeneralChat(Action):
 
         answer: int = Field(description="Your answer to the math problem")
 
-        async def pre(self, context: InteractiveContext) -> ActionReturn:
+        async def pre(self, context: InteractiveContext) -> None:
             """Execute pre process."""
             ######################################################
             #     Wait for client response before continuing     #
@@ -57,7 +78,6 @@ class GeneralChat(Action):
             ######################################################
 
             await context.notify({"message": message})
-            return ActionReturn.END
 
 
 app = FastAPI()

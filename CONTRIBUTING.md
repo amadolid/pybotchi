@@ -2,7 +2,7 @@
 
 Thank you for your interest in contributing to PyBotchi! We welcome bug reports, feature requests, documentation improvements, code contributions, and example applications.
 
-## 🚀 Development Setup
+## Development Setup
 
 1. **Fork and clone the repository**
    ```bash
@@ -28,7 +28,7 @@ Thank you for your interest in contributing to PyBotchi! We welcome bug reports,
    git checkout -b feature/your-feature-name
    ```
 
-## 🧪 Code Quality
+## Code Quality
 
 Pre-commit hooks will automatically run formatting and quality checks when you commit. To manually run checks:
 
@@ -42,7 +42,7 @@ ruff format .
 mypy pybotchi
 ```
 
-## 📝 Code Style
+## Code Style
 
 - **Line length**: 120 characters max
 - **Python**: 3.12+ target
@@ -53,7 +53,7 @@ Example:
 ```python
 """Example action module demonstrating PyBotchi coding standards."""
 
-from pybotchi import Action, ActionReturn, Context
+from pybotchi import Action, ActionResult, Context
 from pydantic import Field
 
 
@@ -62,12 +62,12 @@ class ExampleAction(Action):
 
     field_name: str = Field(description="Field description")
 
-    async def pre(self, context: Context) -> ActionReturn:
+    async def pre(self, context: Context) -> ActionResult:
         """Execute pre-processing logic before child actions."""
-        return ActionReturn.GO
+        # ...
 ```
 
-## 💬 Commit Messages
+## Commit Messages
 
 Use clear, descriptive commit messages with capitalized type prefixes:
 
@@ -96,7 +96,7 @@ Use clear, descriptive commit messages with capitalized type prefixes:
 [STYLE]: Improve code formatting consistency
 ```
 
-## 🔄 Pull Request Process
+## Pull Request Process
 
 1. **Commit your changes** - Pre-commit hooks will automatically check code quality
 
@@ -118,7 +118,7 @@ Use clear, descriptive commit messages with capitalized type prefixes:
 - [ ] Documentation updated
 - [ ] No breaking changes (or documented)
 
-## 🐛 Reporting Bugs
+## Reporting Bugs
 
 Include in your bug report:
 - Clear description
@@ -127,14 +127,14 @@ Include in your bug report:
 - Environment (PyBotchi version, Python version, OS)
 - Error messages/stack traces
 
-## 💡 Feature Requests
+## Feature Requests
 
 Include in your proposal:
 - Feature description
 - Use case and problem it solves
 - Proposed implementation (if you have ideas)
 
-## 📖 Documentation
+## Documentation
 
 Help improve:
 - API reference documentation
@@ -142,17 +142,17 @@ Help improve:
 - Real-world examples
 - Best practices and patterns
 
-## 🤝 Community Guidelines
+## Community Guidelines
 
 - Be respectful and constructive
 - Provide helpful feedback
 - Work collaboratively
 - Welcome contributors of all backgrounds
 
-## 📄 License
+## License
 
-By contributing, you agree that your contributions will be licensed under the MIT License.
+By contributing, you agree that your contributions will be licensed under the Apache License 2.0.
 
 ---
 
-Thank you for contributing to PyBotchi! 🚀
+Thank you for contributing to PyBotchi!

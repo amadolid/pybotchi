@@ -2,8 +2,30 @@
 
 from asyncio import run
 from json import dumps
+from os import getenv
+from typing import TypeAlias
 
-from prerequisite import Action, ActionReturn, ChatRole, Context, graph
+from dotenv import load_dotenv
+
+from langchain_openai import AzureChatOpenAI
+
+from pybotchi import Action, ChatRole, Context as BaseContext, LLM, graph
+
+load_dotenv()
+
+LLM.add(
+    base=AzureChatOpenAI(
+        api_key=getenv("CHAT_KEY"),  # type: ignore[arg-type]
+        azure_endpoint=getenv("CHAT_ENDPOINT"),
+        azure_deployment=getenv("CHAT_DEPLOYMENT"),
+        model=getenv("CHAT_MODEL"),
+        api_version=getenv("CHAT_VERSION"),
+        temperature=int(getenv("CHAT_TEMPERATURE", "1")),
+        stream_usage=True,
+    )
+)
+
+Context: TypeAlias = BaseContext[AzureChatOpenAI]
 
 
 class GeneralChat(Action):
@@ -14,7 +36,7 @@ class GeneralChat(Action):
 
         __concurrent__ = True
 
-        async def pre(self, context: Context) -> ActionReturn:
+        async def pre(self, context: Context) -> None:
             """Execute pre process."""
             print("Executing Joke...")
             message = await context.llm.ainvoke("generate very short joke")
@@ -22,14 +44,13 @@ class GeneralChat(Action):
 
             await context.add_response(self, message.text)
             print("Done executing Joke...")
-            return ActionReturn.GO
 
     class StoryTelling(Action):
         """This Assistant is used when user's inquiry is related to generating stories."""
 
         __concurrent__ = True
 
-        async def pre(self, context: Context) -> ActionReturn:
+        async def pre(self, context: Context) -> None:
             """Execute pre process."""
             print("Executing StoryTelling...")
             message = await context.llm.ainvoke("generate a very short story")
@@ -37,9 +58,8 @@ class GeneralChat(Action):
 
             await context.add_response(self, message.text)
             print("Done executing StoryTelling...")
-            return ActionReturn.GO
 
-    async def post(self, context: Context) -> ActionReturn:
+    async def post(self, context: Context) -> None:
         """Execute pre process."""
         print("Executing post...")
         message = await context.llm.ainvoke(context.prompts)
@@ -47,7 +67,6 @@ class GeneralChat(Action):
 
         await context.add_message(ChatRole.ASSISTANT, message.text)
         print("Done executing post...")
-        return ActionReturn.END
 
 
 async def test() -> None:
