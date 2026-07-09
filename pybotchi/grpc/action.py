@@ -205,7 +205,7 @@ class GRPCAction(Action[TContext]):
 
                 if self.__max_iteration__:
                     iteration = 0
-                    while iteration <= self.__max_iteration__:
+                    while iteration < self.__max_iteration__:
                         if (result := await self.execution(context)) and result.is_break:
                             break
                         iteration += 1
