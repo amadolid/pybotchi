@@ -98,7 +98,7 @@ LLM.add(base=ChatOpenAI(
 ))
 ```
 
-### Simple Agent
+### Simple Agents
 
 ```python
 from pybotchi import Action
@@ -114,14 +114,6 @@ class Translation(Action):
     async def pre(self, context):
         message = await context.llm.ainvoke(f"Reply only with translation of `{self.message}` to {self.language}.")
         await context.add_response(self, message.text)
-```
-
-### Agent with Fields
-
-```python
-from pybotchi import Action
-
-from pydantic import Field
 
 class MathProblem(Action):
     """Solve math problems."""
@@ -536,6 +528,23 @@ Perfect for teams that need:
 - Real-time interactive agent communication
 - Distributed execution without complexity
 - Standard protocol integration (MCP)
+
+---
+
+## Known Limitations
+
+### Anthropic Model Compatibility
+
+PyBotchi passes only the tools relevant to the current intent during child selection, reducing LLM noise. Anthropic models have a constraint that conflicts with this: once a `tool_use` / `tool_result` pair for a given tool appears in the conversation history, Anthropic requires that tool's schema to be included in **every subsequent API call** — even if the tool is no longer relevant. This can cause validation errors in multi-level agent graphs.
+
+OpenAI does not have this restriction.
+
+**Workarounds (choose one):**
+- **1-level deep agent** — Keep all child actions under a single parent so every call includes all schemas.
+- **`add_message` instead of `add_response`** — Write plain assistant messages to avoid tool-call entries in history.
+- **Custom `child_selection`** — Override to re-inject previously-used tool schemas alongside the active ones.
+
+See the [full documentation](https://amadolid.github.io/pybotchi#reference) for code examples of each approach.
 
 ---
 
