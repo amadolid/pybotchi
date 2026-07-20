@@ -37,6 +37,7 @@ async def test() -> None:
         integrations=integrations,
     )
     action, result = await context.start(GeneralChat)
+    print(result)
     print(dumps(context.prompts, indent=4))
     print(dumps(action.serialize(), indent=4))
 

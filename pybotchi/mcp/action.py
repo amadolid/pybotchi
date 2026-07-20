@@ -13,19 +13,22 @@ from datamodel_code_generator.parser.jsonschema import (
     JsonSchemaParser,
 )
 
-from httpx import AsyncClient
+from httpx import AsyncClient, Timeout
 
 from mcp import ClientSession, Tool
 from mcp.client.sse import sse_client
 from mcp.client.streamable_http import streamable_http_client
+from mcp.server import NotificationOptions
 from mcp.server.fastmcp import FastMCP
 from mcp.shared.session import ProgressFnT
 from mcp.types import (
     AudioContent,
+    CallToolResult,
     ContentBlock,
     EmbeddedResource,
     ImageContent,
     ResourceLink,
+    ServerCapabilities,
     TextContent,
     TextResourceContents,
 )
@@ -38,7 +41,7 @@ from starlette.routing import Mount
 from .common import MCPConfig, MCPConnection, MCPIntegration, MCPMode
 from .context import TContext
 from ..action import Action, ChildActions
-from ..common import ActionResult, ActionReturn, ChatRole, Graph
+from ..common import ActionResult, ActionReturn, ChatRole, Graph, Stop
 from ..utils import is_camel_case, string_to_camel_case, unwrap_exceptions
 
 DMT: DataModelSet = get_data_model_types(
@@ -52,21 +55,25 @@ class MCPClient:
 
     def __init__(
         self,
+        native: bool,
         session: ClientSession,
         name: str,
         config: MCPConfig,
         manual_enable: bool,
         allowed_tools: dict[str, bool],
         tool_action_class: type["MCPToolAction"] | None,
+        block_return: bool,
         exclude_unset: bool,
     ) -> None:
         """Build MCP Client."""
+        self.native = native
         self.session = session
         self.name = name
         self.config = config
         self.manual_enable = manual_enable
         self.allowed_tools = allowed_tools
         self.tool_action_class = tool_action_class or MCPToolAction
+        self.block_return = block_return
         self.exclude_unset = exclude_unset
 
     def build_tool(self, tool: Tool) -> tuple[str, type["MCPToolAction"]]:
@@ -110,8 +117,10 @@ class MCPClient:
             ),
             {
                 "__mcp_tool_name__": tool.name,
+                "__mcp_native__": self.native,
                 "__mcp_client__": self,
                 "__mcp_exclude_unset__": self.exclude_unset,
+                "__mcp_block_return__": self.block_return,
                 "__concurrent__": concurrent,
                 "__module__": f"mcp.{self.name}",
             },
@@ -284,9 +293,11 @@ class MCPToolAction(Action[TContext], Generic[TContext]):
 
     __mcp_tool__ = True
 
-    __mcp_client__: MCPClient
     __mcp_tool_name__: str
+    __mcp_native__: bool
+    __mcp_client__: MCPClient
     __mcp_exclude_unset__: bool
+    __mcp_block_return__: bool
 
     def build_progress_callback(self, context: TContext) -> ProgressFnT:
         """Generate progress callback function."""
@@ -348,10 +359,12 @@ class MCPToolAction(Action[TContext], Generic[TContext]):
                 "data": tool_args,
             }
         )
+
         result = await self.__mcp_client__.session.call_tool(
             self.__mcp_tool_name__,
             tool_args,
             progress_callback=self.build_progress_callback(context),
+            meta={"context": context.mcp_sharing_dump()} if self.__mcp_native__ else None,
         )
 
         content = "\n\n---\n\n".join(self.clean_content(c) for c in result.content)
@@ -366,6 +379,9 @@ class MCPToolAction(Action[TContext], Generic[TContext]):
             }
         )
         await context.add_response(self, content)
+
+        if (data := result.meta) and not self.__mcp_block_return__ and (ret := data.get("return")):
+            return ActionReturn.convert(**ret)
 
         return None
 
@@ -413,7 +429,7 @@ async def multi_mcp_clients(
                     AsyncClient(
                         base_url=overrided_config["url"],
                         headers=overrided_config["headers"],
-                        timeout=overrided_config["timeout"],
+                        timeout=Timeout(overrided_config["timeout"], read=overrided_config["sse_read_timeout"]),
                         **overrided_config["async_client_args"],
                         follow_redirects=True,
                     )
@@ -427,15 +443,21 @@ async def multi_mcp_clients(
                     )
                 )
 
-            session = await stack.enter_async_context(ClientSession(*islice(streams, 0, 2)))
-            await session.initialize()
+            session = await stack.enter_async_context(
+                ClientSession(*islice(streams, 0, 2), **overrided_config["client_session_args"])
+            )
+            init = await session.initialize()
+            native = bool((extra := init.capabilities.model_extra) and extra.get("pybotchi_native", False))
+
             clients[conn.name] = MCPClient(
+                native,
                 session,
                 conn.name,
                 overrided_config,
                 conn.manual_enable,
                 allowed_tools,
                 conn.tool_action_class,
+                conn.block_return,
                 integration.get(
                     "exclude_unset",
                     conn.exclude_unset,
@@ -459,6 +481,22 @@ def initialize_mcp_groups() -> None:
                 add_mcp_tool(group.lower(), que, entry)
 
         queue.extend(que.__subclasses__())
+
+
+def patch_get_capabilities(server: FastMCP) -> None:
+    """Patch current server get_capabilities."""
+    mcp_server = server._mcp_server
+    _get_capabilities = mcp_server.get_capabilities
+
+    def get_capabilities(
+        notification_options: NotificationOptions,
+        experimental_capabilities: dict[str, dict[str, Any]],
+    ) -> ServerCapabilities:
+        capabilities = _get_capabilities(notification_options, experimental_capabilities)
+        capabilities.pybotchi_native = True  # type: ignore[attr-defined]
+        return capabilities
+
+    mcp_server.get_capabilities = get_capabilities  # type: ignore[method-assign]
 
 
 @asynccontextmanager
@@ -492,6 +530,7 @@ async def mount_mcp_app(
                 case _:
                     raise NotImplementedError(f"{transport} is not supported!")
 
+            patch_get_capabilities(server)
             app.mount(f"/{group}", mcp, server.name)
 
         yield stack
@@ -527,6 +566,7 @@ def build_mcp_app(
             case _:
                 raise NotImplementedError(f"{transport} is not supported!")
 
+        patch_get_capabilities(server)
         mounts.append(Mount(f"/{group}", app, name=server.name))
 
     if streamable_servers:
@@ -543,26 +583,49 @@ def build_mcp_app(
     return Starlette(routes=mounts)
 
 
-def build_mcp_entry(action: type["Action"]) -> Callable[..., Awaitable[str]]:
+def build_mcp_entry(action_cls: type["Action"]) -> Callable[..., Awaitable[str]]:
     """Build MCP Entry."""
-    from .context import Context
+    from mcp.server.fastmcp import Context as FastMCPContext
+    from .context import MCPContext
 
-    async def process(data: dict[str, Any]) -> str:
-        context = Context(
-            prompts=[
+    async def process(context: FastMCPContext, data: dict[str, Any]) -> CallToolResult:
+        source_context = (
+            (extra.get("context") or {})
+            if (meta := context.request_context.meta) and (extra := meta.model_extra)
+            else {}
+        )
+
+        pbcontext = MCPContext(**source_context)
+        pbcontext._request_context = context
+        if not pbcontext.prompts:
+            pbcontext.prompts.append(
                 {
                     "role": ChatRole.SYSTEM,
-                    "content": action.__system_prompt__ or getdoc(action) or "",
+                    "content": action_cls.__system_prompt__ or getdoc(action_cls) or "",
                 }
-            ],
-        )
-        await context.start(action, **data)
-        return context.prompts[-1]["content"]
+            )
 
-    globals: dict[str, Any] = {"process": process}
+        action, action_return = await pbcontext.start(action_cls, **data)
+
+        return_data = None
+        if action_return:
+            return_data = {"type": action_return.__class__.__name__}
+            if isinstance(action_return, Stop):
+                return_data["value"] = action_return.value
+
+        return CallToolResult(
+            content=[TextContent(type="text", text=pbcontext.prompts[-1]["content"])],
+            _meta={
+                "action": action.serialize(),
+                "return": return_data,
+                "context": pbcontext.mcp_dump(),
+            },
+        )
+
+    globals: dict[str, Any] = {"Context": FastMCPContext, "process": process}
     kwargs: list[str] = []
     data: list[str] = []
-    for key, val in action.model_fields.items():
+    for key, val in action_cls.model_fields.items():
         if val.annotation is None:
             kwargs.append(f"{key}: None")
             data.append(f'"{key}": {key}')
@@ -573,8 +636,8 @@ def build_mcp_entry(action: type["Action"]) -> Callable[..., Awaitable[str]]:
 
     exec(
         f"""
-async def tool({", ".join(kwargs)}):
-    return await process({{{", ".join(data)}}})
+async def tool(context: Context, {", ".join(kwargs)}):
+    return await process(context, {{{", ".join(data)}}})
 """.strip(),
         globals,
     )

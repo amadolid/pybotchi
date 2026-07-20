@@ -82,7 +82,7 @@ class JokeWithStoryTelling(Action):
         await context.add_usage(self, context.llm.model, message.usage_metadata, "combine")
         await context.add_message(ChatRole.ASSISTANT, message.text)
         print("Done executing post...")
-        return ActionReturn.STOP
+        return ActionReturn.stop(value="testing")
 
 
 ##################################################################################

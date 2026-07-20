@@ -2,7 +2,7 @@
 
 from asyncio import Queue
 from copy import deepcopy
-from typing import Any, Generic, TypeVar
+from typing import Any, TypeVar
 
 from pydantic import Field, PrivateAttr
 
@@ -16,7 +16,7 @@ from ..utils import uuid
 TContext = TypeVar("TContext", bound="GRPCContext")
 
 
-class GRPCContext(Context[TLLM], Generic[TLLM]):
+class GRPCContext(Context[TLLM]):
     """GRPC Client Context."""
 
     integrations: dict[str, GRPCIntegration] = Field(default_factory=dict)
@@ -35,7 +35,7 @@ class GRPCContext(Context[TLLM], Generic[TLLM]):
         """Dump model for GRPC sharing."""
         dump = self.model_dump(mode="json", exclude={"source_id", "context_id"})
         dump["source_id"] = self.context_id
-        dump["context_id"] = str(uuid)
+        dump["context_id"] = str(uuid())
         return dump
 
     async def grpc_send_up(

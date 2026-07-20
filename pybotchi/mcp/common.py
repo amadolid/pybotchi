@@ -46,6 +46,25 @@ class AsyncClientArgs(TypedDict, total=False):
     default_encoding: str
 
 
+class ClientSessionArgs(TypedDict, total=False):
+    """Client Session Arguments."""
+
+    # You may still configure this.
+    # However, you are required to override the context and set `arbitrary_types_allowed=True`
+    # Since this is client to server communication configuration, I don't think this is useful to be dynamic and part of context.
+    # Setting it directly to MCPConnection should be enough
+
+    # read_timeout_seconds: timedelta | None
+    # sampling_callback: SamplingFnT | None
+    # elicitation_callback: ElicitationFnT | None
+    # list_roots_callback: ListRootsFnT | None
+    # logging_callback: LoggingFnT | None
+    # message_handler: MessageHandlerFnT | None
+    # client_info: Implementation | None
+    # sampling_capabilities: SamplingCapability | None
+    # experimental_task_handlers: ExperimentalTaskHandlers | None
+
+
 class MCPConfig(TypedDict, total=False):
     """MCP Config."""
 
@@ -57,6 +76,7 @@ class MCPConfig(TypedDict, total=False):
     httpx_client_factory: Any
     auth: Any
     async_client_args: AsyncClientArgs
+    client_session_args: ClientSessionArgs
 
 
 class MCPIntegration(TypedDict, total=False):
@@ -77,16 +97,18 @@ class MCPConnection:
         mode: MCPMode | Literal["SSE", "SHTTP"],
         url: str = "",
         headers: dict[str, str] | None = None,
-        timeout: float = 5.0,
+        timeout: float = 30.0,
         sse_read_timeout: float = 300.0,
         terminate_on_close: bool = True,
         httpx_client_factory: McpHttpClientFactory = create_mcp_http_client,
         auth: Auth | None = None,
         on_session_created: Callable[[str], None] | None = None,
         async_client_args: AsyncClientArgs | None = None,
+        client_session_args: ClientSessionArgs | None = None,
         manual_enable: bool = False,
         allowed_tools: dict[str, bool] | None = None,
         tool_action_class: type["MCPToolAction"] | None = None,
+        block_return: bool = False,
         exclude_unset: bool = True,
         require_integration: bool = True,
     ) -> None:
@@ -102,9 +124,11 @@ class MCPConnection:
         self.auth = auth
         self.on_session_created = on_session_created
         self.async_client_args = {} if async_client_args is None else async_client_args
+        self.client_session_args = {} if client_session_args is None else client_session_args
         self.manual_enable = manual_enable
         self.allowed_tools = {} if allowed_tools is None else allowed_tools
         self.tool_action_class = tool_action_class
+        self.block_return = block_return
         self.exclude_unset = exclude_unset
         self.require_integration = require_integration
 
@@ -120,6 +144,7 @@ class MCPConnection:
                 "httpx_client_factory": self.httpx_client_factory,
                 "auth": self.auth,
                 "async_client_args": self.async_client_args,
+                "client_session_args": self.client_session_args,
             }
 
         url = override.get("url", self.url)
@@ -141,6 +166,11 @@ class MCPConnection:
         else:
             async_client_args = self.async_client_args
 
+        if _client_session_args := override.get("client_session_args"):
+            client_session_args = self.client_session_args | _client_session_args
+        else:
+            client_session_args = self.client_session_args
+
         return {
             "url": url,
             "headers": headers,
@@ -150,4 +180,5 @@ class MCPConnection:
             "httpx_client_factory": httpx_client_factory,
             "auth": auth,
             "async_client_args": async_client_args,
+            "client_session_args": client_session_args,
         }
