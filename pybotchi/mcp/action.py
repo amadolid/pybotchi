@@ -2,8 +2,8 @@
 
 from collections.abc import AsyncGenerator, AsyncIterator, Awaitable
 from contextlib import AsyncExitStack, asynccontextmanager, suppress
+from datetime import timedelta
 from inspect import getdoc, getmembers
-from itertools import islice
 from os import getenv
 from typing import Any, Callable, Generic, Literal
 
@@ -443,10 +443,18 @@ async def multi_mcp_clients(
                     )
                 )
 
-            session = await stack.enter_async_context(
-                ClientSession(*islice(streams, 0, 2), **overrided_config["client_session_args"])
-            )
+            client_session_args: dict[str, Any] = {
+                "read_timeout_seconds": timedelta(
+                    seconds=min(
+                        overrided_config["timeout"],
+                        overrided_config["sse_read_timeout"],
+                    )
+                ),
+                **overrided_config["client_session_args"],
+            }
+            session = await stack.enter_async_context(ClientSession(streams[0], streams[1], **client_session_args))
             init = await session.initialize()
+
             native = bool((extra := init.capabilities.model_extra) and extra.get("pybotchi_native", False))
 
             clients[conn.name] = MCPClient(
