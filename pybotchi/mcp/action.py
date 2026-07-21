@@ -475,7 +475,7 @@ async def multi_mcp_clients(
         yield clients
 
 
-def initialize_mcp_groups() -> None:
+def initialize_mcp_groups(stateless_groups: dict[str, bool] | bool) -> None:
     """Initialize MCP groups."""
     queue = Action.__subclasses__()
     while queue:
@@ -485,8 +485,13 @@ def initialize_mcp_groups() -> None:
 
         if _groups:
             entry = build_mcp_entry(que)
-            for group in _groups:
-                add_mcp_tool(group.lower(), que, entry)
+            if isinstance(stateless_groups, dict):
+                for group in _groups:
+                    stateless = stateless_groups.get(group, False)
+                    add_mcp_tool(group.lower(), que, entry, stateless)
+            else:
+                for group in _groups:
+                    add_mcp_tool(group.lower(), que, entry, stateless_groups)
 
         queue.extend(que.__subclasses__())
 
@@ -512,9 +517,10 @@ async def mount_mcp_app(
     app: AppType,
     *groups: str,
     transport: Literal["sse", "streamable-http"] | dict[str, str] = "streamable-http",
+    stateless_groups: dict[str, bool] | bool = False,
 ) -> AsyncGenerator[AsyncExitStack, None]:
     """Start MCP Servers."""
-    initialize_mcp_groups()
+    initialize_mcp_groups(stateless_groups)
 
     allowed_groups = set(groups) if groups else None
 
@@ -547,9 +553,10 @@ async def mount_mcp_app(
 def build_mcp_app(
     *groups: str,
     transport: Literal["sse", "streamable-http"] | dict[str, str] = "streamable-http",
+    stateless_groups: dict[str, bool] | bool = False,
 ) -> Starlette:
     """Start MCP server by group."""
-    initialize_mcp_groups()
+    initialize_mcp_groups(stateless_groups)
 
     mounts: list[Mount] = []
     streamable_servers: list[FastMCP] = []
@@ -653,12 +660,12 @@ async def tool(context: Context, {", ".join(kwargs)}):
     return globals["tool"]
 
 
-def add_mcp_tool(group: str, action: type["Action"], entry: Callable[..., Awaitable[str]]) -> None:
+def add_mcp_tool(group: str, action: type["Action"], entry: Callable[..., Awaitable[str]], stateless: bool) -> None:
     """Add action."""
     if not (server := MCPAction.__mcp_servers__.get(group)):
         server = MCPAction.__mcp_servers__[group] = FastMCP(
             f"mcp-{group}",
-            stateless_http=True,
+            stateless_http=stateless,
             log_level=getenv("MCP_LOGGER_LEVEL", "WARNING"),  # type: ignore[arg-type]
         )
     server.add_tool(

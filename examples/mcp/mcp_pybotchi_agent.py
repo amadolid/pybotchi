@@ -16,6 +16,20 @@ class MathProblem(Action):
 
     async def pre(self, context: Context) -> None:
         """Execute pre process."""
+        # if stateless false (default) - callbacks are supported
+        # result = await context._request_context.session.create_message(
+        #     messages=[
+        #         SamplingMessage(
+        #             role="user",
+        #             content=TextContent(
+        #                 type="text",
+        #                 text="Trigger Sampling Callback",
+        #             ),
+        #         )
+        #     ],
+        #     max_tokens=200,
+        # )
+
         message = await context.llm.ainvoke(f"Solve `{self.equation}`")
         await context.add_usage(self, context.llm.model, message.usage_metadata)
         await context.add_response(self, message.text)
