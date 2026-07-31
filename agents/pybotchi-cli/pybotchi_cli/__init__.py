@@ -2,10 +2,10 @@
 
 from subprocess import run
 
+from pydantic import Field
+
 from pybotchi import Action, ActionReturn, Context
 from pybotchi.utils import apply_placeholders
-
-from pydantic import Field
 
 
 class ExecuteBashCommandAction(Action):

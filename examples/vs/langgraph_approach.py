@@ -3,20 +3,14 @@
 from asyncio import run
 from datetime import datetime
 from os import getenv
-from typing import Annotated, Literal
+from typing import Annotated, Literal, TypedDict
 
 from dotenv import load_dotenv
-
 from langchain_core.tools import tool
-
 from langchain_openai import AzureChatOpenAI
-
 from langgraph.graph import StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
-
-from typing_extensions import TypedDict
-
 
 load_dotenv()
 

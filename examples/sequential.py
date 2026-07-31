@@ -6,14 +6,11 @@ from os import getenv
 from typing import Any, ClassVar
 
 from dotenv import load_dotenv
-
 from langchain_openai import AzureChatOpenAI
-
-from pybotchi import Action, ActionReturn, ChatRole, Context as BaseContext, LLM, graph
-from pybotchi.utils import uuid
-
 from pydantic import BaseModel, Field
 
+from pybotchi import LLM, Action, ActionReturn, ChatRole, Context as BaseContext, graph
+from pybotchi.utils import uuid
 
 load_dotenv()
 
@@ -87,7 +84,7 @@ class GeneralChatIterationExceedLimit(Action):
     __first_tool_only__ = True
 
     class Print(Action):
-        """Print Number."""
+        """Print Single Number."""
 
         number: int
 
@@ -103,7 +100,7 @@ class GeneralChatWithCorrection(Action):
     __first_tool_only__ = True
 
     class Print(Action):
-        """Print Number."""
+        """Print Single Number."""
 
         number: int
 
@@ -257,7 +254,7 @@ async def iteration_exceed_limit() -> None:
             },
             {
                 "role": ChatRole.USER,
-                "content": "Print from 1 to 10",
+                "content": "Print each number from 1 to 10",
             },
         ],
     )
@@ -286,7 +283,7 @@ async def iteration_with_correction() -> None:
             },
             {
                 "role": ChatRole.USER,
-                "content": "Print from 1 to 10",
+                "content": "Print each number from 1 to 10",
             },
         ],
     )

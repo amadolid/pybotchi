@@ -7,7 +7,7 @@ from collections import deque
 from collections.abc import Generator
 from inspect import getmembers
 from os import getenv
-from typing import Any, Generic, Literal, TYPE_CHECKING, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar
 
 from pydantic import BaseModel, PrivateAttr
 

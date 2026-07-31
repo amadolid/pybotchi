@@ -4,13 +4,11 @@ from copy import deepcopy
 from typing import Any, TypeVar
 
 from mcp.server.fastmcp import Context as FastMCPContext
-
 from pydantic import Field, PrivateAttr
 
-from .common import MCPIntegration
-from ..context import Context, TLLM
+from ..context import TLLM, Context
 from ..utils import uuid
-
+from .common import MCPIntegration
 
 TContext = TypeVar("TContext", bound="MCPContext")
 

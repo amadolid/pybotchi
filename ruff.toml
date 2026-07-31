@@ -3,8 +3,11 @@ line-length = 120
 exclude = ["pybotchi_pb2*"]
 
 [lint]
-select = ["E", "W", "F", "D", "C4", "B", "ANN", "N", "SIM"]
+select = ["E", "W", "F", "D", "C4", "B", "ANN", "N", "SIM", "I"]
 ignore = ["E501", "ANN401"]
+
+[lint.isort]
+combine-as-imports = true
 
 [lint.pydocstyle]
 convention = "google"

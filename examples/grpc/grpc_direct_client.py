@@ -5,7 +5,6 @@ from collections.abc import AsyncGenerator
 from json import dumps
 
 from google.protobuf.json_format import MessageToDict
-
 from grpc.aio import insecure_channel
 
 from pybotchi.grpc.pybotchi_pb2 import ActionListRequest, ActionListResponse, Event

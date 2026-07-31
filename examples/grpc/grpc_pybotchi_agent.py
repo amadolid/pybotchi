@@ -8,7 +8,6 @@ from grpc_prerequisite import (
     GRPCConnection,
     GRPCContext,
 )
-
 from pydantic import Field
 
 

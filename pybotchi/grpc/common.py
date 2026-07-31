@@ -1,7 +1,7 @@
 """Pybotchi GRPC Common."""
 
 from enum import StrEnum
-from typing import Any, Sequence, TYPE_CHECKING, TypedDict
+from typing import TYPE_CHECKING, Any, Sequence, TypedDict
 
 from grpc.aio import ClientInterceptor
 

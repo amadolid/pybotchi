@@ -8,10 +8,12 @@ from traceback import format_exception
 from typing import Generic
 
 from google.protobuf.json_format import MessageToDict
-
 from grpc import StatusCode
 from grpc.aio import Metadata, ServicerContext, UsageError
 
+from ..action import Action
+from ..common import Graph, Stop
+from ..utils import uuid
 from .action import traverse
 from .context import GRPCContext, TContext
 from .exception import GRPCRemoteError
@@ -26,9 +28,6 @@ from .pybotchi_pb2 import (
     TraverseRequest,
 )
 from .pybotchi_pb2_grpc import PyBotchiGRPCServicer
-from ..action import Action
-from ..common import Graph, Stop
-from ..utils import uuid
 
 
 class PyBotchiGRPC(PyBotchiGRPCServicer, Generic[TContext]):

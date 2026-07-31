@@ -12,15 +12,12 @@ from sys import path as sys_path
 from types import FrameType
 
 from click import argument, command, echo, option
-
 from grpc import ssl_server_credentials
 from grpc.aio import server as grpc_server
-
 from grpc_tools import protoc
 
 from pybotchi import Action
 from pybotchi.utils import uuid
-
 
 PROCESSES: list[Process] = []
 
@@ -36,8 +33,8 @@ async def serve(
     require_client_auth: bool,
 ) -> None:
     """Serve GRPC."""
-    from .pybotchi_pb2_grpc import add_PyBotchiGRPCServicer_to_server
     from .handler import PyBotchiGRPC
+    from .pybotchi_pb2_grpc import add_PyBotchiGRPCServicer_to_server
 
     server = grpc_server(
         options=[

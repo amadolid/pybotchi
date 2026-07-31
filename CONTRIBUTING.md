@@ -52,9 +52,9 @@ mypy pybotchi
 Example:
 ```python
 """Example action module demonstrating PyBotchi coding standards."""
+from pydantic import Field
 
 from pybotchi import Action, ActionResult, Context
-from pydantic import Field
 
 
 class ExampleAction(Action):

@@ -2,11 +2,10 @@
 
 from collections.abc import Callable, Mapping, Sequence
 from enum import StrEnum
-from typing import Any, Literal, TYPE_CHECKING, TypedDict
+from typing import TYPE_CHECKING, Any, Literal, TypedDict
 
 from httpx import Auth
 from httpx._types import CertTypes, PrimitiveData
-
 from mcp.client.streamable_http import McpHttpClientFactory, create_mcp_http_client
 
 if TYPE_CHECKING:

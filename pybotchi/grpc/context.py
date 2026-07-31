@@ -6,12 +6,11 @@ from typing import Any, TypeVar
 
 from pydantic import Field, PrivateAttr
 
+from ..common import ToolCall
+from ..context import TLLM, Action, ChatRole, Context
+from ..utils import uuid
 from .common import GRPCIntegration
 from .pybotchi_pb2 import Event
-from ..common import ToolCall
-from ..context import Action, ChatRole, Context, TLLM
-from ..utils import uuid
-
 
 TContext = TypeVar("TContext", bound="GRPCContext")
 

@@ -1,9 +1,7 @@
 """MCP Server Action."""
 
 from mcp_prerequisite import Action, ActionReturn, ChatRole, Context, build_mcp_app
-
 from pydantic import Field
-
 from uvicorn import run
 
 

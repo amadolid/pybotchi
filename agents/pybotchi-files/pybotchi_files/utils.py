@@ -3,7 +3,6 @@
 from typing import ClassVar
 
 from cv2.typing import MatLike
-
 from pydantic import BaseModel, ConfigDict, Field
 
 

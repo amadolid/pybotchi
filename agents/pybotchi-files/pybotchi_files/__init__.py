@@ -19,7 +19,6 @@ from cv2 import (
     minMaxLoc,
 )
 from cv2.typing import MatLike
-
 from docx import Document
 from docx.document import Document as _Document
 from docx.opc.part import Part
@@ -27,17 +26,13 @@ from docx.oxml.shape import CT_Blip
 from docx.oxml.table import CT_Tbl
 from docx.oxml.text.paragraph import CT_P
 from docx.oxml.xmlchemy import BaseOxmlElement
-
 from fastapi import UploadFile
-
 from langchain_core.language_models.chat_models import BaseChatModel
-
 from numpy import frombuffer, uint8
-
-from pybotchi import Action, ActionReturn, Context, LLM
-from pybotchi.utils import apply_placeholders
-
 from pymupdf import Page, open as pdf_open
+
+from pybotchi import LLM, Action, ActionReturn, Context
+from pybotchi.utils import apply_placeholders
 
 from .utils import DocxContent
 

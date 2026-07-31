@@ -10,13 +10,11 @@ from os import getenv
 from typing import Any, ClassVar, Generic, ParamSpec, Self
 
 from langchain_core.language_models.chat_models import BaseChatModel
-
 from pydantic import BaseModel, Field, PrivateAttr
-
 from typing_extensions import TypeVar
 
 from .action import Action, T, TAction
-from .common import ActionResult, ChatRole, ToolCall, UNSPECIFIED, UsageMetadata
+from .common import UNSPECIFIED, ActionResult, ChatRole, ToolCall, UsageMetadata
 from .llm import LLM
 
 TContext = TypeVar("TContext", bound="Context", default="Context")

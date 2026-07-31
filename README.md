@@ -89,6 +89,7 @@ pip install pybotchi[grpc,mcp]
 
 ```python
 from langchain_openai import ChatOpenAI
+
 from pybotchi import LLM
 
 LLM.add(base=ChatOpenAI(
@@ -101,9 +102,10 @@ LLM.add(base=ChatOpenAI(
 ### Simple Agents
 
 ```python
+from pydantic import Field
+
 from pybotchi import Action
 
-from pydantic import Field
 
 class Translation(Action):
     """Translate to specific language."""
@@ -129,6 +131,7 @@ class MathProblem(Action):
 ```python
 from pybotchi import Action
 
+
 class MultiAgent(Action):
     """AI Assistant for solving math problems and translation."""
 
@@ -145,6 +148,7 @@ class MultiAgent(Action):
 import asyncio
 
 from pybotchi import Context
+
 
 async def test():
     context = Context(
@@ -172,6 +176,7 @@ Translate: Ang apat na pinarami sa apat ay labing-anim. Ipagpalagay mong may apa
 import asyncio
 
 from pybotchi import graph
+
 
 async def print_mermaid_graph():
     multi_agent_graph = await graph(MultiAgent)
@@ -328,9 +333,10 @@ Scale your agents across multiple servers with real-time context synchronization
 
 **server.py**
 ```python
+from pydantic import Field
+
 from pybotchi import Action
 
-from pydantic import Field
 
 class MathProblem(Action):
     """Solve math problems."""
@@ -408,10 +414,10 @@ Integrate with the MCP ecosystem. Expose Actions as MCP tools or consume externa
 ### As MCP Server
 **server.py**
 ```python
+from pydantic import Field
+
 from pybotchi import Action
 from pybotchi.mcp import build_mcp_app
-
-from pydantic import Field
 
 
 class MathProblem(Action):

@@ -2,7 +2,6 @@
 
 from aiofiles import open
 
-
 CERT_CACHE: dict[str, bytes] = {}
 
 

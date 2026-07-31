@@ -6,10 +6,9 @@ from os import getenv
 from typing import TypeAlias
 
 from dotenv import load_dotenv
-
 from langchain_openai import AzureChatOpenAI
 
-from pybotchi import Action, ChatRole, Context as BaseContext, LLM, graph
+from pybotchi import LLM, Action, ChatRole, Context as BaseContext, graph
 
 load_dotenv()
 
@@ -32,7 +31,7 @@ class GeneralChat(Action):
     """Casual Generic Chat."""
 
     class Joke(Action):
-        """This Assistant is used when user's inquiry is related to generating a joke."""
+        """Generate a joke."""
 
         __concurrent__ = True
 
@@ -58,7 +57,7 @@ class GeneralChat(Action):
             return await context.run_task_in_thread(self.your_function_name(context))
 
     class StoryTelling(Action):
-        """This Assistant is used when user's inquiry is related to generating stories."""
+        """Tell a story."""
 
         __concurrent__ = True
 
