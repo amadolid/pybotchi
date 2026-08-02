@@ -343,6 +343,12 @@ class MCPToolAction(Action[TContext], Generic[TContext]):
             case _:
                 return f"The response of {self.__class__.__name__} is yet supported: {content.__class__.__name__}"
 
+    async def consume_result_meta(self, context: TContext, meta: dict[str, Any]) -> ActionResult:
+        """Consume call tool result's meta."""
+        if self.__mcp_block_return__ and (ret := meta.get("return")):
+            return ActionReturn.convert(**ret)
+        return None
+
     async def pre(self, context: TContext) -> ActionResult:
         """Execute pre process."""
         tool_args = self.model_dump(exclude_unset=self.__mcp_exclude_unset__)
@@ -356,14 +362,14 @@ class MCPToolAction(Action[TContext], Generic[TContext]):
             }
         )
 
-        result = await self.__mcp_client__.session.call_tool(
+        tool_result = await self.__mcp_client__.session.call_tool(
             self.__mcp_tool_name__,
             tool_args,
             progress_callback=self.build_progress_callback(context),
             meta={"context": context.mcp_sharing_dump()} if self.__mcp_native__ else None,
         )
 
-        content = "\n\n---\n\n".join(self.clean_content(c) for c in result.content)
+        content = "\n\n---\n\n".join(self.clean_content(c) for c in tool_result.content)
 
         await context.notify(
             {
@@ -376,8 +382,8 @@ class MCPToolAction(Action[TContext], Generic[TContext]):
         )
         await context.add_response(self, content)
 
-        if (data := result.meta) and not self.__mcp_block_return__ and (ret := data.get("return")):
-            return ActionReturn.convert(**ret)
+        if (meta := tool_result.meta) and (result := await self.consume_result_meta(context, meta)) and result.is_end:
+            return result
 
         return None
 

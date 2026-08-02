@@ -2,8 +2,18 @@
 
 from asyncio import run
 from json import dumps
+from typing import Any
 
-from mcp_prerequisite import ChatRole, MCPAction, MCPConnection, MCPContext, MCPIntegration, graph
+from mcp_prerequisite import (
+    ActionResult,
+    ChatRole,
+    MCPAction,
+    MCPConnection,
+    MCPContext,
+    MCPIntegration,
+    MCPToolAction,
+    graph,
+)
 
 
 class GeneralChat(MCPAction):
@@ -17,6 +27,17 @@ class GeneralChat(MCPAction):
         print("Build context.integrations['testing']['config']")
         print("Refresh tokens")
         print("etc ...")
+
+    class MathProblem(MCPToolAction):  # noqa: D106
+        async def consume_result_meta(self, context: MCPContext, meta: dict[str, Any]) -> ActionResult:
+            """Execute pre process."""
+            print(f"Printing tool result context: {meta.get('context')}")
+            return await super().consume_result_meta(context, meta)
+
+        async def pre(self, context: MCPContext) -> ActionResult:
+            """Execute pre process."""
+            print("#####################################")
+            return await super().pre(context)
 
 
 async def test() -> None:
