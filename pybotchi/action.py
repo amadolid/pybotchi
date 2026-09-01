@@ -201,6 +201,10 @@ class Action(BaseModel, Generic[TContext]):
     ) -> ActionResult:
         """Execute on error process."""
 
+    async def on_max_self_recursion(self, context: TContext) -> ActionResult:
+        """Execute on max self recursion."""
+        return ActionReturn.STOP
+
     async def on_max_iteration(self, context: TContext) -> ActionResult:
         """Execute on max iteration process."""
         await context.notify(
@@ -348,7 +352,7 @@ class Action(BaseModel, Generic[TContext]):
             if self.__detached__:
                 context = await context.detach_context()
 
-            if context.check_self_recursion(self):
+            if (result := await context.check_self_recursion(self)) and result.is_end:
                 return ActionReturn.STOP
 
             if self.__has_pre__ and (result := await self.pre(context)) and result.is_end:

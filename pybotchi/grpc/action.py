@@ -188,7 +188,7 @@ class GRPCAction(Action[TContext]):
             if self.__detached__:
                 context = await context.detach_context()
 
-            if context.check_self_recursion(self):
+            if (result := await context.check_self_recursion(self)) and result.is_end:
                 return ActionReturn.STOP
 
             if self.__has_pre_grpc__ and (result := await self.pre_grpc(context)) and result.is_end:

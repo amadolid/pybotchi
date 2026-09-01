@@ -193,7 +193,7 @@ class MCPAction(Action[TContext]):
             if self.__detached__:
                 context = await context.detach_context()
 
-            if context.check_self_recursion(self):
+            if (result := await context.check_self_recursion(self)) and result.is_end:
                 return ActionReturn.STOP
 
             if self.__has_pre_mcp__ and (result := await self.pre_mcp(context)) and result.is_end:

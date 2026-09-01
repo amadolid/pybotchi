@@ -77,7 +77,7 @@ class Context(BaseModel, Generic[TLLM]):
         agent = action(**kwargs)
         return agent, await agent.execute(self)
 
-    def check_self_recursion(self, action: "Action") -> bool:
+    async def check_self_recursion(self, action: "Action") -> ActionResult:
         """Check self recursion."""
         cls = action.__class__
         name = f"{cls.__module__}.{cls.__name__}"
@@ -87,8 +87,8 @@ class Context(BaseModel, Generic[TLLM]):
             self._action_call[name] += 1
             max = action.__max_self_recursion__ or self.max_self_recursion
             if max and self._action_call[name] > max:
-                return True
-        return False
+                return await action.on_max_self_recursion(self)
+        return None
 
     async def merge_to_usages(self, model: str, usage: UsageMetadata) -> None:
         """Merge usage to usages."""
