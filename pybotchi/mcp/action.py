@@ -184,7 +184,6 @@ class MCPAction(Action[TContext]):
         """Execute main process."""
         self._parent = parent
 
-        result = None
         parent_context = context
         try:
             if parent and append:
@@ -227,7 +226,7 @@ class MCPAction(Action[TContext]):
                 if self.__has_post__ and (result := await self.post(context)) and result.is_end:
                     return result
 
-                return result
+                return None
         except Exception as exception:
             if not self.__has_on_error__:
                 self.__to_commit__ = False
@@ -240,7 +239,7 @@ class MCPAction(Action[TContext]):
                 )
             ) and result.is_end:
                 return result
-            return result
+            return None
         finally:
             if self.__to_commit__ and self.__detached__:
                 await self.commit_context(parent_context, context)

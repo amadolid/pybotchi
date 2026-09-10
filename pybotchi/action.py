@@ -343,7 +343,6 @@ class Action(BaseModel, Generic[TContext]):
         """Execute main process."""
         self._parent = parent
 
-        result = None
         parent_context = context
         try:
             if parent and append:
@@ -380,7 +379,7 @@ class Action(BaseModel, Generic[TContext]):
             if self.__has_post__ and (result := await self.post(context)) and result.is_end:
                 return result
 
-            return result
+            return None
         except Exception as exception:
             if not self.__has_on_error__:
                 self.__to_commit__ = False
@@ -393,7 +392,7 @@ class Action(BaseModel, Generic[TContext]):
                 )
             ) and result.is_end:
                 return result
-            return result
+            return None
         finally:
             if self.__to_commit__ and self.__detached__:
                 await self.commit_context(parent_context, context)
@@ -405,7 +404,6 @@ class Action(BaseModel, Generic[TContext]):
 
     async def execution(self, context: TContext) -> ActionResult:
         """Execute core process."""
-        result = None
         child_actions = await self.get_child_actions(context)
         if (
             len(child_actions) == 1
@@ -487,11 +485,10 @@ class Action(BaseModel, Generic[TContext]):
             if (result := await self.fallback(context, message.text)) and result.is_end:
                 return result
 
-        return result
+        return None
 
     async def concurrent_children_execution(self, context: TContext, next_actions: list[Action]) -> ActionResult:
         """Run children execution with concurrent."""
-        result = None
         break_point = None
         try:
             async with TaskGroup() as tg:
@@ -511,16 +508,15 @@ class Action(BaseModel, Generic[TContext]):
                     break_point = que.action_return
                     break
 
-        return break_point or result
+        return break_point
 
     async def sequential_children_execution(self, context: TContext, next_actions: list[Action]) -> ActionResult:
         """Run children execution sequentially."""
-        result = None
         for next_action in next_actions:
             if (result := await next_action.execute(context, self)) and result.is_break:
                 return result
 
-        return result
+        return None
 
     def serialize(self, mode: str | Literal["python", "json"] = "python") -> ActionEntry:
         """Serialize Action."""
