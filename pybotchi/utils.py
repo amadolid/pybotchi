@@ -54,3 +54,4 @@ def unwrap_exceptions(
 for module, attr in (("uuid", "uuid7"), ("uuid6", "uuid7"), ("uuid", "uuid4")):
     with suppress(ImportError, AttributeError):
         uuid: Callable[[], UUID] = getattr(import_module(module), attr)
+        break

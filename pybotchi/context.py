@@ -56,7 +56,7 @@ class Context(BaseModel, Generic[TLLM]):
         """Get base LLM Model."""
         return next((name for source in self._model_source if (name := getattr(self.llm, source, None))), UNSPECIFIED)
 
-    def shifted_prompts(self, offset: int | None) -> Iterator[dict[str, Any]]:
+    def shifted_prompts(self, offset: int | None = None) -> Iterator[dict[str, Any]]:
         """Get shifted prompts."""
         max = len(self.prompts)
         if offset:
@@ -203,10 +203,10 @@ class Context(BaseModel, Generic[TLLM]):
                     parent_target[paths[-1]] = value
             except Exception as e:
                 raise ValueError(f"Error occured when setting value to path `{' -> '.join(paths)}`!") from e
-        elif not isinstance(value, dict) or any(not isinstance(key, str) for key in value):
-            raise ValueError(f"New metadata must be a serializable dict[str, Any], got {type(value).__name__}")
-
-        self.metadata = value
+        else:
+            if not isinstance(value, dict) or any(not isinstance(key, str) for key in value):
+                raise ValueError(f"New metadata must be a serializable dict[str, Any], got {type(value).__name__}")
+            self.metadata = value
 
     async def update_metadata(self, *paths: Any, value: Any) -> None:
         """Override metadata value."""
@@ -238,10 +238,10 @@ class Context(BaseModel, Generic[TLLM]):
                         parent_target[paths[-1]] = value
             except Exception as e:
                 raise ValueError(f"Error occured when setting value to path `{' -> '.join(paths)}`!") from e
-        elif not isinstance(value, dict) or any(not isinstance(key, str) for key in value):
-            raise ValueError(f"New metadata must be a serializable dict[str, Any], got {type(value).__name__}")
-
-        self.metadata = value
+        else:
+            if not isinstance(value, dict) or any(not isinstance(key, str) for key in value):
+                raise ValueError(f"New metadata must be a serializable dict[str, Any], got {type(value).__name__}")
+            self.metadata = value
 
     async def notify(self, message: dict[str, Any]) -> None:
         """Notify Client."""

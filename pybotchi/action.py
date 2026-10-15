@@ -217,9 +217,9 @@ class Action(BaseModel, Generic[TContext]):
         )
 
         llm = (
-            context.llm.with_config(configurable={"llm_temperature": self.__temperature__})
+            context.llm
             if self.__temperature__ is None
-            else context.llm
+            else context.llm.with_config(configurable={"llm_temperature": self.__temperature__})
         )
 
         message = await llm.ainvoke(
