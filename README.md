@@ -47,7 +47,7 @@ Built on Pydantic `BaseModel` for rigorous data validation and industry-standard
 Automatic JSON Schema conformance for OpenAI, Gemini, and other LLM providers. Easily adaptable to any provider's specification.
 
 ### Action Lifecycle Hooks
-Fine-grained control over execution stages with overridable hooks: `pre`, `post`, `on_error`, `fallback`, `child_selection`, and `commit_context`.
+Fine-grained control over execution stages with overridable hooks: `pre`, `post`, `on_error`, `fallback`, `child_selection`, `commit_context`, and `cleanup`.
 
 ### Highly Scalable
 Async-first architecture with built-in support for distributed execution via gRPC. Deploy agents remotely or across machines for massive parallel workloads.
@@ -234,8 +234,10 @@ Determines which child agents to execute. Override with:
 Executes after all child agents complete. Use for:
 - Result consolidation
 - Data persistence
-- Cleanup and recording
+- Recording
 - Logging and notifications
+
+Doesn't run if the lifecycle was halted (`END`, `BREAK`, `STOP`) or an error occurred. Use `cleanup` for anything that must always run.
 
 #### **`on_child_init_error`** - Child Initialization Error Handling
 Handle errors when a child action fails to initialize (e.g. Pydantic validation on LLM tool arguments):
@@ -268,6 +270,18 @@ Executes when the `__max_iteration__` limit is reached:
 - Raise max-iteration-related errors
 - Trigger fallback or summarization logic
 - Custom additional processing
+
+#### **`cleanup`** - Guaranteed Cleanup
+Always executes when the action finishes, like a `finally` block: on success, on `END`/`BREAK`/`STOP`, on errors (handled or not), on max self recursion, and on cancellation. Use for:
+- Releasing resources (connections, locks, temp files)
+- Resetting state
+- Final logging and metrics
+
+Notes:
+- Runs before `commit_context`, so usage and metadata added to a detached context are still merged into the parent.
+- May run even when `pre` didn't (e.g. max self recursion, or an early error), so don't assume setup completed.
+- Its return value is ignored and it can't change the flow. If it raises, that error replaces the action's result or original error, but `commit_context` still runs.
+- For `MCPAction`/`GRPCAction`, it runs after the MCP/gRPC connections are closed. Do remote cleanup in `post` or `on_error`.
 
 ### Extended Lifecycle Hooks
 

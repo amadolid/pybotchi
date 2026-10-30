@@ -241,8 +241,7 @@ class MCPAction(Action[TContext]):
                 return result
             return None
         finally:
-            if self.__to_commit__ and self.__detached__:
-                await self.commit_context(parent_context, context)
+            await self.finalize_execution(parent_context, context)
 
     async def get_child_actions(self, context: TContext) -> ChildActions:
         """Retrieve child Actions."""

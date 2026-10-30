@@ -132,7 +132,7 @@ class GeneralChat(Action):
         """Execute fallback process."""
 
     # Called after all child actions complete (and after the iteration loop exits).
-    # Use for consolidating results, data persistence, cleanup, or final LLM summarization.
+    # Use for consolidating results, data persistence, or final LLM summarization.
     # Only runs if the lifecycle was not halted by END, BREAK, or STOP before reaching it.
     async def post(self, context: Context) -> ActionResult:
         """Execute post process."""
@@ -162,6 +162,15 @@ class GeneralChat(Action):
         unwrapped_exceptions: Generator[Exception, None, None],
     ) -> ActionResult:
         """Execute on error process."""
+
+    # Always called when the action finishes, like a `finally` block: on success, END/BREAK/STOP,
+    # errors (handled or not), max self recursion, and cancellation.
+    # Use for releasing resources, resetting state, or final logging.
+    # Runs before commit_context, so usage/metadata added here still merges into the parent if detached.
+    # May run even if pre didn't (e.g. max self recursion), so don't assume setup completed.
+    # Return value is ignored. If it raises, that error replaces the action's result.
+    async def cleanup(self, context: Context) -> None:
+        """Execute cleanup process."""
 
     class MathProblem(Action):
         """This Assistant is used when user's inquiry is related to Math Problem."""

@@ -105,6 +105,7 @@ class Action(BaseModel, Generic[TContext]):
     __has_on_child_init_error__: bool
     __has_on_error__: bool
     __has_post__: bool
+    __has_cleanup__: bool
     __has_as_tool__: bool
     __detached__: bool
 
@@ -146,6 +147,7 @@ class Action(BaseModel, Generic[TContext]):
         cls.__has_on_child_init_error__ = cls.on_child_init_error is not Action.on_child_init_error
         cls.__has_on_error__ = cls.on_error is not Action.on_error
         cls.__has_post__ = cls.post is not Action.post
+        cls.__has_cleanup__ = cls.cleanup is not Action.cleanup
         cls.__has_as_tool__ = cls._as_tool is not Action._as_tool
         cls.__detached__ = src.get("__detached__", cls.commit_context is not Action.commit_context)
         cls.__groups__ = src.get("__groups__")
@@ -253,6 +255,9 @@ class Action(BaseModel, Generic[TContext]):
 
     async def post(self, context: TContext) -> ActionResult:
         """Execute post process."""
+
+    async def cleanup(self, context: TContext) -> None:
+        """Execute cleanup process."""
 
     async def commit_context(self, parent: TContext, child: TContext) -> None:
         """Execute commit context if it's detached."""
@@ -394,8 +399,7 @@ class Action(BaseModel, Generic[TContext]):
                 return result
             return None
         finally:
-            if self.__to_commit__ and self.__detached__:
-                await self.commit_context(parent_context, context)
+            await self.finalize_execution(parent_context, context)
 
     async def execute_concurrently(self, context: TContext, parent: Action | None = None, append: bool = True) -> None:
         """Execute main process concurrently."""
@@ -517,6 +521,15 @@ class Action(BaseModel, Generic[TContext]):
                 return result
 
         return None
+
+    async def finalize_execution(self, parent_context: TContext, context: TContext) -> None:
+        """Execute finalization process."""
+        try:
+            if self.__has_cleanup__:
+                await self.cleanup(context)
+        finally:
+            if self.__to_commit__ and self.__detached__:
+                await self.commit_context(parent_context, context)
 
     def serialize(self, mode: str | Literal["python", "json"] = "python") -> ActionEntry:
         """Serialize Action."""
