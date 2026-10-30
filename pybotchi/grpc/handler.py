@@ -43,9 +43,9 @@ class PyBotchiGRPC(PyBotchiGRPCServicer, Generic[TContext]):
         self.groups = groups
         self.__has_validate_metadata__ = self.__class__.validate_metadata is not PyBotchiGRPC.validate_metadata
 
-    async def validate_metadata(self, metadata: Metadata | None) -> None:
+    async def validate_metadata(self, metadata: Metadata | None) -> bool:
         """Validate invocation metadata."""
-        pass
+        return True
 
     async def consume(self, context: TContext, groups: list[str], events: AsyncIterator[Event]) -> None:
         """Consume event."""
@@ -177,7 +177,7 @@ class PyBotchiGRPC(PyBotchiGRPCServicer, Generic[TContext]):
         self, request_iterator: AsyncIterator[Event], context: ServicerContext
     ) -> AsyncGenerator[Event, None]:
         """Consume `connect` method."""
-        if self.__has_validate_metadata__ and self.validate_metadata(context.invocation_metadata()):
+        if self.__has_validate_metadata__ and not await self.validate_metadata(context.invocation_metadata()):
             await context.abort(StatusCode.FAILED_PRECONDITION)
 
         async for event in self.execute_connect(request_iterator, context):
@@ -185,7 +185,7 @@ class PyBotchiGRPC(PyBotchiGRPCServicer, Generic[TContext]):
 
     async def action_list(self, request: ActionListRequest, context: ServicerContext) -> ActionListResponse:
         """Consume `action_list` method."""
-        if self.__has_validate_metadata__ and self.validate_metadata(context.invocation_metadata()):
+        if self.__has_validate_metadata__ and not await self.validate_metadata(context.invocation_metadata()):
             await context.abort(StatusCode.FAILED_PRECONDITION)
 
         actions: dict[type[Action], str] = {}
@@ -215,7 +215,7 @@ class PyBotchiGRPC(PyBotchiGRPCServicer, Generic[TContext]):
 
     async def traverse(self, request: TraverseRequest, context: ServicerContext) -> TraverseGraph:
         """Consume `action_list` method."""
-        if self.__has_validate_metadata__ and self.validate_metadata(context.invocation_metadata()):
+        if self.__has_validate_metadata__ and not await self.validate_metadata(context.invocation_metadata()):
             await context.abort(StatusCode.FAILED_PRECONDITION)
 
         nodes = set(request.nodes)

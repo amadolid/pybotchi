@@ -34,7 +34,7 @@ from orjson import dumps, loads
 from starlette.applications import AppType, Starlette
 from starlette.routing import Mount
 
-from ..action import Action, ChildActions
+from ..action import Action, ChildActions, extend_action
 from ..common import ActionResult, ActionReturn, ChatRole, Graph, Stop
 from ..utils import is_camel_case, string_to_camel_case, unwrap_exceptions
 from .common import MCPConfig, MCPConnection, MCPIntegration, MCPMode
@@ -273,7 +273,7 @@ class MCPAction(Action[TContext]):
             raise ValueError(f"{action.__name__} is not a valid action!")
 
         if extended:
-            action = type(name, (action,), {"__module__": action.__module__})
+            action = extend_action(action, name)
 
         if issubclass(action, MCPToolAction):
             cls.__mcp_tool_actions__[name] = action
@@ -343,7 +343,7 @@ class MCPToolAction(Action[TContext], Generic[TContext]):
 
     async def consume_result_meta(self, context: TContext, meta: dict[str, Any]) -> ActionResult:
         """Consume call tool result's meta."""
-        if self.__mcp_block_return__ and (ret := meta.get("return")):
+        if not self.__mcp_block_return__ and (ret := meta.get("return")):
             return ActionReturn.convert(**ret)
         return None
 

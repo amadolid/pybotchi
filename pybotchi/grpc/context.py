@@ -154,12 +154,12 @@ class GRPCContext(Context[TLLM]):
             {
                 "target": "context",
                 "attrs": ["set_metadata"],
-                "args": [
-                    *paths,
-                    value,
-                    update,
-                    self.context_id,
-                ],
+                "args": [*paths],
+                "kwargs": {
+                    "value": value,
+                    "update": update,
+                    "source_id": self.context_id,
+                },
             },
         )
         await self.grpc_send_down(
@@ -168,12 +168,12 @@ class GRPCContext(Context[TLLM]):
             {
                 "target": "context",
                 "attrs": ["set_metadata"],
-                "args": [
-                    *paths,
-                    value,
-                    update,
-                    self.context_id,
-                ],
+                "args": [*paths],
+                "kwargs": {
+                    "value": value,
+                    "update": update,
+                    "source_id": self.context_id,
+                },
             },
         )
 

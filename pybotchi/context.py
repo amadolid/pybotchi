@@ -80,7 +80,7 @@ class Context(BaseModel, Generic[TLLM]):
     async def check_self_recursion(self, action: "Action") -> ActionResult:
         """Check self recursion."""
         cls = action.__class__
-        name = f"{cls.__module__}.{cls.__name__}"
+        name = f"{cls.__module__}.{cls.__qualname__}"
         if name not in self._action_call:
             self._action_call[name] = 1
         else:
@@ -227,7 +227,7 @@ class Context(BaseModel, Generic[TLLM]):
                         else:
                             target.append(value)
                     case tuple():
-                        match target:
+                        match value:
                             case tuple():
                                 parent_target[paths[-1]] = target + value
                             case Iterable():

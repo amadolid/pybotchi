@@ -17,7 +17,7 @@ from grpc import Compression, ssl_channel_credentials
 from grpc.aio import insecure_channel, secure_channel
 from orjson import dumps
 
-from ..action import Action, ChildActions
+from ..action import Action, ChildActions, extend_action
 from ..common import ActionResult, ActionReturn, Graph
 from ..utils import unwrap_exceptions
 from .common import GRPCConfigLoaded, GRPCConnection, GRPCIntegration
@@ -268,7 +268,7 @@ class GRPCAction(Action[TContext]):
             raise ValueError(f"{action.__name__} is not a valid action!")
 
         if extended:
-            action = type(name, (action,), {"__module__": action.__module__})
+            action = extend_action(action, name)
 
         if issubclass(action, GRPCRemoteAction):
             cls.__grpc_tool_actions__[name] = action

@@ -561,7 +561,7 @@ class Action(BaseModel, Generic[TContext]):
             raise ValueError(f"{action.__name__} is not a valid action!")
 
         if extended:
-            action = type(name, (action,), {"__module__": action.__module__})
+            action = extend_action(action, name)
 
         cls.__child_actions__[name] = action
         setattr(cls, name, action)
@@ -583,8 +583,11 @@ class Action(BaseModel, Generic[TContext]):
         """Remove child action."""
         cls.__child_actions__.pop(name, None)
 
-        if (attr := getattr(cls, name, None)) and isinstance(attr, type) and issubclass(attr, Action):
-            delattr(cls, name)
+        if attr := cls.__dict__.get(name):
+            if isinstance(attr, type) and issubclass(attr, Action):
+                delattr(cls, name)
+        elif (attr := getattr(cls, name, None)) and isinstance(attr, type) and issubclass(attr, Action):
+            setattr(cls, name, None)
 
         queue = deque[type[Action]](cls.__subclasses__())
         while queue:
@@ -602,6 +605,15 @@ class Action(BaseModel, Generic[TContext]):
 ##########################################################################
 #                            Action Utilities                            #
 ##########################################################################
+
+
+def extend_action(action: type[TAction], name: str | None = None) -> type[TAction]:
+    """Extend action as new subclass, retaining its docstring."""
+    return type(
+        name or action.__name__,
+        (action,),
+        {"__module__": action.__module__, "__doc__": action.__doc__},
+    )
 
 
 def all_agents() -> Generator[type["Action"]]:
