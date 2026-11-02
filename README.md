@@ -203,7 +203,9 @@ style __main__.MultiAgent fill:#4CAF50,color:#000000
 
 Every Action follows a structured lifecycle that gives you complete control over execution flow:
 
-![Action Lifecycle](docs/action-life-cycle.png)
+![Action Lifecycle](docs/action-life-cycle.svg)
+
+For the full flow, with every hook, decision, and early return, see the [detailed lifecycle diagram](docs/action-life-cycle-detailed.svg).
 
 ### Flow Control
 
