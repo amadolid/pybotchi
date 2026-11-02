@@ -237,7 +237,7 @@ Executes after all child agents complete. Use for:
 - Recording
 - Logging and notifications
 
-Doesn't run if the lifecycle was halted (`END`, `BREAK`, `STOP`) or an error occurred. Use `cleanup` for anything that must always run.
+Doesn't run if the action ended early (`END`, `BREAK`, `STOP`) or an error occurred. A `BREAK` that only exits this action's own `__max_iteration__` loop still runs `post`. Use `cleanup` for anything that must always run.
 
 #### **`on_child_init_error`** - Child Initialization Error Handling
 Handle errors when a child action fails to initialize (e.g. Pydantic validation on LLM tool arguments):
@@ -247,10 +247,11 @@ Handle errors when a child action fails to initialize (e.g. Pydantic validation 
 
 #### **`on_error`** - Error Handling
 Handle errors during execution with:
-- Retry mechanisms
-- Custom error handling
+- Custom error handling and recovery
 - Logging and alerts
 - Re-raise for parent handling
+
+Returning `None` swallows the error but skips `post`; nothing is retried automatically. Errors from concurrent children arrive wrapped in an `ExceptionGroup`, so inspect `unwrapped_exceptions`. For `MCPAction`/`GRPCAction`, it runs after the connections are closed.
 
 #### **`fallback`** - Non-Tool Results
 Executes when no child agent is selected:
@@ -263,6 +264,8 @@ Controls context merging with main execution:
 - Selective data propagation
 - Isolated execution contexts
 - Custom synchronization rules
+
+Overriding it auto-sets `__detached__ = True`. The default only merges token usages, and it's skipped when an error escapes without an `on_error` override.
 
 #### **`on_max_iteration`** - Max Iteration Handling
 Executes when the `__max_iteration__` limit is reached:
@@ -278,10 +281,10 @@ Always executes when the action finishes, like a `finally` block: on success, on
 - Final logging and metrics
 
 Notes:
-- Runs before `commit_context`, so usage and metadata added to a detached context are still merged into the parent.
+- Runs before `commit_context`, so usage recorded during cleanup is still merged into the parent when the action is detached.
 - May run even when `pre` didn't (e.g. max self recursion, or an early error), so don't assume setup completed.
-- Its return value is ignored and it can't change the flow. If it raises, that error replaces the action's result or original error, but `commit_context` still runs.
-- For `MCPAction`/`GRPCAction`, it runs after the MCP/gRPC connections are closed. Do remote cleanup in `post` or `on_error`.
+- Its return value is ignored and it can't change the flow. If it raises, that error replaces the action's result or original error. `commit_context` still runs, unless the action already failed with an unhandled error.
+- For `MCPAction`/`GRPCAction`, it runs after the MCP/gRPC connections are closed (as does `on_error`). Do remote cleanup in `post`.
 
 ### Extended Lifecycle Hooks
 
@@ -299,10 +302,20 @@ class CustomAgent(MultiAgent):
     class NewAction(Action):  # Add new action
         pass
 
-    class Translate(Translation):  # Override existing
+    class Translate(Translation):  # Override existing (inherits Translation's docstring)
         async def pre(self, context):
             # Custom translation logic
             pass
+```
+
+Or edit the graph at runtime:
+
+```python
+from pybotchi import extend_action
+
+CustomAgent.add_child(Summarize)             # adds a subclass that keeps Summarize's docstring
+CustomAgent.remove_child("NewAction")        # removes a child (inherited ones are hidden with None)
+Forecast = extend_action(Weather, "Forecast")  # the same subclassing, done directly
 ```
 
 ---

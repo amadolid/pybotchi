@@ -3,7 +3,7 @@
 from collections.abc import AsyncGenerator, AsyncIterator, Awaitable
 from contextlib import AsyncExitStack, asynccontextmanager, suppress
 from datetime import timedelta
-from inspect import getdoc, getmembers
+from inspect import getmembers
 from os import getenv
 from typing import Any, Callable, Generic, Literal
 
@@ -119,11 +119,9 @@ class MCPClient:
                 "__mcp_block_return__": self.block_return,
                 "__concurrent__": concurrent,
                 "__module__": f"mcp.{self.name}",
+                "__doc__": tool.description or "",
             },
         )
-
-        if desc := tool.description:
-            action.__doc__ = desc
 
         return class_name, action
 
@@ -136,7 +134,10 @@ class MCPClient:
                 action = type(
                     name,
                     (_tool, action),
-                    {"__module__": f"mcp.{self.name}.patched"},
+                    {
+                        "__module__": f"mcp.{self.name}.patched",
+                        "__doc__": _tool.__doc__ if _tool.__has_doc__ else action.__doc__,
+                    },
                 )
 
             if not self.allowed_tools or self.allowed_tools.get(
@@ -617,7 +618,7 @@ def build_mcp_entry(action_cls: type["Action"]) -> Callable[..., Awaitable[str]]
             pbcontext.prompts.append(
                 {
                     "role": ChatRole.SYSTEM,
-                    "content": action_cls.__system_prompt__ or getdoc(action_cls) or "",
+                    "content": action_cls.__system_prompt__ or action_cls.__doc__ or "",
                 }
             )
 
@@ -670,7 +671,7 @@ def add_mcp_tool(group: str, action: type["Action"], entry: Callable[..., Awaita
             log_level=getenv("MCP_LOGGER_LEVEL", "WARNING"),  # type: ignore[arg-type]
         )
     server.add_tool(
-        entry, action.__name__, action.__display_name__, getdoc(action), meta={"concurrent": action.__concurrent__}
+        entry, action.__name__, action.__display_name__, action.__doc__, meta={"concurrent": action.__concurrent__}
     )
 
 

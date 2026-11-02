@@ -109,11 +109,9 @@ class GRPCClient:
                 "__grpc_block_return__": self.block_return,
                 "__concurrent__": concurrent,
                 "__module__": f"grpc.{agent_id}",
+                "__doc__": schema.description or "",
             },
         )
-
-        if desc := schema.description:
-            action.__doc__ = desc
 
         return class_name, action
 
@@ -132,7 +130,10 @@ class GRPCClient:
                 action = type(
                     name,
                     (_tool, action),
-                    {"__module__": f"{action.__module__}.patched"},
+                    {
+                        "__module__": f"{action.__module__}.patched",
+                        "__doc__": _tool.__doc__ if _tool.__has_doc__ else action.__doc__,
+                    },
                 )
 
             if not self.allowed_actions or self.allowed_actions.get(

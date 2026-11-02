@@ -5,7 +5,7 @@ from __future__ import annotations
 from asyncio import TaskGroup
 from collections import deque
 from collections.abc import Generator
-from inspect import getmembers
+from inspect import getdoc, getmembers
 from os import getenv
 from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar
 
@@ -119,6 +119,7 @@ class Action(BaseModel, Generic[TContext]):
     __display_name__: str
     __groups__: Groups | set[str] | None
     __to_commit__: bool = True
+    __has_doc__: bool = False
 
     # ---------------------------------------------------------- #
 
@@ -140,6 +141,11 @@ class Action(BaseModel, Generic[TContext]):
     def __pydantic_init_subclass__(cls, **kwargs: Any) -> None:
         """Override __pydantic_init_subclass__."""
         src = cls.__dict__
+
+        cls.__has_doc__ = cls.__doc__ is not None
+        if not cls.__has_doc__:
+            cls.__doc__ = getdoc(cls)
+
         cls.__agent__ = src.get("__agent__", False)
         cls.__display_name__ = src.get("__display_name__", cls.__name__)
         cls.__has_pre__ = cls.pre is not Action.pre
@@ -609,11 +615,7 @@ class Action(BaseModel, Generic[TContext]):
 
 def extend_action(action: type[TAction], name: str | None = None) -> type[TAction]:
     """Extend action as new subclass, retaining its docstring."""
-    return type(
-        name or action.__name__,
-        (action,),
-        {"__module__": action.__module__, "__doc__": action.__doc__},
-    )
+    return type(name or action.__name__, (action,), {"__module__": action.__module__})
 
 
 def all_agents() -> Generator[type["Action"]]:
